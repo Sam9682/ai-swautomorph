@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - AI-SwAutoMorph{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h2>Available Applications</h2>
+    
+    <div class="applications-grid">
+        {% for app in applications %}
+        <div class="app-card">
+            <h3>{{ app[0] }}</h3>
+            <p>{{ app[2] or 'No description available' }}</p>
+            <a href="{{ app[1] }}" target="_blank" class="btn btn-primary">Open Application</a>
+        </div>
+        {% endfor %}
+    </div>
+    
+    {% if not applications %}
+    <div class="no-apps">
+        <p>No applications available yet.</p>
+    </div>
+    {% endif %}
+    
+    <div class="add-app-section">
+        <h3>Add New Application</h3>
+        <form id="addAppForm" class="add-app-form">
+            <div class="form-group">
+                <label for="app_name">Application Name:</label>
+                <input type="text" id="app_name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="app_url">URL:</label>
+                <input type="url" id="app_url" name="url" required placeholder="http://example.swautomorph.com">
+            </div>
+            <div class="form-group">
+                <label for="app_description">Description:</label>
+                <textarea id="app_description" name="description" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-secondary">Add Application</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
