@@ -131,9 +131,14 @@ def dashboard():
     cursor = conn.cursor()
     cursor.execute('SELECT name, url, description FROM applications ORDER BY name')
     applications = cursor.fetchall()
+    
+    # Get username for admin check
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    username = user[0] if user else ''
     conn.close()
     
-    return render_template('dashboard.html', applications=applications)
+    return render_template('dashboard.html', applications=applications, username=username)
 
 @app.route('/api/applications', methods=['GET', 'POST'])
 def api_applications():

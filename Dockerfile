@@ -5,11 +5,12 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     sqlite3 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
@@ -26,4 +27,4 @@ ENV FLASK_ENV=production
 ENV SECRET_KEY=change-this-in-production
 
 # Initialize database and start application
-CMD ["python", "app.py"]
+CMD ["python3", "app.py"]

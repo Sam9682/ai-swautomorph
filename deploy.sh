@@ -4,7 +4,41 @@
 
 set -e
 
-echo "🚀 Starting AI-SwAutoMorph deployment..."
+# Handle command line arguments
+COMMAND=${1:-status}
+
+case $COMMAND in
+    "status")
+        echo "📊 AI-SwAutoMorph Service Status:"
+        if command -v docker-compose &> /dev/null; then
+            docker-compose ps
+        else
+            echo "❌ Docker Compose not installed"
+        fi
+        exit 0
+        ;;
+    "stop")
+        echo "🛑 Stopping AI-SwAutoMorph services..."
+        docker-compose down
+        echo "✅ Services stopped"
+        exit 0
+        ;;
+    "logs")
+        docker-compose logs -f
+        exit 0
+        ;;
+    "deploy"|"start")
+        echo "🚀 Starting AI-SwAutoMorph deployment..."
+        ;;
+    *)
+        echo "Usage: $0 [deploy|start|stop|status|logs]"
+        echo "  deploy/start - Deploy and start services (default)"
+        echo "  stop         - Stop all services"
+        echo "  status       - Show service status"
+        echo "  logs         - Show service logs"
+        exit 1
+        ;;
+esac
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
@@ -35,9 +69,13 @@ EOF
     echo "✅ Environment file created (.env)"
 fi
 
+# Clean up existing containers
+echo "🧹 Cleaning up..."
+docker-compose down --remove-orphans 2>/dev/null || true
+
 # Build and start services
 echo "🔨 Building Docker images..."
-docker-compose build
+docker-compose build --no-cache
 
 echo "🚀 Starting services..."
 docker-compose up -d
@@ -55,8 +93,9 @@ if docker-compose ps | grep -q "Up"; then
     echo "   API Endpoint:  http://localhost/api"
     echo ""
     echo "📋 Management Commands:"
-    echo "   View logs:     docker-compose logs -f"
-    echo "   Stop services: docker-compose down"
+    echo "   View logs:     ./deploy.sh logs"
+    echo "   Stop services: ./deploy.sh stop"
+    echo "   Check status:  ./deploy.sh status"
     echo "   CLI access:    python3 cli.py --help"
     echo ""
     echo "📊 Service Status:"
