@@ -27,13 +27,20 @@ case $COMMAND in
         docker-compose logs -f
         exit 0
         ;;
+    "restart")
+        echo "🔄 Restarting AI-SwAutoMorph services..."
+        docker-compose restart
+        echo "✅ Services restarted"
+        exit 0
+        ;;
     "deploy"|"start")
         echo "🚀 Starting AI-SwAutoMorph deployment..."
         ;;
     *)
-        echo "Usage: $0 [deploy|start|stop|status|logs]"
+        echo "Usage: $0 [deploy|start|stop|restart|status|logs]"
         echo "  deploy/start - Deploy and start services (default)"
         echo "  stop         - Stop all services"
+        echo "  restart      - Restart all services"
         echo "  status       - Show service status"
         echo "  logs         - Show service logs"
         exit 1
@@ -95,6 +102,7 @@ if docker-compose ps | grep -q "Up"; then
     echo "📋 Management Commands:"
     echo "   View logs:     ./deploy.sh logs"
     echo "   Stop services: ./deploy.sh stop"
+    echo "   Restart:       ./deploy.sh restart"
     echo "   Check status:  ./deploy.sh status"
     echo "   CLI access:    python3 cli.py --help"
     echo ""
