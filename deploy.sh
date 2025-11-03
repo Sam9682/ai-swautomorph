@@ -5,7 +5,7 @@
 set -e
 
 # Handle command line arguments
-COMMAND=${1:-status}
+COMMAND=${1:-help}
 
 case $COMMAND in
     "status")

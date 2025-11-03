@@ -32,10 +32,15 @@ body {
     font-weight: bold;
 }
 
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
 .nav-links a {
     color: white;
     text-decoration: none;
-    margin-left: 1rem;
     padding: 0.5rem 1rem;
     border-radius: 4px;
     transition: background-color 0.3s;
@@ -43,6 +48,12 @@ body {
 
 .nav-links a:hover {
     background-color: rgba(255,255,255,0.1);
+}
+
+.nav-user {
+    color: #ecf0f1;
+    font-weight: 500;
+    padding: 0.5rem;
 }
 
 .main-content {

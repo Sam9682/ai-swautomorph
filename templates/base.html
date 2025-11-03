@@ -12,6 +12,7 @@
             <h1 class="nav-title">AI-SwAutoMorph</h1>
             {% if session.user_id %}
             <div class="nav-links">
+                {% if username %}<span class="nav-user">Welcome, {{ username }}</span>{% endif %}
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
                 <a href="{{ url_for('logout') }}">Logout</a>
             </div>
