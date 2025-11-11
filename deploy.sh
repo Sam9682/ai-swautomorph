@@ -96,8 +96,8 @@ if docker-compose ps | grep -q "Up"; then
     echo "✅ Services are running!"
     echo ""
     echo "🌐 Application URLs:"
-    echo "   Web Interface: http://localhost"
-    echo "   API Endpoint:  http://localhost/api"
+    echo "   Web Interface: http://www.swautomorph.com"
+    echo "   API Endpoint:  http://www.swautomorph.com/api"
     echo ""
     echo "📋 Management Commands:"
     echo "   View logs:     ./deploy.sh logs"
@@ -116,4 +116,4 @@ fi
 
 echo ""
 echo "🎉 Deployment completed successfully!"
-echo "📖 Check the user guide at: http://localhost/static/userguide.html"
+echo "📖 Check the user guide at: http://www.swautomorph.com/static/userguide.html"

@@ -73,7 +73,7 @@ def get_text(key):
     return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
 
 @app.context_processor
- def inject_language():
+def inject_language():
     return {'get_text': get_text, 'current_lang': get_language()}
 
 def init_db():

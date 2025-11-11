@@ -40,7 +40,7 @@ docker-compose up -d
 ## Access Methods
 
 ### Web Interface
-- URL: `http://localhost`
+- URL: `http://www.swautomorph.com`
 - Features: Registration, login, dashboard, application management
 
 ### CLI Tool
@@ -58,12 +58,12 @@ python3 cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"
 ### REST API
 ```bash
 # Register user
-curl -X POST http://localhost:5000/register \
+curl -X POST http://www.swautomorph.com:5000/register \
   -H "Content-Type: application/json" \
   -d '{"username":"user","email":"user@example.com","password":"pass"}'
 
 # List applications
-curl http://localhost:5000/api/applications
+curl http://www.swautomorph.com:5000/api/applications
 ```
 
 ### MCP Protocol
@@ -123,7 +123,7 @@ The system comes with two default applications:
 
 ## Documentation
 
-Complete user guide available at: `http://localhost/static/userguide.html`
+Complete user guide available at: `http://www.swautomorph.com/static/userguide.html`
 
 ## License
 

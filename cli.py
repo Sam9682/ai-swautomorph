@@ -5,7 +5,7 @@ import json
 import sqlite3
 from werkzeug.security import generate_password_hash
 
-BASE_URL = 'http://localhost:5000'
+BASE_URL = 'http://www.swautomorph.com:5000'
 
 @click.group()
 def cli():
