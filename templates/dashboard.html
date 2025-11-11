@@ -55,6 +55,34 @@
     {% if username == 'admin' %}
     <div id="usersSection" class="tab-content" style="display: none;">
         <h2>Users</h2>
+        <button class="btn btn-primary" onclick="showAddUserForm()">Add User</button>
+        
+        <div id="addUserForm" class="user-form" style="display: none;">
+            <h3>Add New User</h3>
+            <form id="newUserForm">
+                <input type="text" id="newUsername" placeholder="Username" required>
+                <input type="email" id="newEmail" placeholder="Email" required>
+                <input type="password" id="newPassword" placeholder="Password" required>
+                <input type="text" id="newFirstName" placeholder="First Name">
+                <input type="text" id="newLastName" placeholder="Last Name">
+                <button type="submit" class="btn btn-secondary">Create User</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddUserForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="editUserForm" class="user-form" style="display: none;">
+            <h3>Edit User</h3>
+            <form id="updateUserForm">
+                <input type="hidden" id="editUserId">
+                <input type="text" id="editUsername" placeholder="Username" required>
+                <input type="email" id="editEmail" placeholder="Email" required>
+                <input type="text" id="editFirstName" placeholder="First Name">
+                <input type="text" id="editLastName" placeholder="Last Name">
+                <button type="submit" class="btn btn-secondary">Update User</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEditUserForm()">Cancel</button>
+            </form>
+        </div>
+        
         <div id="usersGrid" class="users-grid">
             <div class="loading">Loading users...</div>
         </div>
@@ -85,15 +113,23 @@ function loadUsers() {
                 return;
             }
             
-            let html = '<table class="users-table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>First Name</th><th>Last Name</th><th>Created</th></tr></thead><tbody>';
+            let html = '<table class="users-table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>First Name</th><th>Last Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
             users.forEach(user => {
+                const status = user.suspended ? 'Suspended' : 'Active';
+                const statusClass = user.suspended ? 'status-suspended' : 'status-active';
                 html += `<tr>
                     <td>${user.id}</td>
                     <td>${user.username}</td>
                     <td>${user.email}</td>
                     <td>${user.first_name || ''}</td>
                     <td>${user.last_name || ''}</td>
+                    <td><span class="${statusClass}">${status}</span></td>
                     <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                    <td class="actions">
+                        <button onclick="editUser(${user.id})" class="btn-small">Edit</button>
+                        <button onclick="${user.suspended ? 'unsuspendUser' : 'suspendUser'}(${user.id})" class="btn-small">${user.suspended ? 'Unsuspend' : 'Suspend'}</button>
+                        <button onclick="deleteUser(${user.id})" class="btn-small btn-danger">Delete</button>
+                    </td>
                 </tr>`;
             });
             html += '</tbody></table>';
@@ -103,5 +139,119 @@ function loadUsers() {
             document.getElementById('usersGrid').innerHTML = '<p>Error loading users.</p>';
         });
 }
+
+function showAddUserForm() {
+    document.getElementById('addUserForm').style.display = 'block';
+}
+
+function hideAddUserForm() {
+    document.getElementById('addUserForm').style.display = 'none';
+    document.getElementById('newUserForm').reset();
+}
+
+function showEditUserForm() {
+    document.getElementById('editUserForm').style.display = 'block';
+}
+
+function hideEditUserForm() {
+    document.getElementById('editUserForm').style.display = 'none';
+    document.getElementById('updateUserForm').reset();
+}
+
+function editUser(userId) {
+    fetch('/api/users')
+        .then(response => response.json())
+        .then(users => {
+            const user = users.find(u => u.id === userId);
+            if (user) {
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editUsername').value = user.username;
+                document.getElementById('editEmail').value = user.email;
+                document.getElementById('editFirstName').value = user.first_name || '';
+                document.getElementById('editLastName').value = user.last_name || '';
+                showEditUserForm();
+            }
+        });
+}
+
+function suspendUser(userId) {
+    if (confirm('Are you sure you want to suspend this user?')) {
+        fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'suspend'})
+        })
+        .then(() => loadUsers());
+    }
+}
+
+function unsuspendUser(userId) {
+    fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'unsuspend'})
+    })
+    .then(() => loadUsers());
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        fetch(`/api/users/${userId}`, {method: 'DELETE'})
+        .then(() => loadUsers());
+    }
+}
+
+document.getElementById('newUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = {
+        username: document.getElementById('newUsername').value,
+        email: document.getElementById('newEmail').value,
+        password: document.getElementById('newPassword').value,
+        first_name: document.getElementById('newFirstName').value,
+        last_name: document.getElementById('newLastName').value
+    };
+    
+    fetch('/api/users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            hideAddUserForm();
+            loadUsers();
+        }
+    });
+});
+
+document.getElementById('updateUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('editUserId').value;
+    const formData = {
+        action: 'update',
+        username: document.getElementById('editUsername').value,
+        email: document.getElementById('editEmail').value,
+        first_name: document.getElementById('editFirstName').value,
+        last_name: document.getElementById('editLastName').value
+    };
+    
+    fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            hideEditUserForm();
+            loadUsers();
+        }
+    });
+});
 </script>
 {% endblock %}

@@ -92,9 +92,16 @@ def init_db():
             password_hash TEXT NOT NULL,
             first_name TEXT,
             last_name TEXT,
+            suspended INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Add suspended column if it doesn't exist
+    cursor.execute("PRAGMA table_info(users)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'suspended' not in columns:
+        cursor.execute('ALTER TABLE users ADD COLUMN suspended INTEGER DEFAULT 0')
     
     # Applications table
     cursor.execute('''
@@ -184,11 +191,11 @@ def login():
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT id, password_hash FROM users WHERE username = ?', (username,))
+    cursor.execute('SELECT id, password_hash, suspended FROM users WHERE username = ?', (username,))
     user = cursor.fetchone()
     conn.close()
     
-    if user and check_password_hash(user[1], password):
+    if user and not user[2] and check_password_hash(user[1], password):
         session['user_id'] = user[0]
         
         # Generate SSO token
@@ -380,7 +387,7 @@ def auth_status():
         'sso_token': session.get('sso_token', '')
     })
 
-@app.route('/api/users')
+@app.route('/api/users', methods=['GET', 'POST'])
 def api_users():
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
@@ -394,19 +401,95 @@ def api_users():
     if not user or user[0] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    # Get all users
-    cursor.execute('SELECT id, username, email, first_name, last_name, created_at FROM users ORDER BY username')
-    users = [{
-        'id': row[0],
-        'username': row[1], 
-        'email': row[2],
-        'first_name': row[3],
-        'last_name': row[4],
-        'created_at': row[5]
-    } for row in cursor.fetchall()]
+    if request.method == 'GET':
+        # Get all users
+        cursor.execute('SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username')
+        users = [{
+            'id': row[0],
+            'username': row[1], 
+            'email': row[2],
+            'first_name': row[3],
+            'last_name': row[4],
+            'suspended': bool(row[5]),
+            'created_at': row[6]
+        } for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(users)
     
-    conn.close()
-    return jsonify(users)
+    elif request.method == 'POST':
+        # Add new user
+        data = request.get_json()
+        username = data.get('username')
+        email = data.get('email')
+        password = data.get('password')
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        
+        if not all([username, email, password]):
+            return jsonify({'error': 'Username, email and password required'}), 400
+        
+        try:
+            password_hash = generate_password_hash(password)
+            cursor.execute('''
+                INSERT INTO users (username, email, password_hash, first_name, last_name)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (username, email, password_hash, first_name, last_name))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'User created successfully'}), 201
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'error': 'Username or email already exists'}), 409
+
+@app.route('/api/users/<int:user_id>', methods=['PUT', 'DELETE'])
+def api_user_actions(user_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        action = data.get('action')
+        
+        if action == 'suspend':
+            cursor.execute('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
+        elif action == 'unsuspend':
+            cursor.execute('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
+        elif action == 'update':
+            username = data.get('username')
+            email = data.get('email')
+            first_name = data.get('first_name', '')
+            last_name = data.get('last_name', '')
+            
+            if not all([username, email]):
+                return jsonify({'error': 'Username and email required'}), 400
+            
+            try:
+                cursor.execute('''
+                    UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?
+                    WHERE id = ?
+                ''', (username, email, first_name, last_name, user_id))
+            except sqlite3.IntegrityError:
+                conn.close()
+                return jsonify({'error': 'Username or email already exists'}), 409
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'User updated successfully'})
+    
+    elif request.method == 'DELETE':
+        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'User deleted successfully'})
 
 if __name__ == '__main__':
     init_db()
