@@ -380,6 +380,34 @@ def auth_status():
         'sso_token': session.get('sso_token', '')
     })
 
+@app.route('/api/users')
+def api_users():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Get all users
+    cursor.execute('SELECT id, username, email, first_name, last_name, created_at FROM users ORDER BY username')
+    users = [{
+        'id': row[0],
+        'username': row[1], 
+        'email': row[2],
+        'first_name': row[3],
+        'last_name': row[4],
+        'created_at': row[5]
+    } for row in cursor.fetchall()]
+    
+    conn.close()
+    return jsonify(users)
+
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5002, debug=os.environ.get('FLASK_ENV') == 'development')
+    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_ENV') == 'development')

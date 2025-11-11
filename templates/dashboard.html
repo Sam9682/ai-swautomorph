@@ -4,7 +4,15 @@
 
 {% block content %}
 <div class="dashboard-container">
-    <h2>{{ get_text('available_applications') }}</h2>
+    {% if username == 'admin' %}
+    <div class="admin-menu">
+        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">Applications</button>
+        <button id="usersTab" class="tab-btn" onclick="showTab('users')">Users</button>
+    </div>
+    {% endif %}
+    
+    <div id="appsSection" class="tab-content">
+        <h2>{{ get_text('available_applications') }}</h2>
     
     <div class="applications-grid">
         {% for app in applications %}
@@ -22,7 +30,7 @@
     </div>
     {% endif %}
     
-    {% if username == 'slepetre' %}
+    {% if username == 'admin' %}
     <div class="add-app-section">
         <h3>{{ get_text('add_new_application') }}</h3>
         <form id="addAppForm" class="add-app-form">
@@ -42,5 +50,58 @@
         </form>
     </div>
     {% endif %}
+    </div>
+    
+    {% if username == 'admin' %}
+    <div id="usersSection" class="tab-content" style="display: none;">
+        <h2>Users</h2>
+        <div id="usersGrid" class="users-grid">
+            <div class="loading">Loading users...</div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<script>
+function showTab(tab) {
+    document.getElementById('appsSection').style.display = tab === 'apps' ? 'block' : 'none';
+    document.getElementById('usersSection').style.display = tab === 'users' ? 'block' : 'none';
+    
+    document.getElementById('appsTab').classList.toggle('active', tab === 'apps');
+    document.getElementById('usersTab').classList.toggle('active', tab === 'users');
+    
+    if (tab === 'users') {
+        loadUsers();
+    }
+}
+
+function loadUsers() {
+    fetch('/api/users')
+        .then(response => response.json())
+        .then(users => {
+            const grid = document.getElementById('usersGrid');
+            if (users.length === 0) {
+                grid.innerHTML = '<p>No users found.</p>';
+                return;
+            }
+            
+            let html = '<table class="users-table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>First Name</th><th>Last Name</th><th>Created</th></tr></thead><tbody>';
+            users.forEach(user => {
+                html += `<tr>
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.first_name || ''}</td>
+                    <td>${user.last_name || ''}</td>
+                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            grid.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('usersGrid').innerHTML = '<p>Error loading users.</p>';
+        });
+}
+</script>
 {% endblock %}

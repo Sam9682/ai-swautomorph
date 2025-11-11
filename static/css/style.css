@@ -238,6 +238,72 @@ body {
     max-width: 500px;
 }
 
+.admin-menu {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #666;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    color: #3498db;
+    border-bottom-color: #3498db;
+}
+
+.tab-btn:hover {
+    color: #3498db;
+}
+
+.tab-content {
+    margin-top: 1rem;
+}
+
+.users-grid {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.users-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.users-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.users-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.loading {
+    padding: 2rem;
+    text-align: center;
+    color: #666;
+}
+
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
@@ -258,5 +324,14 @@ body {
     
     .main-content {
         padding: 0 1rem;
+    }
+    
+    .users-table {
+        font-size: 0.9rem;
+    }
+    
+    .users-table th,
+    .users-table td {
+        padding: 0.5rem;
     }
 }
