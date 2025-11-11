@@ -304,6 +304,63 @@ body {
     color: #666;
 }
 
+.user-form {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 1rem 0;
+}
+
+.user-form input {
+    width: 100%;
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.user-form button {
+    margin: 0.5rem 0.5rem 0 0;
+}
+
+.actions {
+    white-space: nowrap;
+}
+
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    margin: 0 0.25rem;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-small:hover {
+    background-color: #2980b9;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+.status-active {
+    color: #27ae60;
+    font-weight: bold;
+}
+
+.status-suspended {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
