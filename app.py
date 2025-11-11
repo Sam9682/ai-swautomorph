@@ -126,6 +126,19 @@ def init_db():
         )
     ''')
     
+    # User application assignments table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            application_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (application_id) REFERENCES applications (id),
+            UNIQUE(user_id, application_id)
+        )
+    ''')
+    
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
@@ -225,13 +238,27 @@ def dashboard():
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
-    applications = cursor.fetchall()
     
     # Get username for admin check
     cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
     user = cursor.fetchone()
     username = user[0] if user else ''
+    
+    # Get applications based on user role
+    if username == 'admin':
+        # Admin sees all applications
+        cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
+    else:
+        # Regular users see only assigned applications
+        cursor.execute('''
+            SELECT a.id, a.name, a.url, a.description 
+            FROM applications a
+            JOIN user_applications ua ON a.id = ua.application_id
+            WHERE ua.user_id = ?
+            ORDER BY a.name
+        ''', (session['user_id'],))
+    
+    applications = cursor.fetchall()
     conn.close()
     
     # Get SSO token for the user
@@ -534,6 +561,66 @@ def api_user_actions(user_id):
         conn.commit()
         conn.close()
         return jsonify({'message': 'User deleted successfully'})
+
+@app.route('/api/users/<int:user_id>/applications', methods=['GET', 'POST', 'DELETE'])
+def api_user_applications(user_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'GET':
+        # Get assigned applications for user
+        cursor.execute('''
+            SELECT a.id, a.name FROM applications a
+            JOIN user_applications ua ON a.id = ua.application_id
+            WHERE ua.user_id = ?
+        ''', (user_id,))
+        assigned = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+        
+        # Get all applications
+        cursor.execute('SELECT id, name FROM applications ORDER BY name')
+        all_apps = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+        
+        conn.close()
+        return jsonify({'assigned': assigned, 'all': all_apps})
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        app_id = data.get('application_id')
+        
+        if not app_id:
+            return jsonify({'error': 'Application ID required'}), 400
+        
+        try:
+            cursor.execute('INSERT INTO user_applications (user_id, application_id) VALUES (?, ?)',
+                          (user_id, app_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Application assigned successfully'})
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'error': 'Application already assigned'}), 409
+    
+    elif request.method == 'DELETE':
+        data = request.get_json()
+        app_id = data.get('application_id')
+        
+        if not app_id:
+            return jsonify({'error': 'Application ID required'}), 400
+        
+        cursor.execute('DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
+                      (user_id, app_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Application unassigned successfully'})
 
 if __name__ == '__main__':
     init_db()

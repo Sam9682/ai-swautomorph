@@ -117,6 +117,21 @@
         <div id="usersGrid" class="users-grid">
             <div class="loading">Loading users...</div>
         </div>
+        
+        <div id="manageAppsForm" class="user-form" style="display: none;">
+            <h3>Manage Applications for <span id="selectedUsername"></span></h3>
+            <div class="apps-management">
+                <div class="available-apps">
+                    <h4>Available Applications</h4>
+                    <div id="availableAppsList"></div>
+                </div>
+                <div class="assigned-apps">
+                    <h4>Assigned Applications</h4>
+                    <div id="assignedAppsList"></div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="hideManageAppsForm()">Close</button>
+        </div>
     </div>
     {% endif %}
 </div>
@@ -158,6 +173,7 @@ function loadUsers() {
                     <td>${new Date(user.created_at).toLocaleDateString()}</td>
                     <td class="actions">
                         <button onclick="editUser(${user.id})" class="btn-small">Edit</button>
+                        <button onclick="manageUserApps(${user.id}, '${user.username}')" class="btn-small">Apps</button>
                         <button onclick="${user.suspended ? 'unsuspendUser' : 'suspendUser'}(${user.id})" class="btn-small">${user.suspended ? 'Unsuspend' : 'Suspend'}</button>
                         <button onclick="deleteUser(${user.id})" class="btn-small btn-danger">Delete</button>
                     </td>
@@ -359,5 +375,63 @@ document.getElementById('updateAppForm').addEventListener('submit', function(e) 
         }
     });
 });
+
+// User application management functions
+function manageUserApps(userId, username) {
+    document.getElementById('selectedUsername').textContent = username;
+    document.getElementById('manageAppsForm').style.display = 'block';
+    loadUserApplications(userId);
+}
+
+function hideManageAppsForm() {
+    document.getElementById('manageAppsForm').style.display = 'none';
+}
+
+function loadUserApplications(userId) {
+    fetch(`/api/users/${userId}/applications`)
+        .then(response => response.json())
+        .then(data => {
+            const availableList = document.getElementById('availableAppsList');
+            const assignedList = document.getElementById('assignedAppsList');
+            
+            // Show available applications (not assigned)
+            const available = data.all.filter(app => 
+                !data.assigned.some(assigned => assigned.id === app.id)
+            );
+            
+            availableList.innerHTML = available.map(app => 
+                `<div class="app-item">
+                    <span>${app.name}</span>
+                    <button onclick="assignApp(${userId}, ${app.id})" class="btn-small">Assign</button>
+                </div>`
+            ).join('');
+            
+            // Show assigned applications
+            assignedList.innerHTML = data.assigned.map(app => 
+                `<div class="app-item">
+                    <span>${app.name}</span>
+                    <button onclick="unassignApp(${userId}, ${app.id})" class="btn-small btn-danger">Remove</button>
+                </div>`
+            ).join('');
+        });
+}
+
+function assignApp(userId, appId) {
+    fetch(`/api/users/${userId}/applications`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({application_id: appId})
+    })
+    .then(() => loadUserApplications(userId));
+}
+
+function unassignApp(userId, appId) {
+    fetch(`/api/users/${userId}/applications`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({application_id: appId})
+    })
+    .then(() => loadUserApplications(userId));
+}
 </script>
 {% endblock %}

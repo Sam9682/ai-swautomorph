@@ -399,6 +399,43 @@ body {
     color: #2c3e50;
 }
 
+.apps-management {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin: 1rem 0;
+}
+
+.available-apps, .assigned-apps {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.available-apps h4, .assigned-apps h4 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5rem;
+}
+
+.app-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.app-item:last-child {
+    border-bottom: none;
+}
+
+.app-item span {
+    flex: 1;
+    font-weight: 500;
+}
+
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
