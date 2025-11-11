@@ -10,13 +10,19 @@
     <nav class="navbar">
         <div class="nav-container">
             <h1 class="nav-title">AI-SwAutoMorph</h1>
-            {% if session.user_id %}
-            <div class="nav-links">
-                {% if username %}<span class="nav-user">Welcome, {{ username }}</span>{% endif %}
-                <a href="{{ url_for('dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('logout') }}">Logout</a>
+            <div class="nav-center">
+                {% if session.user_id %}
+                <div class="nav-links">
+                    {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
+                    <a href="{{ url_for('dashboard') }}">{{ get_text('dashboard') }}</a>
+                    <a href="{{ url_for('logout') }}">{{ get_text('logout') }}</a>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
+            <div class="lang-toggle">
+                <a href="{{ url_for('set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
+                <a href="{{ url_for('set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
+            </div>
         </div>
     </nav>
     

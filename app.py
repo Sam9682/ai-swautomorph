@@ -11,6 +11,71 @@ app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-producti
 
 DB_PATH = 'ai_swautomorph.db'
 
+# Language translations
+TRANSLATIONS = {
+    'en': {
+        'login': 'Login',
+        'register': 'Register',
+        'username': 'Username',
+        'email': 'Email',
+        'password': 'Password',
+        'first_name': 'First Name',
+        'last_name': 'Last Name',
+        'dashboard': 'Dashboard',
+        'logout': 'Logout',
+        'welcome': 'Welcome',
+        'available_applications': 'Available Applications',
+        'add_new_application': 'Add New Application',
+        'application_name': 'Application Name',
+        'url': 'URL',
+        'description': 'Description',
+        'add_application': 'Add Application',
+        'no_apps': 'No applications available yet.',
+        'already_account': 'Already have an account?',
+        'no_account': "Don't have an account?",
+        'login_here': 'Login here',
+        'register_here': 'Register here',
+        'open_application': 'Open Application',
+        'no_description': 'No description available'
+    },
+    'fr': {
+        'login': 'Connexion',
+        'register': 'Inscription',
+        'username': "Nom d'utilisateur",
+        'email': 'Email',
+        'password': 'Mot de passe',
+        'first_name': 'Prénom',
+        'last_name': 'Nom',
+        'dashboard': 'Tableau de bord',
+        'logout': 'Déconnexion',
+        'welcome': 'Bienvenue',
+        'available_applications': 'Applications disponibles',
+        'add_new_application': 'Ajouter une nouvelle application',
+        'application_name': "Nom de l'application",
+        'url': 'URL',
+        'description': 'Description',
+        'add_application': 'Ajouter une application',
+        'no_apps': 'Aucune application disponible pour le moment.',
+        'already_account': 'Vous avez déjà un compte ?',
+        'no_account': "Vous n'avez pas de compte ?",
+        'login_here': 'Connectez-vous ici',
+        'register_here': 'Inscrivez-vous ici',
+        'open_application': "Ouvrir l'application",
+        'no_description': 'Aucune description disponible'
+    }
+}
+
+def get_language():
+    return session.get('language', 'en')
+
+def get_text(key):
+    lang = get_language()
+    return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+
+@app.context_processor
+ def inject_language():
+    return {'get_text': get_text, 'current_lang': get_language()}
+
 def init_db():
     """Initialize database with required tables"""
     conn = sqlite3.connect(DB_PATH)
@@ -171,6 +236,12 @@ def api_applications():
         conn.close()
         
         return jsonify({'message': 'Application added successfully'}), 201
+
+@app.route('/set_language/<language>')
+def set_language(language):
+    if language in ['en', 'fr']:
+        session['language'] = language
+    return redirect(request.referrer or url_for('index'))
 
 @app.route('/api/auth/status')
 def auth_status():
