@@ -41,7 +41,8 @@ docker-compose up -d
 ## Access Methods
 
 ### Web Interface
-- URL: `http://www.swautomorph.com`
+- URL: `https://www.swautomorph.com` (HTTPS secured)
+- HTTP redirect: `http://www.swautomorph.com` (automatically redirects to HTTPS)
 - Features: Registration, login, dashboard, application management
 
 ### CLI Tool
@@ -59,15 +60,15 @@ python3 cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"
 ### REST API
 ```bash
 # Register user
-curl -X POST http://www.swautomorph.com:5000/register \
+curl -X POST https://www.swautomorph.com/register \
   -H "Content-Type: application/json" \
   -d '{"username":"user","email":"user@example.com","password":"pass"}'
 
 # List applications
-curl http://www.swautomorph.com:5000/api/applications
+curl https://www.swautomorph.com/api/applications
 
 # Validate SSO token
-curl -X POST http://www.swautomorph.com:5000/sso/validate \
+curl -X POST https://www.swautomorph.com/sso/validate \
   -H "Content-Type: application/json" \
   -d '{"token":"your_sso_token_here"}'
 ```
@@ -114,8 +115,8 @@ ai-swautomorph/
 ## Default Applications
 
 The system comes with two default applications:
-- **AI FoodFlow**: `http://ai-foodflow.swautomorph.com:3001`
-- **AI HACCP**: `http://ai-haccp.swautomorph.com:3000`
+- **AI FoodFlow**: `https://ai-foodflow.swautomorph.com:3001`
+- **AI HACCP**: `https://ai-haccp.swautomorph.com:3000`
 
 ## Environment Variables
 
@@ -143,9 +144,32 @@ The system comes with two default applications:
 - Tokens are hashed in database for security
 - Only one active token per user (new login invalidates previous token)
 
+## SSL/HTTPS Security
+
+### Development (Self-Signed Certificate)
+```bash
+# Generate self-signed certificate (automatic during deployment)
+./generate_ssl.sh
+```
+
+### Production (Let's Encrypt)
+```bash
+# Setup Let's Encrypt certificate
+sudo ./setup_letsencrypt.sh
+
+# Auto-renewal (add to crontab)
+0 12 * * * /usr/bin/certbot renew --quiet && docker-compose restart nginx
+```
+
+### Security Features
+- 🔒 TLS 1.2/1.3 encryption
+- 🔄 HTTP to HTTPS redirect
+- 🛡️ Security headers (HSTS, X-Frame-Options, etc.)
+- 📜 SSL certificate validation
+
 ## Documentation
 
-Complete user guide available at: `http://www.swautomorph.com/static/userguide.html`
+Complete user guide available at: `https://www.swautomorph.com/static/userguide.html`
 
 ## License
 

@@ -17,9 +17,19 @@
     <div class="applications-grid">
         {% for app in applications %}
         <div class="app-card">
-            <h3>{{ app[0] }}</h3>
-            <p>{{ app[2] or get_text('no_description') }}</p>
-            <a href="{{ url_for('sso_login', app_name=app[0]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
+            {% if username == 'admin' %}
+            <div class="app-actions">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}')" class="btn-icon" title="Edit">
+                    ✏️
+                </button>
+                <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
+                    🗑️
+                </button>
+            </div>
+            {% endif %}
+            <h3>{{ app[1] }}</h3>
+            <p>{{ app[3] or get_text('no_description') }}</p>
+            <a href="{{ url_for('sso_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
         </div>
         {% endfor %}
     </div>
@@ -47,6 +57,27 @@
                 <textarea id="app_description" name="description" rows="3"></textarea>
             </div>
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
+        </form>
+    </div>
+    
+    <div id="editAppForm" class="app-form" style="display: none;">
+        <h3>Edit Application</h3>
+        <form id="updateAppForm">
+            <input type="hidden" id="editAppId">
+            <div class="form-group">
+                <label for="editAppName">{{ get_text('application_name') }}:</label>
+                <input type="text" id="editAppName" required>
+            </div>
+            <div class="form-group">
+                <label for="editAppUrl">{{ get_text('url') }}:</label>
+                <input type="url" id="editAppUrl" required>
+            </div>
+            <div class="form-group">
+                <label for="editAppDescription">{{ get_text('description') }}:</label>
+                <textarea id="editAppDescription" rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn btn-secondary">Update Application</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">Cancel</button>
         </form>
     </div>
     {% endif %}
@@ -250,6 +281,81 @@ document.getElementById('updateUserForm').addEventListener('submit', function(e)
         } else {
             hideEditUserForm();
             loadUsers();
+        }
+    });
+});
+
+// Application management functions
+function editApp(id, name, url, description) {
+    document.getElementById('editAppId').value = id;
+    document.getElementById('editAppName').value = name;
+    document.getElementById('editAppUrl').value = url;
+    document.getElementById('editAppDescription').value = description;
+    document.getElementById('editAppForm').style.display = 'block';
+}
+
+function hideEditAppForm() {
+    document.getElementById('editAppForm').style.display = 'none';
+    document.getElementById('updateAppForm').reset();
+}
+
+function deleteApp(id, name) {
+    if (confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+        fetch(`/api/applications/${id}`, {method: 'DELETE'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                location.reload();
+            }
+        });
+    }
+}
+
+document.getElementById('addAppForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = {
+        name: document.getElementById('app_name').value,
+        url: document.getElementById('app_url').value,
+        description: document.getElementById('app_description').value
+    };
+    
+    fetch('/api/applications', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            location.reload();
+        }
+    });
+});
+
+document.getElementById('updateAppForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const appId = document.getElementById('editAppId').value;
+    const formData = {
+        name: document.getElementById('editAppName').value,
+        url: document.getElementById('editAppUrl').value,
+        description: document.getElementById('editAppDescription').value
+    };
+    
+    fetch(`/api/applications/${appId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            location.reload();
         }
     });
 });

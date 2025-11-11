@@ -225,7 +225,7 @@ def dashboard():
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute('SELECT name, url, description FROM applications ORDER BY name')
+    cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
     applications = cursor.fetchall()
     
     # Get username for admin check
@@ -254,6 +254,15 @@ def api_applications():
         if 'user_id' not in session:
             return jsonify({'error': 'Authentication required'}), 401
         
+        # Check if user is admin
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
+        
+        if not user or user[0] != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+        
         data = request.get_json()
         name = data.get('name')
         url = data.get('url')
@@ -262,14 +271,49 @@ def api_applications():
         if not all([name, url]):
             return jsonify({'error': 'Name and URL required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
         cursor.execute('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)',
                       (name, url, description))
         conn.commit()
         conn.close()
         
         return jsonify({'message': 'Application added successfully'}), 201
+
+@app.route('/api/applications/<int:app_id>', methods=['PUT', 'DELETE'])
+def api_application_actions(app_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        name = data.get('name')
+        url = data.get('url')
+        description = data.get('description', '')
+        
+        if not all([name, url]):
+            return jsonify({'error': 'Name and URL required'}), 400
+        
+        cursor.execute('''
+            UPDATE applications SET name = ?, url = ?, description = ?
+            WHERE id = ?
+        ''', (name, url, description, app_id))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Application updated successfully'})
+    
+    elif request.method == 'DELETE':
+        cursor.execute('DELETE FROM applications WHERE id = ?', (app_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'Application deleted successfully'})
 
 @app.route('/set_language/<language>')
 def set_language(language):
