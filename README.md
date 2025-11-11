@@ -7,6 +7,7 @@ A centralized application management platform with user authentication and multi
 - 🔐 User registration and authentication
 - 🌐 Web-based dashboard
 - 📱 Application management with database storage
+- 🔑 SSO Identity Provider with token-based authentication
 - 🐳 Docker containerization
 - 🖥️ Command-line interface (CLI)
 - 🔌 REST API endpoints
@@ -64,6 +65,21 @@ curl -X POST http://www.swautomorph.com:5000/register \
 
 # List applications
 curl http://www.swautomorph.com:5000/api/applications
+
+# Validate SSO token
+curl -X POST http://www.swautomorph.com:5000/sso/validate \
+  -H "Content-Type: application/json" \
+  -d '{"token":"your_sso_token_here"}'
+```
+
+### SSO Integration
+```bash
+# Validate token via CLI
+python3 cli.py validate-token --token "your_token_here"
+
+# Access application with SSO
+# Users click application links in dashboard, automatically redirected with token
+# Example: http://ai-haccp.swautomorph.com?sso_token=abc123...
 ```
 
 ### MCP Protocol
@@ -114,12 +130,18 @@ The system comes with two default applications:
 ### Applications Table
 - id, name, url, description, created_at
 
+### Auth Tokens Table (SSO)
+- id, user_id, token_hash, expires_at, created_at
+
 ## Security Notes
 
 - Change default SECRET_KEY in production
 - Use HTTPS for production deployments
 - Implement proper firewall rules
 - Regular database backups recommended
+- SSO tokens expire after 1 week automatically
+- Tokens are hashed in database for security
+- Only one active token per user (new login invalidates previous token)
 
 ## Documentation
 

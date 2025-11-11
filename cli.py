@@ -83,6 +83,27 @@ def add_app(name, url, description):
         click.echo(f'Error: {str(e)}')
 
 @cli.command()
+@click.option('--token', prompt=True, help='SSO token to validate')
+def validate_token(token):
+    """Validate an SSO token"""
+    data = {'token': token}
+    
+    try:
+        response = requests.post(f'{BASE_URL}/sso/validate', json=data)
+        if response.status_code == 200:
+            result = response.json()
+            if result['valid']:
+                user = result['user']
+                click.echo(f'Token is valid for user: {user["username"]} ({user["email"]})')
+                click.echo(f'Expires at: {user["expires_at"]}')
+            else:
+                click.echo('Token is invalid or expired')
+        else:
+            click.echo('Token validation failed')
+    except requests.exceptions.ConnectionError:
+        click.echo('Error: Cannot connect to server. Make sure the application is running.')
+
+@cli.command()
 def init_db():
     """Initialize the database"""
     from app import init_db as app_init_db

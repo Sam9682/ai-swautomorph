@@ -11,7 +11,7 @@
         <div class="app-card">
             <h3>{{ app[0] }}</h3>
             <p>{{ app[2] or get_text('no_description') }}</p>
-            <a href="{{ app[1] }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
+            <a href="{{ url_for('sso_login', app_name=app[0]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
         </div>
         {% endfor %}
     </div>

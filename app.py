@@ -3,8 +3,10 @@ from flask import Flask, request, jsonify, render_template, session, redirect, u
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import secrets
+import hashlib
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -105,12 +107,24 @@ def init_db():
         )
     ''')
     
+    # Authentication tokens table for SSO
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS auth_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token_hash TEXT UNIQUE NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
         default_apps = [
             ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com', 'Food management system'),
-            ('AI HACCP', 'http://ai-haccp.swautomorph.com', 'HACCP compliance system')
+            ('AI HACCP', 'http://ai-haccp.swautomorph.com:3000', 'HACCP compliance system')
         ]
         cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
     
@@ -176,15 +190,25 @@ def login():
     
     if user and check_password_hash(user[1], password):
         session['user_id'] = user[0]
+        
+        # Generate SSO token
+        token = generate_sso_token(user[0])
+        session['sso_token'] = token
+        
         if request.is_json:
-            return jsonify({'message': 'Login successful'}), 200
+            return jsonify({'message': 'Login successful', 'sso_token': token}), 200
         return redirect(url_for('dashboard'))
     
     return jsonify({'error': 'Invalid credentials'}), 401
 
 @app.route('/logout')
 def logout():
+    # Invalidate SSO token
+    if 'sso_token' in session:
+        invalidate_sso_token(session['sso_token'])
+    
     session.pop('user_id', None)
+    session.pop('sso_token', None)
     return redirect(url_for('index'))
 
 @app.route('/dashboard')
@@ -203,7 +227,10 @@ def dashboard():
     username = user[0] if user else ''
     conn.close()
     
-    return render_template('dashboard.html', applications=applications, username=username)
+    # Get SSO token for the user
+    sso_token = session.get('sso_token', '')
+    
+    return render_template('dashboard.html', applications=applications, username=username, sso_token=sso_token)
 
 @app.route('/api/applications', methods=['GET', 'POST'])
 def api_applications():
@@ -243,10 +270,116 @@ def set_language(language):
         session['language'] = language
     return redirect(request.referrer or url_for('index'))
 
+def generate_sso_token(user_id):
+    """Generate a new SSO token for the user"""
+    token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires_at = datetime.now() + timedelta(weeks=1)
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Remove existing tokens for this user
+    cursor.execute('DELETE FROM auth_tokens WHERE user_id = ?', (user_id,))
+    
+    # Insert new token
+    cursor.execute('''
+        INSERT INTO auth_tokens (user_id, token_hash, expires_at)
+        VALUES (?, ?, ?)
+    ''', (user_id, token_hash, expires_at))
+    
+    conn.commit()
+    conn.close()
+    
+    return token
+
+def invalidate_sso_token(token):
+    """Invalidate an SSO token"""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM auth_tokens WHERE token_hash = ?', (token_hash,))
+    conn.commit()
+    conn.close()
+
+def validate_sso_token(token):
+    """Validate an SSO token and return user info"""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT u.id, u.username, u.email, u.first_name, u.last_name, t.expires_at
+        FROM auth_tokens t
+        JOIN users u ON t.user_id = u.id
+        WHERE t.token_hash = ? AND t.expires_at > datetime('now')
+    ''', (token_hash,))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        return {
+            'id': result[0],
+            'username': result[1],
+            'email': result[2],
+            'first_name': result[3],
+            'last_name': result[4],
+            'expires_at': result[5]
+        }
+    return None
+
+@app.route('/sso/validate', methods=['POST'])
+def sso_validate():
+    """SSO endpoint for applications to validate tokens"""
+    data = request.get_json()
+    token = data.get('token') if data else None
+    
+    if not token:
+        return jsonify({'error': 'Token required'}), 400
+    
+    user_info = validate_sso_token(token)
+    
+    if user_info:
+        return jsonify({
+            'valid': True,
+            'user': user_info
+        }), 200
+    else:
+        return jsonify({'valid': False}), 401
+
+@app.route('/sso/login/<app_name>')
+def sso_login(app_name):
+    """SSO login endpoint that redirects to application with token"""
+    if 'user_id' not in session or 'sso_token' not in session:
+        return redirect(url_for('index'))
+    
+    # Get application URL
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT url FROM applications WHERE name = ?', (app_name,))
+    app = cursor.fetchone()
+    conn.close()
+    
+    if not app:
+        return jsonify({'error': 'Application not found'}), 404
+    
+    app_url = app[0]
+    sso_token = session['sso_token']
+    
+    # Redirect to application with SSO token
+    redirect_url = f"{app_url}?sso_token={sso_token}"
+    return redirect(redirect_url)
+
 @app.route('/api/auth/status')
 def auth_status():
-    return jsonify({'authenticated': 'user_id' in session})
+    return jsonify({
+        'authenticated': 'user_id' in session,
+        'sso_token': session.get('sso_token', '')
+    })
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_ENV') == 'development')
+    app.run(host='0.0.0.0', port=5002, debug=os.environ.get('FLASK_ENV') == 'development')
