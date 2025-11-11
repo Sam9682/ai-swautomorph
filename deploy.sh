@@ -33,14 +33,14 @@ case $COMMAND in
         echo "✅ Services restarted"
         exit 0
         ;;
-    "deploy"|"start")
+    "start")
         echo "🚀 Starting AI-SwAutoMorph deployment..."
         ;;
     *)
-        echo "Usage: $0 [deploy|start|stop|restart|status|logs]"
-        echo "  deploy/start - Deploy and start services (default)"
+        echo "Usage: $0 [start|stop|restart|status|logs]"
+        echo "  start        - Start services including building (default)"
         echo "  stop         - Stop all services"
-        echo "  restart      - Restart all services"
+        echo "  restart      - Restart all services, docker style"
         echo "  status       - Show service status"
         echo "  logs         - Show service logs"
         exit 1

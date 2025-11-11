@@ -79,7 +79,7 @@ python3 cli.py validate-token --token "your_token_here"
 
 # Access application with SSO
 # Users click application links in dashboard, automatically redirected with token
-# Example: http://ai-haccp.swautomorph.com?sso_token=abc123...
+# Example: http://ai-haccp.swautomorph.com:3000?sso_token=abc123...
 ```
 
 ### MCP Protocol
@@ -114,8 +114,8 @@ ai-swautomorph/
 ## Default Applications
 
 The system comes with two default applications:
-- **AI FoodFlow**: `http://ai-foodflow.swautomorph.com`
-- **AI HACCP**: `http://ai-haccp.swautomorph.com`
+- **AI FoodFlow**: `http://ai-foodflow.swautomorph.com:3001`
+- **AI HACCP**: `http://ai-haccp.swautomorph.com:3000`
 
 ## Environment Variables
 
