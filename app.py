@@ -143,8 +143,8 @@ def init_db():
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
         default_apps = [
-            ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com', 'Food management system'),
-            ('AI HACCP', 'http://ai-haccp.swautomorph.com:3000', 'HACCP compliance system')
+            ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com:5001', 'Food management system'),
+            ('AI HACCP', 'http://ai-haccp.swautomorph.com:5000', 'HACCP compliance system')
         ]
         cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
     
@@ -624,4 +624,4 @@ def api_user_applications(user_id):
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5000, debug=os.environ.get('FLASK_ENV') == 'development')
+    app.run(host='0.0.0.0', port=5002, debug=os.environ.get('FLASK_ENV') == 'development')
