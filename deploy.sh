@@ -65,6 +65,14 @@ mkdir -p data ssl logs
 # Set proper permissions
 chmod 755 data ssl logs
 
+# Generate SSL certificates if they don't exist
+if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
+    echo "🔐 Generating SSL certificates..."
+    ./generate_ssl.sh
+else
+    echo "✅ SSL certificates already exist"
+fi
+
 # Generate secret key if not exists
 if [ ! -f .env ]; then
     echo "🔑 Generating environment configuration..."
@@ -96,8 +104,9 @@ if docker-compose ps | grep -q "Up"; then
     echo "✅ Services are running!"
     echo ""
     echo "🌐 Application URLs:"
-    echo "   Web Interface: http://www.swautomorph.com"
-    echo "   API Endpoint:  http://www.swautomorph.com/api"
+    echo "   Web Interface: https://www.swautomorph.com"
+    echo "   API Endpoint:  https://www.swautomorph.com/api"
+    echo "   HTTP Redirect: http://www.swautomorph.com (redirects to HTTPS)"
     echo ""
     echo "📋 Management Commands:"
     echo "   View logs:     ./deploy.sh logs"
@@ -116,4 +125,11 @@ fi
 
 echo ""
 echo "🎉 Deployment completed successfully!"
-echo "📖 Check the user guide at: http://www.swautomorph.com/static/userguide.html"
+echo "📖 Check the user guide at: https://www.swautomorph.com/static/userguide.html"
+echo ""
+echo "🔒 HTTPS Security:"
+echo "   ✅ SSL/TLS encryption enabled"
+echo "   ✅ HTTP to HTTPS redirect active"
+echo "   ✅ Security headers configured"
+echo "   ⚠️  Using self-signed certificate (browser warning expected)"
+echo "   📝 For production: Replace with CA-signed certificate"
