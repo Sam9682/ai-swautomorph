@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: ai-swautomorph-app
     ports:
-      - "5000:5000"
+      - "5000:5002"
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=${SECRET_KEY:-change-this-in-production}

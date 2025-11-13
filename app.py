@@ -148,6 +148,16 @@ def init_db():
         ]
         cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
     
+    # Create default admin user if none exists
+    cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
+    if cursor.fetchone()[0] == 0:
+        from werkzeug.security import generate_password_hash
+        admin_password_hash = generate_password_hash('password')
+        cursor.execute('''
+            INSERT INTO users (username, email, password_hash, first_name, last_name)
+            VALUES (?, ?, ?, ?, ?)
+        ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator'))
+    
     conn.commit()
     conn.close()
 
@@ -428,8 +438,8 @@ def sso_validate():
     else:
         return jsonify({'valid': False}), 401
 
-@app.route('/sso/login/<app_name>')
-def sso_login(app_name):
+@app.route('/sso/app/<app_name>')
+def sso_app_login(app_name):
     """SSO login endpoint that redirects to application with token"""
     if 'user_id' not in session or 'sso_token' not in session:
         return redirect(url_for('index'))
@@ -457,6 +467,71 @@ def auth_status():
         'authenticated': 'user_id' in session,
         'sso_token': session.get('sso_token', '')
     })
+
+@app.route('/sso/auth')
+def sso_auth():
+    """SSO authentication endpoint - redirects to login if not authenticated"""
+    redirect_uri = request.args.get('redirect_uri')
+    client_id = request.args.get('client_id', 'ai-haccp')
+    
+    if not redirect_uri:
+        return jsonify({'error': 'redirect_uri parameter required'}), 400
+    
+    # Store SSO request in session
+    session['sso_redirect_uri'] = redirect_uri
+    session['sso_client_id'] = client_id
+    
+    # If user is already authenticated, redirect back with token
+    if 'user_id' in session and 'sso_token' in session:
+        return redirect(f"{redirect_uri}?token={session['sso_token']}&state=success")
+    
+    # Otherwise redirect to login page
+    return redirect(url_for('sso_login_page'))
+
+@app.route('/sso/login')
+def sso_login_page():
+    """SSO login page"""
+    redirect_uri = session.get('sso_redirect_uri')
+    if not redirect_uri:
+        return redirect(url_for('index'))
+    
+    return render_template('sso_login.html', redirect_uri=redirect_uri)
+
+@app.route('/sso/authenticate', methods=['POST'])
+def sso_authenticate():
+    """SSO authentication handler"""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    redirect_uri = session.get('sso_redirect_uri')
+    
+    if not all([username, password, redirect_uri]):
+        return render_template('sso_login.html', 
+                             error='Missing credentials', 
+                             redirect_uri=redirect_uri)
+    
+    # Authenticate user
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, password_hash, suspended FROM users WHERE username = ?', (username,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user and not user[2] and check_password_hash(user[1], password):
+        # Generate SSO token
+        session['user_id'] = user[0]
+        token = generate_sso_token(user[0])
+        session['sso_token'] = token
+        
+        # Clear SSO session data
+        session.pop('sso_redirect_uri', None)
+        session.pop('sso_client_id', None)
+        
+        # Redirect back to client with token
+        return redirect(f"{redirect_uri}?token={token}&state=success")
+    else:
+        return render_template('sso_login.html', 
+                             error='Invalid credentials', 
+                             redirect_uri=redirect_uri)
 
 @app.route('/api/users', methods=['GET', 'POST'])
 def api_users():
