@@ -422,20 +422,31 @@ def validate_sso_token(token):
 @app.route('/sso/validate', methods=['POST'])
 def sso_validate():
     """SSO endpoint for applications to validate tokens"""
+    import logging
+    
+    # Log validation request
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    
     data = request.get_json()
     token = data.get('token') if data else None
     
+    print(f"[SSO VALIDATE] IP: {remote_ip}, User-Agent: {user_agent}, Token: {'Present' if token else 'Missing'}")
+    
     if not token:
+        print(f"[SSO VALIDATE] FAILED - No token provided from {remote_ip}")
         return jsonify({'error': 'Token required'}), 400
     
     user_info = validate_sso_token(token)
     
     if user_info:
+        print(f"[SSO VALIDATE] SUCCESS - User: {user_info['username']} from {remote_ip}")
         return jsonify({
             'valid': True,
             'user': user_info
         }), 200
     else:
+        print(f"[SSO VALIDATE] FAILED - Invalid token from {remote_ip}")
         return jsonify({'valid': False}), 401
 
 @app.route('/sso/app/<app_name>')
