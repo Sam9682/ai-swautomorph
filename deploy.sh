@@ -4,13 +4,13 @@
 
 # Handle command line arguments
 COMMAND=${1:-help}
-USER_ID=${2:-1}
+USER_ID=${2:-0}
 USER_NAME=${3:-"User"}
 USER_EMAIL=${4:-"user@example.com"}
 DESCRIPTION=${5:-"Basic Information Display"}
 # Compute var RANGE_START = APPLICATION_IDENTITY_NUMBER * 100 + 6000
 APPLICATION_IDENTITY_NUMBER=0
-RANGE_START=6000
+RANGE_START=80
 PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
 
 set -e
@@ -22,7 +22,7 @@ case $COMMAND in
     "ps")
         echo "📊 AI-SwAutoMorph Service Status:"
         if command -v docker-compose &> /dev/null; then
-            PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose ps
+            PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose ps
         else
             echo "❌ Docker Compose not installed"
         fi
@@ -30,17 +30,17 @@ case $COMMAND in
         ;;
     "stop")
         echo "🛑 Stopping AI-SwAutoMorph services..."
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose down
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down
         echo "✅ Services stopped"
         exit 0
         ;;
     "logs")
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose logs -f
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose logs -f
         exit 0
         ;;
     "restart")
         echo "🔄 Restarting AI-SwAutoMorph services..."
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose restart
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose restart
         echo "✅ Services restarted"
         exit 0
         ;;
@@ -103,14 +103,14 @@ fi
 
 # Clean up existing containers
 echo "🧹 Cleaning up..."
-PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose down --remove-orphans 2>/dev/null || true
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down --remove-orphans 2>/dev/null || true
 
 # Build and start services
 echo "🔨 Building Docker images..."
-PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose build --no-cache
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose build --no-cache
 
 echo "🚀 Starting services..."
-PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 1)) USER_ID=$USER_ID docker-compose up -d
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
