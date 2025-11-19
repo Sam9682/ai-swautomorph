@@ -67,11 +67,15 @@ def init_db():
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
+        # Port calculation constants
+        PORT_RANGE_BEGIN = 6000
+        RANGE_RESERVED = 100
+        
         default_apps = [
-            ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com:6001', 'Food management system'),
-            ('AI HACCP', 'https://ai-haccp.swautomorph.com:6002', 'HACCP compliance system'),
-            ('AI CheckInAtWork', 'http://ai-foodflow.swautomorph.com:6003', 'Check In for employees at work'),
-            ('AI StaticWebSite', 'https://ai-haccp.swautomorph.com:6004', 'Simple static Web Site')
+            ('AI FoodFlow', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system'),
+            ('AI HACCP', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 2 * RANGE_RESERVED +1}', 'HACCP compliance system'),
+            ('AI CheckInAtWork', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 3 * RANGE_RESERVED}', 'Check In for employees at work'),
+            ('AI StaticWebSite', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 4 * RANGE_RESERVED}', 'Simple static Web Site')
         ]
         cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
     
