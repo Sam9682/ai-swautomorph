@@ -84,6 +84,10 @@
         <form id="updateAppForm">
             <input type="hidden" id="editAppId">
             <div class="form-group">
+                <label>APPLICATION IDENTITY:</label>
+                <div id="editAppIdentity" class="readonly-field"></div>
+            </div>
+            <div class="form-group">
                 <label for="editAppName">{{ get_text('application_name') }}:</label>
                 <input type="text" id="editAppName" required>
             </div>
@@ -383,6 +387,7 @@ document.getElementById('updateUserForm').addEventListener('submit', function(e)
 // Application management functions
 function editApp(id, name, url, description, gitUrl) {
     document.getElementById('editAppId').value = id;
+    document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
     document.getElementById('editAppUrl').value = url;
     document.getElementById('editAppDescription').value = description;

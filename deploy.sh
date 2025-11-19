@@ -3,7 +3,7 @@
 # AI-SwAutoMorph Production Deployment Script
 
 # Handle command line arguments
-APPLICATION_IDENTITY_NUMBER=1
+APPLICATION_IDENTITY_NUMBER=3
 COMMAND=${1:-help}
 USER_ID=${2:-1}
 USER_NAME=${3:-"User"}
