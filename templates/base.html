@@ -14,14 +14,14 @@
                 {% if session.user_id %}
                 <div class="nav-links">
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
-                    <a href="{{ url_for('dashboard') }}">{{ get_text('dashboard') }}</a>
-                    <a href="{{ url_for('logout') }}">{{ get_text('logout') }}</a>
+                    <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
+                    <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 </div>
                 {% endif %}
             </div>
             <div class="lang-toggle">
-                <a href="{{ url_for('set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
-                <a href="{{ url_for('set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
+                <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
+                <a href="{{ url_for('main.set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
             </div>
         </div>
     </nav>

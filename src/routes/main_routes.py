@@ -1,5 +1,5 @@
 """Main application routes"""
-from flask import Blueprint, render_template, session, redirect, url_for
+from flask import Blueprint, render_template, session, redirect, url_for, request
 import sqlite3
 from ..config import DB_PATH
 

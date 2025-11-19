@@ -10,7 +10,7 @@ from .routes.api_routes import api_bp
 
 def create_app():
     """Application factory"""
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.secret_key = SECRET_KEY
     
     # Configure CORS
