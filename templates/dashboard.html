@@ -29,6 +29,9 @@
             {% endif %}
             <h3>{{ app[1] }}</h3>
             <p>{{ app[3] or get_text('no_description') }}</p>
+            <div class="app-identity">
+                <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
+            </div>
             <div class="app-buttons">
                 <a href="{{ url_for('sso.sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
                 {% if app[4] %}

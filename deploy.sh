@@ -2,6 +2,16 @@
 
 # AI-SwAutoMorph Production Deployment Script
 
+# Handle command line arguments
+APPLICATION_IDENTITY_NUMBER=1
+COMMAND=${1:-help}
+USER_ID=${2:-1}
+USER_NAME=${3:-"User"}
+USER_EMAIL=${4:-"user@example.com"}
+DESCRIPTION=${5:-"Basic Information Display"}
+# Compute var RANGE_START = APPLICATION_IDENTITY_NUMBER * 100 + 6000
+RANGE_START=$((APPLICATION_IDENTITY_NUMBER * 100 + 6000))
+PORT_RANGE_BEGIN=${RANGE_START}
 set -e
 
 # Handle command line arguments
@@ -11,7 +21,7 @@ case $COMMAND in
     "ps")
         echo "📊 AI-SwAutoMorph Service Status:"
         if command -v docker-compose &> /dev/null; then
-            docker-compose ps
+            PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose ps
         else
             echo "❌ Docker Compose not installed"
         fi
@@ -19,17 +29,17 @@ case $COMMAND in
         ;;
     "stop")
         echo "🛑 Stopping AI-SwAutoMorph services..."
-        docker-compose down
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down
         echo "✅ Services stopped"
         exit 0
         ;;
     "logs")
-        docker-compose logs -f
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose logs -f
         exit 0
         ;;
     "restart")
         echo "🔄 Restarting AI-SwAutoMorph services..."
-        docker-compose restart
+        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose restart
         echo "✅ Services restarted"
         exit 0
         ;;
@@ -46,6 +56,12 @@ case $COMMAND in
         exit 1
         ;;
 esac
+
+# Validate user_id
+if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
+    echo "❌ Error: user_id must be a number"
+    exit 1
+fi
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
@@ -86,40 +102,47 @@ fi
 
 # Clean up existing containers
 echo "🧹 Cleaning up..."
-docker-compose down --remove-orphans 2>/dev/null || true
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down --remove-orphans 2>/dev/null || true
 
 # Build and start services
 echo "🔨 Building Docker images..."
-docker-compose build --no-cache
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose build --no-cache
 
 echo "🚀 Starting services..."
-docker-compose up -d
+PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
 sleep 10
 
 # Check if services are running
-if docker-compose ps | grep -q "Up"; then
+ACTUAL_PORT=${PORT_START:-$((PORT_RANGE_BEGIN + USER_ID))}
+ACTUAL_HTTPS_PORT=${HTTPS_PORT:-$((PORT_RANGE_BEGIN + USER_ID + 443))}
+
+if PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose ps | grep -q "Up"; then
     echo "✅ Services are running!"
     echo ""
-    echo "🌐 Application URLs:"
-    echo "   Web Interface: https://www.swautomorph.com"
-    echo "   API Endpoint:  https://www.swautomorph.com/api"
-    echo "   HTTP Redirect: http://www.swautomorph.com (redirects to HTTPS)"
+    echo "🌐 Application URLs (User ID: $USER_ID):"
+    echo "   Web Interface: https://localhost:$ACTUAL_HTTPS_PORT"
+    echo "   HTTP Interface: http://localhost:$ACTUAL_PORT"
+    echo "   API Endpoint:  https://localhost:$ACTUAL_HTTPS_PORT/api"
+    echo ""
+    echo "🔧 Port Configuration:"
+    echo "   HTTP Port:  $ACTUAL_PORT"
+    echo "   HTTPS Port: $ACTUAL_HTTPS_PORT"
+    echo "   User ID:    $USER_ID"
     echo ""
     echo "📋 Management Commands:"
     echo "   View logs:     ./deploy.sh logs"
     echo "   Stop services: ./deploy.sh stop"
     echo "   Restart:       ./deploy.sh restart"
     echo "   Check status:  ./deploy.sh ps"
-    echo "   CLI access:    python3 cli.py --help"
     echo ""
     echo "📊 Service Status:"
-    docker-compose ps
+    PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose ps
 else
     echo "❌ Failed to start services. Check logs:"
-    docker-compose logs
+    PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose logs
     exit 1
 fi
 
