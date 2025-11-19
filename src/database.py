@@ -68,8 +68,10 @@ def init_db():
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
         default_apps = [
-            ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com:5001', 'Food management system'),
-            ('AI HACCP', 'https://ai-haccp.swautomorph.com:8102/', 'HACCP compliance system')
+            ('AI FoodFlow', 'http://ai-foodflow.swautomorph.com:6001', 'Food management system'),
+            ('AI HACCP', 'https://ai-haccp.swautomorph.com:6002', 'HACCP compliance system'),
+            ('AI CheckInAtWork', 'http://ai-foodflow.swautomorph.com:6003', 'Check In for employees at work'),
+            ('AI StaticWebSite', 'https://ai-haccp.swautomorph.com:6004', 'Simple static Web Site')
         ]
         cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
     

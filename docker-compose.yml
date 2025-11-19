@@ -26,7 +26,7 @@ services:
     image: nginx:alpine
     container_name: ai-swautomorph-nginx
     ports:
-      - "${HTTPS_PORT:-6444}:443"
+      - "${HTTPS_PORT:-6002}:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ssl:/etc/nginx/ssl:ro
@@ -35,6 +35,6 @@ services:
     restart: unless-stopped
     environment:
       - PORT=${PORT:-6001}
-      - HTTPS_PORT=${HTTPS_PORT:-6444}
+      - HTTPS_PORT=${HTTPS_PORT:-6002}
 volumes:
   app_data:
