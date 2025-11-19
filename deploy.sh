@@ -8,7 +8,7 @@ set -e
 COMMAND=${1:-help}
 
 case $COMMAND in
-    "status")
+    "ps")
         echo "📊 AI-SwAutoMorph Service Status:"
         if command -v docker-compose &> /dev/null; then
             docker-compose ps
@@ -37,11 +37,11 @@ case $COMMAND in
         echo "🚀 Starting AI-SwAutoMorph deployment..."
         ;;
     *)
-        echo "Usage: $0 [start|stop|restart|status|logs]"
+        echo "Usage: $0 [start|stop|restart|ps|logs]"
         echo "  start        - Start services including building (default)"
         echo "  stop         - Stop all services"
         echo "  restart      - Restart all services, docker style"
-        echo "  status       - Show service status"
+        echo "  ps           - Show service status"
         echo "  logs         - Show service logs"
         exit 1
         ;;
@@ -112,7 +112,7 @@ if docker-compose ps | grep -q "Up"; then
     echo "   View logs:     ./deploy.sh logs"
     echo "   Stop services: ./deploy.sh stop"
     echo "   Restart:       ./deploy.sh restart"
-    echo "   Check status:  ./deploy.sh status"
+    echo "   Check status:  ./deploy.sh ps"
     echo "   CLI access:    python3 cli.py --help"
     echo ""
     echo "📊 Service Status:"

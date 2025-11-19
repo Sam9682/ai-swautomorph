@@ -13,6 +13,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-this-in-production}
     volumes:
       - app_data:/app/data
+      - ~/.ssh:/root/.ssh:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://www.swautomorph.com:5000/api/auth/status"]

@@ -6,6 +6,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     sqlite3 \
     curl \
+    git \
+    openssh-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -26,5 +28,15 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV SECRET_KEY=change-this-in-production
 
+# Create SSH setup script
+RUN echo '#!/bin/bash\n\
+eval "$(ssh-agent -s)"\n\
+for key in /root/.ssh/OVH_SW_AUTOMORPH*; do\n\
+  if [ -f "$key" ] && [[ "$key" != *.pub ]]; then\n\
+    ssh-add "$key" 2>/dev/null || true\n\
+  fi\n\
+done\n\
+exec "$@"' > /app/start.sh && chmod +x /app/start.sh
+
 # Initialize database and start application
-CMD ["python3", "app.py"]
+CMD ["/app/start.sh", "python3", "app.py"]
