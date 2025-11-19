@@ -3,15 +3,15 @@
 # AI-SwAutoMorph Production Deployment Script
 
 # Handle command line arguments
-APPLICATION_IDENTITY_NUMBER=3
 COMMAND=${1:-help}
 USER_ID=${2:-1}
 USER_NAME=${3:-"User"}
 USER_EMAIL=${4:-"user@example.com"}
 DESCRIPTION=${5:-"Basic Information Display"}
 # Compute var RANGE_START = APPLICATION_IDENTITY_NUMBER * 100 + 6000
-RANGE_START=$((APPLICATION_IDENTITY_NUMBER * 100 + 6000))
-PORT_RANGE_BEGIN=${RANGE_START}
+APPLICATION_IDENTITY_NUMBER=0
+RANGE_START=6000
+PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
 set -e
 
 # Handle command line arguments
@@ -21,7 +21,7 @@ case $COMMAND in
     "ps")
         echo "📊 AI-SwAutoMorph Service Status:"
         if command -v docker-compose &> /dev/null; then
-            PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose ps
+            PORT=$((PORT_RANGE_BEGIN + USER_ID + 80)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose ps
         else
             echo "❌ Docker Compose not installed"
         fi
@@ -29,17 +29,17 @@ case $COMMAND in
         ;;
     "stop")
         echo "🛑 Stopping AI-SwAutoMorph services..."
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down
+        PORT=$((PORT_RANGE_BEGIN + USER_ID + 80)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose down
         echo "✅ Services stopped"
         exit 0
         ;;
     "logs")
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose logs -f
+        PORT=$((PORT_RANGE_BEGIN + USER_ID + 80)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose logs -f
         exit 0
         ;;
     "restart")
         echo "🔄 Restarting AI-SwAutoMorph services..."
-        PORT=$((PORT_RANGE_BEGIN + USER_ID)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose restart
+        PORT=$((PORT_RANGE_BEGIN + USER_ID + 80)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID + 443)) USER_ID=$USER_ID docker-compose restart
         echo "✅ Services restarted"
         exit 0
         ;;
