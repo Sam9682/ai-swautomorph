@@ -6,7 +6,7 @@
 <div class="auth-container">
     <div class="auth-form">
         <h2>{{ get_text('login') }}</h2>
-        <form id="loginForm" method="POST" action="{{ url_for('login') }}">
+        <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
             <div class="form-group">
                 <label for="username">{{ get_text('username') }}:</label>
                 <input type="text" id="username" name="username" required>
@@ -18,7 +18,7 @@
             <button type="submit" class="btn btn-primary">{{ get_text('login') }}</button>
         </form>
         <p class="auth-link">
-            {{ get_text('no_account') }} <a href="{{ url_for('register') }}">{{ get_text('register_here') }}</a>
+            {{ get_text('no_account') }} <a href="{{ url_for('auth.register') }}">{{ get_text('register_here') }}</a>
         </p>
     </div>
 </div>

@@ -30,7 +30,7 @@
             <h3>{{ app[1] }}</h3>
             <p>{{ app[3] or get_text('no_description') }}</p>
             <div class="app-buttons">
-                <a href="{{ url_for('sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
+                <a href="{{ url_for('sso.sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
                     <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small">📥 Clone</button>
