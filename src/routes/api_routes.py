@@ -316,7 +316,7 @@ def api_deployments():
         user = cursor.fetchone()
         username = user[0] if user else f'user_{session["user_id"]}'
         
-        deployment_path = f'/deployments/{username}/{app_name.lower().replace(" ", "-")}'
+        deployment_path = f'/home/ubuntu/deployments/{username}/{app_name.lower().replace(" ", "-")}'
         print(f"[DEPLOYMENT API] POST - Deployment path: {deployment_path}")
         
         try:
@@ -396,9 +396,14 @@ def api_deployments():
                     return jsonify({'error': 'deploy.sh not found in deployment'}), 400
                 
                 # Execute deploy.sh with action
-                print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action}")
-                result = subprocess.run([deploy_script, action], 
-                                      cwd=deploy_path, capture_output=True, text=True, timeout=300)
+                if local_mode:
+                    print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally")
+                    result = subprocess.run([deploy_script, action, 'locally'], 
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
+                else:
+                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action}")
+                    result = subprocess.run([deploy_script, action], 
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
                 command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
