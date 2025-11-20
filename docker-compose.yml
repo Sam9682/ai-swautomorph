@@ -13,10 +13,11 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-this-in-production}
     volumes:
       - app_data:/app/data
-      - ~/.ssh:/root/.ssh:ro
+      - ~/.ssh:/home/ubuntu/.ssh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://www.swautomorph.com:5000/api/auth/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/auth/status"]
       interval: 30s
       timeout: 10s
       retries: 3

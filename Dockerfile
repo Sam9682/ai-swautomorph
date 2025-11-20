@@ -8,17 +8,28 @@ RUN apt-get update && apt-get install -y \
     curl \
     git \
     openssh-client \
+    docker.io \
+    docker-compose \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
+# Create ubuntu user and add to docker group
+RUN useradd -m -s /bin/bash ubuntu && usermod -aG docker ubuntu
+
 # Copy application code
 COPY . .
 
 # Create directory for database
 RUN mkdir -p /app/data
+
+# Change ownership to ubuntu user
+RUN chown -R ubuntu:ubuntu /app
+
+# Switch to ubuntu user
+USER ubuntu
 
 # Expose port
 EXPOSE 5000
@@ -31,7 +42,7 @@ ENV SECRET_KEY=change-this-in-production
 # Create SSH setup script
 RUN echo '#!/bin/bash\n\
 eval "$(ssh-agent -s)"\n\
-for key in /root/.ssh/OVH_SW_AUTOMORPH*; do\n\
+for key in /home/ubuntu/.ssh/OVH_SW_AUTOMORPH*; do\n\
   if [ -f "$key" ] && [[ "$key" != *.pub ]]; then\n\
     ssh-add "$key" 2>/dev/null || true\n\
   fi\n\

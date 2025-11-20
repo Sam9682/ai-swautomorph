@@ -27,11 +27,11 @@ def dashboard():
     # Get applications based on user role
     if username == 'admin':
         # Admin sees all applications
-        cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
+        cursor.execute('SELECT id, name, url, description, git_url FROM applications ORDER BY name')
     else:
         # Regular users see only assigned applications
         cursor.execute('''
-            SELECT a.id, a.name, a.url, a.description 
+            SELECT a.id, a.name, a.url, a.description, a.git_url 
             FROM applications a
             JOIN user_applications ua ON a.id = ua.application_id
             WHERE ua.user_id = ?

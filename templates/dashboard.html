@@ -12,7 +12,12 @@
     {% endif %}
     
     <div id="appsSection" class="tab-content">
-        <h2>{{ get_text('available_applications') }}</h2>
+        <div class="section-header">
+            <h2>{{ get_text('available_applications') }}</h2>
+            {% if username == 'admin' %}
+            <button class="btn btn-primary" onclick="showAddAppForm()">{{ get_text('add_new_application') }}</button>
+            {% endif %}
+        </div>
     
     <div class="applications-grid">
         {% for app in applications %}
@@ -39,9 +44,9 @@
                     <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small">📥 Clone</button>
                     <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small">▶️ Start</button>
                     <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small">⏹️ Stop</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'status')" class="btn btn-info btn-small">📊 Status</button>
-                    <button onclick="showDeploymentStatus('{{ app[1] }}')" class="btn btn-secondary btn-small">📋 Logs</button>
-                    <button onclick="showAutomorphModal('{{ app[1] }}')" class="btn btn-warning btn-small">🤖 Automorph</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small">🔄 Restart</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 Status</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 Logs</button>
                 </div>
                 {% endif %}
             </div>
@@ -56,7 +61,7 @@
     {% endif %}
     
     {% if username == 'admin' %}
-    <div class="add-app-section">
+    <div id="addAppSection" class="add-app-section" style="display: none;">
         <h3>{{ get_text('add_new_application') }}</h3>
         <form id="addAppForm" class="add-app-form">
             <div class="form-group">
@@ -76,6 +81,7 @@
                 <input type="url" id="app_git_url" name="git_url" placeholder="https://github.com/user/repo.git">
             </div>
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">Cancel</button>
         </form>
     </div>
     
@@ -161,6 +167,16 @@
         </div>
     </div>
     {% endif %}
+</div>
+
+<!-- Deployment Logs Section -->
+<div id="deploymentLogsSection" class="logs-section" style="display: none;">
+    <h3>Deployment Logs</h3>
+    <div class="logs-controls">
+        <button onclick="clearLogs()" class="btn btn-secondary btn-small">Clear Logs</button>
+        <button onclick="hideLogs()" class="btn btn-secondary btn-small">Hide</button>
+    </div>
+    <pre id="deploymentLogsContent" class="logs-content">Ready for deployment commands...</pre>
 </div>
 
 <!-- Deployment Status Modal -->
@@ -385,6 +401,15 @@ document.getElementById('updateUserForm').addEventListener('submit', function(e)
 });
 
 // Application management functions
+function showAddAppForm() {
+    document.getElementById('addAppSection').style.display = 'block';
+}
+
+function hideAddAppForm() {
+    document.getElementById('addAppSection').style.display = 'none';
+    document.getElementById('addAppForm').reset();
+}
+
 function editApp(id, name, url, description, gitUrl) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
@@ -433,6 +458,7 @@ document.getElementById('addAppForm').addEventListener('submit', function(e) {
         if (data.error) {
             alert(data.error);
         } else {
+            hideAddAppForm();
             location.reload();
         }
     });
@@ -532,6 +558,11 @@ function deployApp(appName, gitUrl, action) {
         data.git_url = gitUrl;
     }
     
+    // Show logs section
+    showLogs();
+    appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
+    appendLog(`Starting ${action} operation...`);
+    
     fetch('/api/deployments', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -540,17 +571,25 @@ function deployApp(appName, gitUrl, action) {
     .then(response => response.json())
     .then(data => {
         if (data.error) {
-            alert(`Error: ${data.error}`);
+            appendLog(`ERROR: ${data.error}`);
+            if (data.logs) {
+                appendLog(`\nCommand Output:\n${data.logs}`);
+            }
         } else {
-            alert(`${action.charAt(0).toUpperCase() + action.slice(1)} command started for ${appName}`);
-            if (action === 'status') {
+            appendLog(`SUCCESS: ${data.message}`);
+            if (data.logs) {
+                appendLog(`\nCommand Output:\n${data.logs}`);
+            }
+            if (action === 'ps') {
                 setTimeout(() => showDeploymentStatus(appName), 2000);
             }
         }
+        appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
     })
     .catch(error => {
         console.error('Deployment error:', error);
-        alert('Deployment request failed');
+        appendLog(`NETWORK ERROR: ${error.message}`);
+        appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
     });
 }
 
@@ -649,6 +688,34 @@ document.getElementById('automorphForm').addEventListener('submit', function(e) 
         alert('Automorph request failed');
     });
 });
+
+// Logs functions
+function showLogs() {
+    document.getElementById('deploymentLogsSection').style.display = 'block';
+}
+
+function hideLogs() {
+    document.getElementById('deploymentLogsSection').style.display = 'none';
+}
+
+function clearLogs() {
+    document.getElementById('deploymentLogsContent').textContent = 'Ready for deployment commands...';
+}
+
+function appendLog(message) {
+    const logsContent = document.getElementById('deploymentLogsContent');
+    const timestamp = new Date().toLocaleTimeString();
+    const currentContent = logsContent.textContent;
+    
+    if (currentContent === 'Ready for deployment commands...') {
+        logsContent.textContent = `[${timestamp}] ${message}`;
+    } else {
+        logsContent.textContent = currentContent + `\n[${timestamp}] ${message}`;
+    }
+    
+    // Auto-scroll to bottom
+    logsContent.scrollTop = logsContent.scrollHeight;
+}
 
 // Close modal when clicking outside
 window.onclick = function(event) {

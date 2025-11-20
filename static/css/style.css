@@ -582,6 +582,48 @@ body {
     overflow-y: auto;
 }
 
+/* Deployment Logs Section */
+.logs-section {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 2rem 0;
+    padding: 1.5rem;
+}
+
+.logs-section h3 {
+    margin: 0 0 1rem 0;
+    color: #2c3e50;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logs-section h3:before {
+    content: '📋';
+}
+
+.logs-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.logs-content {
+    background-color: #2c3e50;
+    color: #ecf0f1;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #34495e;
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     .nav-container {
         flex-direction: column;
@@ -624,5 +666,14 @@ body {
     
     .apps-management {
         grid-template-columns: 1fr;
+    }
+    
+    .logs-section {
+        margin: 1rem 0;
+        padding: 1rem;
+    }
+    
+    .logs-controls {
+        flex-wrap: wrap;
     }
 }

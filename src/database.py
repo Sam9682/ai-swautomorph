@@ -22,12 +22,6 @@ def init_db():
         )
     ''')
     
-    # Add suspended column if it doesn't exist
-    cursor.execute("PRAGMA table_info(users)")
-    columns = [column[1] for column in cursor.fetchall()]
-    if 'suspended' not in columns:
-        cursor.execute('ALTER TABLE users ADD COLUMN suspended INTEGER DEFAULT 0')
-    
     # Applications table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS applications (
@@ -35,6 +29,7 @@ def init_db():
             name TEXT NOT NULL,
             url TEXT NOT NULL,
             description TEXT,
+            git_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -64,6 +59,21 @@ def init_db():
         )
     ''')
     
+    # Deployments table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS deployments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            application_name TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            deployment_path TEXT,
+            git_url TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
@@ -72,12 +82,12 @@ def init_db():
         RANGE_RESERVED = 100
         
         default_apps = [
-            ('AI FoodFlow', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system'),
-            ('AI HACCP', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 2 * RANGE_RESERVED +1}', 'HACCP compliance system'),
-            ('AI CheckInAtWork', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 3 * RANGE_RESERVED}', 'Check In for employees at work'),
-            ('AI StaticWebSite', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 4 * RANGE_RESERVED}', 'Simple static Web Site')
+            ('ai-swautomorph', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
+            ('ai-haccp', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 2 * RANGE_RESERVED +1}', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
+            ('ai-checkinatwork', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 3 * RANGE_RESERVED +1}', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
+            ('ai-staticwebsite', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 4 * RANGE_RESERVED +1}', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
         ]
-        cursor.executemany('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)', default_apps)
+        cursor.executemany('INSERT INTO applications (name, url, description, git_url) VALUES (?, ?, ?, ?)', default_apps)
     
     # Create default admin user if none exists
     cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
