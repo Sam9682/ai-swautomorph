@@ -32,7 +32,7 @@ RUN chown -R ubuntu:ubuntu /app
 USER ubuntu
 
 # Expose port
-EXPOSE 5000
+EXPOSE 80
 
 # Set environment variables
 ENV FLASK_APP=app.py

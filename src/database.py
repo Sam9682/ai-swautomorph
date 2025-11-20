@@ -82,7 +82,7 @@ def init_db():
         RANGE_RESERVED = 100
         
         default_apps = [
-            ('ai-swautomorph', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
+            ('ai-foodflow', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
             ('ai-haccp', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 2 * RANGE_RESERVED +1}', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
             ('ai-checkinatwork', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 3 * RANGE_RESERVED +1}', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
             ('ai-staticwebsite', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 4 * RANGE_RESERVED +1}', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')

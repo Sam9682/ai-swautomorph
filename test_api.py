@@ -4,7 +4,7 @@
 import requests
 import json
 
-BASE_URL = 'http://www.swautomorph.com:5000'
+BASE_URL = 'http://www.swautomorph.com:80'
 
 def test_registration():
     """Test user registration"""
@@ -87,7 +87,7 @@ def main():
         print("✅ API tests completed!")
         
     except requests.exceptions.ConnectionError:
-        print("❌ Error: Cannot connect to server. Make sure the application is running on http://www.swautomorph.com:5000")
+        print("❌ Error: Cannot connect to server. Make sure the application is running on http://www.swautomorph.com:80")
     except Exception as e:
         print(f"❌ Error: {str(e)}")
 

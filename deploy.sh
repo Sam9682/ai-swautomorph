@@ -233,10 +233,21 @@ if [ "$LOCAL_MODE" = "locally" ]; then
     cat > /tmp/ai-swautomorph-site << 'EOF'
 server {
     listen 80;
-    server_name localhost;
+    server_name _;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name _;
+    
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/cert.pem;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
     
     location / {
-        proxy_pass http://127.0.0.1:80;
+        proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -246,6 +257,13 @@ server {
 EOF
     sudo mv /tmp/ai-swautomorph-site /etc/nginx/sites-available/ai-swautomorph
     sudo ln -sf /etc/nginx/sites-available/ai-swautomorph /etc/nginx/sites-enabled/
+    
+    # Configure firewall for internet access
+    echo "🔥 Configuring firewall for internet access..."
+    sudo ufw allow 80/tcp
+    sudo ufw allow 443/tcp
+    sudo ufw --force enable
+    
     sudo nginx -t && sudo systemctl reload nginx
     
 else
@@ -271,8 +289,14 @@ if [ "$LOCAL_MODE" = "locally" ]; then
         echo "✅ Local services are running!"
         echo ""
         echo "🌐 Application URLs:"
-        echo "   Web Interface: http://localhost (via Nginx)"
-        echo "   Direct Flask:  http://localhost:80"
+        echo "   Web Interface: https://188.165.71.139 (HTTPS via Nginx)"
+        echo "   HTTP Redirect: http://188.165.71.139 (redirects to HTTPS)"
+        echo "   Direct Flask:  http://188.165.71.139:5000"
+        echo ""
+        echo "🌍 Internet Access:"
+        echo "   ✅ Firewall configured (ports 80, 443 open)"
+        echo "   ✅ Nginx listening on all interfaces (0.0.0.0)"
+        echo "   🌐 Public access: https://188.165.71.139"
         echo ""
         echo "📋 Management Commands:"
         echo "   View logs:     tail -f app.log"
