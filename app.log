@@ -24,3 +24,371 @@
 127.0.0.1 - - [20/Nov/2025 18:05:27] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
 127.0.0.1 - - [20/Nov/2025 18:05:29] "GET /api/deployments HTTP/1.0" 200 -
 127.0.0.1 - - [20/Nov/2025 18:05:30] "GET /api/deployments/2/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:14:04] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:14:07] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] PS - FAILED - No deployment found for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-staticwebsite.git to /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Removing existing directory: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 1 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/1/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 1 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] PS - FAILED - No deployment found for app 'ai-haccp'
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-haccp.git to /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Removing existing directory: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 1
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 2 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/2/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 2 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-checkinatwork.git to /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] CLONE - Directory doesn't exist, creating new: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-foodflow.git to /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] CLONE - Directory doesn't exist, creating new: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp127.0.0.1 - - [20/Nov/2025 18:14:13] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:14:17] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:15:34] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:16:02] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:16:05] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:16:05] "GET /api/deployments/1/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:16:20] "[32mGET /sso/app/ai-staticwebsite HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:16:29] "[33mGET /cgi-bin/luci/;stok=/locale HTTP/1.0[0m" 404 -
+127.0.0.1 - - [20/Nov/2025 18:16:38] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:16:40] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:16:40] "GET /api/deployments/2/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:17:56] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:17:58] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:17:58] "GET /api/deployments/2/logs HTTP/1.0" 200 -
+
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-haccp.git to /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Directory doesn't exist, creating new: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'clone' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Starting clone from git@github.com:Sam9682/ai-staticwebsite.git to /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Directory doesn't exist, creating new: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Creating directory structure: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Directory created successfully
+[DEPLOYMENT API] CLONE - Executing git clone command
+[DEPLOYMENT API] CLONE - Git clone completed with return code: 0
+[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] CLONE - Recording deployment in database with status: cloned
+[DEPLOYMENT API] CLONE - Database record created
+[DEPLOYMENT API] POST - SUCCESS - Action 'clone' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'start' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] START - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] START - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] START - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] START - Executing: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh start
+[DEPLOYMENT API] START - Command completed with return code: 0
+[DEPLOYMENT API] START - Updating deployment status to: running
+[DEPLOYMENT API] START - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'start' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 6 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/1/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 1 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 6 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/2/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 2 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'start' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] START - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] START - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] START - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] START - Executing: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh start
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 6 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/2/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 2 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'start' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] START - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] START - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] START - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] START - Executing: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh start
+[DEPLOYMENT API] START - Command completed with return code: 1
+[DEPLOYMENT API] START - Updating deployment status to: running
+[DEPLOYMENT API] START - Database status updated127.0.0.1 - - [20/Nov/2025 18:18:17] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:18:45] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:18:47] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:18:47] "GET /api/deployments/4/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:19:04] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:19:15] "[32mGET /sso/app/ai-foodflow HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:19:22] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:19:24] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:19:24] "GET /api/deployments/4/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:20:34] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:21:46] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 408 -
+127.0.0.1 - - [20/Nov/2025 18:24:19] "GET /api/users HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:24:19] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:24:19] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:24:19] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:24:19] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:24:21] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:24:22] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:24:32] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:24:32] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:24:32] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:24:32] "[33mGET /favicon.ico HTTP/1.0[0m" 404 -
+127.0.0.1 - - [20/Nov/2025 18:24:35] "GET /api/users HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:02] "[35m[1mPOST /api/users HTTP/1.0[0m" 201 -
+127.0.0.1 - - [20/Nov/2025 18:25:02] "GET /api/users HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:05] "GET /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:07] "POST /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:07] "GET /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:08] "POST /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:08] "GET /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:10] "POST /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:10] "GET /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:11] "POST /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:11] "GET /api/users/2/applications HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:13] "[32mGET /logout HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:25:13] "GET / HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:13] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:25:13] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:25:27] "[31m[1mPOST /login HTTP/1.0[0m" 401 -
+127.0.0.1 - - [20/Nov/2025 18:25:27] "[33mGET /favicon.ico HTTP/1.0[0m" 404 -
+127.0.0.1 - - [20/Nov/2025 18:25:43] "[31m[1mPOST /login HTTP/1.0[0m" 401 -
+127.0.0.1 - - [20/Nov/2025 18:25:44] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 408 -
+127.0.0.1 - - [20/Nov/2025 18:25:51] "[32mPOST /login HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:25:52] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:25:52] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:25:52] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:26:09] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:26:09] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:26:09] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:26:29] "[32mGET /sso/app/ai-staticwebsite HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:26:38] "[32mGET /sso/app/ai-haccp HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:26:45] "[32mGET /sso/app/ai-checkinatwork HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:26:56] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 408 -
+
+[DEPLOYMENT API] POST - SUCCESS - Action 'start' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 6 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/4/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 4 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'start' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] START - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] START - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] START - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] START - Executing: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh start
+[DEPLOYMENT API] START - Command completed with return code: 1
+[DEPLOYMENT API] START - Updating deployment status to: running
+[DEPLOYMENT API] START - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'start' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh ps
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] GET /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] GET - Fetching deployments for user 1
+[DEPLOYMENT API] GET - Returning 6 deployments for user 1
+[DEPLOYMENT LOGS] GET /api/deployments/4/logs - User: 1, IP: 176.191.56.67
+[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment 4 to user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'logs' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] LOGS - Looking for existing deployment for app 'ai-checkinatwork'
+[DEPLOYMENT API] LOGS - Found deployment at: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] LOGS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh
+[DEPLOYMENT API] LOGS - Executing: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh logs
+[DEPLOYMENT API] LOGS - Command completed with return code: 0
+[DEPLOYMENT API] LOGS - Updating deployment status to: completed
+[DEPLOYMENT API] LOGS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'logs' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'logs' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] LOGS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] LOGS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] LOGS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] LOGS - Executing: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh logs
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-checkinatwork'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh
+[DEPLOYMENT API] PS - Executing: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh ps
+[DEPLOYMENT API] POST - TIMEOUT - Action 'start' timed out for app 'ai-haccp' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'logs' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] LOGS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] LOGS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] LOGS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] LOGS - Executing: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh logs
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'logs' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] LOGS - Looking for existing deployment for app 'ai-checkinatwork'
+[DEPLOYMENT API] LOGS - Found deployment at: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] LOGS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh
+[DEPLOYMENT API] LOGS - Executing: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh logs
+[DEPLOYMENT API] LOGS - Command completed with return code: 0
+[DEPLOYMENT API] LOGS - Updating deployment status to: completed
+[DEPLOYMENT API] LOGS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'logs' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Updating deployment status to: completed
+[DEPLOYMENT API] PS - Database status updated
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] POST - TIMEOUT - Action 'logs' timed out for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] POST - TIMEOUT - Action 'logs' timed out for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 2, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 2 requesting action 'ps' for app 'ai-checkinatwork'127.0.0.1 - - [20/Nov/2025 18:28:32] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:28:36] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:28:39] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:28:42] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:29:23] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:29:27] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:29:29] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:29:29] "GET /api/deployments/7/logs HTTP/1.0" 200 -

@@ -395,10 +395,21 @@ def api_deployments():
                     print(f"[DEPLOYMENT API] {action.upper()} - FAILED - deploy.sh not found at {deploy_script}")
                     return jsonify({'error': 'deploy.sh not found in deployment'}), 400
                 
-                # Execute deploy.sh with action
-
-                print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action}")
-                result = subprocess.run([deploy_script, action], 
+                # Get user details for deploy.sh
+                cursor.execute('SELECT username, email, first_name, last_name FROM users WHERE id = ?', (session['user_id'],))
+                user_details = cursor.fetchone()
+                user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+                user_email = user_details[1] if user_details else 'user@example.com'
+                
+                # Execute deploy.sh with action and user environment variables
+                local_mode = data.get('local_mode', True)  # Default to local mode
+                if local_mode:
+                    print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally {session['user_id']} '{user_name}' {user_email}")
+                    result = subprocess.run([deploy_script, action, 'locally', str(session['user_id']), user_name, user_email], 
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
+                else:
+                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
+                    result = subprocess.run([deploy_script, action, '', str(session['user_id']), user_name, user_email], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=300)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
