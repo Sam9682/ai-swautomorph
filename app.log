@@ -6,10 +6,21 @@
  * Running on http://127.0.0.1:5000
  * Running on http://188.165.71.139:5000
 [33mPress CTRL+C to quit[0m
-127.0.0.1 - - [20/Nov/2025 17:52:44] "[32mPOST /login HTTP/1.0[0m" 302 -
-127.0.0.1 - - [20/Nov/2025 17:52:44] "GET /dashboard HTTP/1.0" 200 -
-127.0.0.1 - - [20/Nov/2025 17:52:44] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
-127.0.0.1 - - [20/Nov/2025 17:52:44] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
-127.0.0.1 - - [20/Nov/2025 17:53:21] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
-127.0.0.1 - - [20/Nov/2025 17:53:54] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
-127.0.0.1 - - [20/Nov/2025 17:54:02] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:04:17] "[32mGET /logout HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:04:17] "GET / HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:04:17] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:04:17] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:04:21] "[32mPOST /login HTTP/1.0[0m" 302 -
+127.0.0.1 - - [20/Nov/2025 18:04:21] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:04:21] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:04:21] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [20/Nov/2025 18:04:26] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:04:32] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:04:36] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:04:38] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:04:38] "GET /api/deployments/1/logs HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:04:52] "[31m[1mPOST /api/deployments HTTP/1.0[0m" 400 -
+127.0.0.1 - - [20/Nov/2025 18:05:25] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:05:27] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [20/Nov/2025 18:05:29] "GET /api/deployments HTTP/1.0" 200 -
+127.0.0.1 - - [20/Nov/2025 18:05:30] "GET /api/deployments/2/logs HTTP/1.0" 200 -

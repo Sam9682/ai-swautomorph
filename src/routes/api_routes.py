@@ -396,13 +396,9 @@ def api_deployments():
                     return jsonify({'error': 'deploy.sh not found in deployment'}), 400
                 
                 # Execute deploy.sh with action
-                if local_mode:
-                    print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally")
-                    result = subprocess.run([deploy_script, action, 'locally'], 
-                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
-                else:
-                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action}")
-                    result = subprocess.run([deploy_script, action], 
+
+                print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action}")
+                result = subprocess.run([deploy_script, action], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=300)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 

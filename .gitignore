@@ -38,6 +38,15 @@ data/
 logs/
 ssl/
 
+# Deployment directories
+deployments/
+
+# Application logs and PID files
+app.log
+app.pid
+*.log
+*.pid
+
 # IDE
 .vscode/
 .idea/
@@ -51,3 +60,4 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+nohup.out
