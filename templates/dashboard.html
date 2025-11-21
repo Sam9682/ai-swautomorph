@@ -38,13 +38,13 @@
                 <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
             </div>
             <div class="app-buttons">
-                <a href="{{ url_for('sso.sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary">{{ get_text('open_application') }}</a>
+                <a href="{{ url_for('sso.sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small">📥 Clone</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small">▶️ Start</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small">⏹️ Stop</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small">🔄 Restart</button>
+                    <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 Clone</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ Start</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ Stop</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 Restart</button>
                     <button onclick="deployApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 Status</button>
                     <button onclick="deployApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 Logs</button>
                 </div>
@@ -222,6 +222,33 @@
             </form>
         </div>
     </div>
+</div>
+
+<!-- Q Chat Modal -->
+<div id="qChatModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🤖 Q Chat - GenAI Assistant</h3>
+            <span class="close" onclick="closeQChatModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="qChatMessages" class="chat-messages"></div>
+            <div class="chat-input-area">
+                <textarea id="qChatInput" placeholder="Type your message to Q Chat..." rows="3"></textarea>
+                <div class="chat-controls">
+                    <label>
+                        <input type="checkbox" id="qChatAutoYes" checked> Auto-approve updates/writes
+                    </label>
+                    <button onclick="sendQChatMessage()" class="btn btn-primary">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Q Chat Toggle Button -->
+<div id="qChatToggle" class="chat-toggle" onclick="showQChatModal()">
+    🤖 Q Chat
 </div>
 
 <script>
@@ -581,7 +608,8 @@ function deployApp(appName, gitUrl, action) {
                 appendLog(`\nCommand Output:\n${data.logs}`);
             }
             if (action === 'ps') {
-                setTimeout(() => showDeploymentStatus(appName), 2000);
+                // Update button color based on status
+                updateApplicationButtonStatus(appName, data.logs);
             }
         }
         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
@@ -717,16 +745,221 @@ function appendLog(message) {
     logsContent.scrollTop = logsContent.scrollHeight;
 }
 
+// Check application status on page load and every 5 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    checkAllApplicationStatus();
+    setInterval(checkAllApplicationStatus, 5000);
+});
+
+function checkAllApplicationStatus() {
+    const appCards = document.querySelectorAll('.app-card');
+    appCards.forEach(card => {
+        const appName = card.querySelector('h3').textContent;
+        const openBtn = card.querySelector('[id^="openBtn-"]');
+        if (openBtn) {
+            checkApplicationStatus(appName, openBtn);
+        }
+    });
+}
+
+function checkApplicationStatus(appName, openBtn) {
+    const data = {
+        action: 'ps',
+        application_name: appName,
+        local_mode: true
+    };
+    
+    fetch('/api/deployments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.logs) {
+            updateApplicationButtonStatus(appName, data.logs);
+        }
+    })
+    .catch(error => {
+        console.log('Status check failed for', appName);
+        // Keep default state on error
+    });
+}
+
+function updateApplicationButtonStatus(appName, logs) {
+    const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const stopBtn = document.getElementById(`stopBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    if (!openBtn) return;
+    
+    if (logs.includes('is not running ⚠️') || logs.includes('Not running')) {
+        // Application is not running - RED and DISABLED
+        openBtn.classList.remove('btn-primary', 'btn-success');
+        openBtn.classList.add('btn-danger');
+        openBtn.style.pointerEvents = 'none';
+        openBtn.style.opacity = '0.6';
+        openBtn.title = 'Application is not running';
+        // Enable Clone and Start buttons
+        if (cloneBtn) {
+            cloneBtn.style.pointerEvents = 'auto';
+            cloneBtn.style.opacity = '1';
+        }
+        if (startBtn) {
+            startBtn.style.pointerEvents = 'auto';
+            startBtn.style.opacity = '1';
+        }
+        // Disable Stop and Restart buttons when not running
+        if (stopBtn) {
+            stopBtn.style.pointerEvents = 'none';
+            stopBtn.style.opacity = '0.6';
+            stopBtn.title = 'Application is not running';
+        }
+        if (restartBtn) {
+            restartBtn.style.pointerEvents = 'none';
+            restartBtn.style.opacity = '0.6';
+            restartBtn.title = 'Application is not running';
+        }
+    } else if (logs.includes('Up (healthy)') || logs.includes('Running')) {
+        // Application is running - GREEN and ENABLED
+        openBtn.classList.remove('btn-primary', 'btn-danger');
+        openBtn.classList.add('btn-success');
+        openBtn.style.pointerEvents = 'auto';
+        openBtn.style.opacity = '1';
+        openBtn.title = 'Application is running';
+        // Disable Clone and Start buttons when running
+        if (cloneBtn) {
+            cloneBtn.style.pointerEvents = 'none';
+            cloneBtn.style.opacity = '0.6';
+            cloneBtn.title = 'Application is already running';
+        }
+        if (startBtn) {
+            startBtn.style.pointerEvents = 'none';
+            startBtn.style.opacity = '0.6';
+            startBtn.title = 'Application is already running';
+        }
+        // Enable Stop and Restart buttons when running
+        if (stopBtn) {
+            stopBtn.style.pointerEvents = 'auto';
+            stopBtn.style.opacity = '1';
+        }
+        if (restartBtn) {
+            restartBtn.style.pointerEvents = 'auto';
+            restartBtn.style.opacity = '1';
+        }
+    }
+}
+
+// Q Chat functions
+function showQChatModal() {
+    document.getElementById('qChatModal').style.display = 'block';
+    if (document.getElementById('qChatMessages').innerHTML === '') {
+        addQChatMessage('system', 'Q Chat Assistant ready. Auto-approve mode is enabled for updates and writes.');
+    }
+}
+
+function closeQChatModal() {
+    document.getElementById('qChatModal').style.display = 'none';
+}
+
+function sendQChatMessage() {
+    const input = document.getElementById('qChatInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addQChatMessage('user', message);
+    input.value = '';
+    
+    // Show typing indicator
+    addQChatMessage('system', 'Q is thinking...');
+    
+    // Send to Q Chat API
+    const autoYes = document.getElementById('qChatAutoYes').checked;
+    const payload = {
+        message: message,
+        auto_approve: autoYes
+    };
+    
+    fetch('/api/qchat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Remove typing indicator
+        const messages = document.getElementById('qChatMessages');
+        messages.removeChild(messages.lastChild);
+        
+        if (data.error) {
+            addQChatMessage('error', `Error: ${data.error}`);
+        } else {
+            addQChatMessage('assistant', data.response);
+            if (data.command_executed) {
+                addQChatMessage('system', `Command executed: ${data.command}`);
+                if (data.command_output) {
+                    addQChatMessage('output', data.command_output);
+                }
+            }
+        }
+    })
+    .catch(error => {
+        // Remove typing indicator
+        const messages = document.getElementById('qChatMessages');
+        messages.removeChild(messages.lastChild);
+        addQChatMessage('error', `Network error: ${error.message}`);
+    });
+}
+
+function addQChatMessage(type, content) {
+    const messages = document.getElementById('qChatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message chat-${type}`;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = {
+        'user': '👤',
+        'assistant': '🤖',
+        'system': '⚙️',
+        'error': '❌',
+        'output': '💻'
+    }[type] || '💬';
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">${icon}</span>
+            <span class="message-time">${timestamp}</span>
+        </div>
+        <div class="message-content">${content}</div>
+    `;
+    
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+}
+
+// Handle Enter key in Q Chat input
+document.addEventListener('keydown', function(e) {
+    if (e.target.id === 'qChatInput' && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendQChatMessage();
+    }
+});
+
 // Close modal when clicking outside
 window.onclick = function(event) {
     const deploymentModal = document.getElementById('deploymentModal');
     const automorphModal = document.getElementById('automorphModal');
+    const qChatModal = document.getElementById('qChatModal');
     
     if (event.target === deploymentModal) {
         deploymentModal.style.display = 'none';
     }
     if (event.target === automorphModal) {
         automorphModal.style.display = 'none';
+    }
+    if (event.target === qChatModal) {
+        qChatModal.style.display = 'none';
     }
 }
 </script>

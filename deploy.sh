@@ -1,235 +1,239 @@
 #!/bin/bash
 
 # AI-SwAutoMorph Production Deployment Script
+# Organized with functions for better maintainability
 
-# Handle command line arguments
+set -e
+
+# Global Variables
 COMMAND=${1:-help}
 LOCAL_MODE=${2:-""}
 USER_ID=${3:-0}
 USER_NAME=${4:-"User"}
 USER_EMAIL=${5:-"user@example.com"}
 DESCRIPTION=${6:-"Basic Information Display"}
-# Compute var RANGE_START = APPLICATION_IDENTITY_NUMBER * 100 + 6000
 APPLICATION_IDENTITY_NUMBER=0
 RANGE_START=80
 RANGE_RESERVED=10
 PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
 
-set -e
+# Display environment variables for operations
+show_environment() {
+    local operation=$1
+    echo "🔍 Starting $operation operation..."
+    echo "Environment Variables:"
+    echo "  LOCAL_MODE=${LOCAL_MODE}"
+    echo "  USER_ID=${USER_ID}"
+    echo "  USER_NAME=${USER_NAME}"
+    echo "  USER_EMAIL=${USER_EMAIL}"
+    echo ""
+}
 
-# Handle command line arguments
-COMMAND=${1:-help}
-
-case $COMMAND in
-    "ps")
-        if [ "$LOCAL_MODE" = "locally" ]; then
-            echo "📊 AI-SwAutoMorph Local Service Status:"
-            # Check Flask application
-            if [ -f "app.pid" ]; then
-                PID=$(cat app.pid)
-                if kill -0 "$PID" 2>/dev/null; then
-                    echo "✅ Flask application: Running (PID: $PID)"
-                else
-                    echo "❌ Flask application: Not running (stale PID: $PID)"
-                fi
-            else
-                echo "❌ Flask application: Not running (no PID file)"
-            fi
-            # Check Nginx
-            if systemctl is-active --quiet nginx; then
-                echo "✅ Nginx: Running"
-                if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-                    echo "✅ AI-SwAutoMorph site: Configured"
-                else
-                    echo "⚠️ AI-SwAutoMorph site: Not configured"
-                fi
-            else
-                echo "❌ Nginx: Not running"
-            fi
-        else
-            echo "📊 AI-SwAutoMorph Service Status:"
-            if command -v docker-compose &> /dev/null; then
-                PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose ps
-            else
-                echo "❌ Docker Compose not installed"
-            fi
-        fi
-        exit 0
-        ;;
-    "stop")
-        if [ "$LOCAL_MODE" = "locally" ]; then
-            echo "🛑 Stopping local AI-SwAutoMorph services..."
-            # Stop Flask application
-            if [ -f "app.pid" ]; then
-                PID=$(cat app.pid)
-                if kill -0 "$PID" 2>/dev/null; then
-                    kill "$PID"
-                    echo "✅ Flask application stopped (PID: $PID)"
-                else
-                    echo "⚠️ Flask process not running (PID: $PID)"
-                fi
-                rm -f app.pid
-            else
-                echo "⚠️ No app.pid file found"
-            fi
-            # Remove nginx site configuration
-            if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-                sudo rm -f /etc/nginx/sites-enabled/ai-swautomorph
-                sudo nginx -t && sudo systemctl reload nginx
-                echo "✅ Nginx configuration removed"
-            fi
-            echo "✅ Local services stopped"
-        else
-            echo "🛑 Stopping AI-SwAutoMorph services..."
-            PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down
-            echo "✅ Services stopped"
-        fi
-        exit 0
-        ;;
-    "logs")
-        if [ "$LOCAL_MODE" = "locally" ]; then
-            echo "📋 AI-SwAutoMorph Local Service Logs:"
-            if [ -f "app.log" ]; then
-                echo "🐍 Flask Application Logs (last 50 lines):"
-                tail -n 50 app.log
-                echo ""
-                echo "📊 Follow Flask logs: tail -f app.log"
-            else
-                echo "❌ No Flask log file found (app.log)"
-            fi
-            echo ""
-            echo "🌐 Nginx Error Logs (last 20 lines):"
-            sudo tail -n 20 /var/log/nginx/error.log 2>/dev/null || echo "❌ Cannot access Nginx logs"
-        else
-            PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose logs -f
-        fi
-        exit 0
-        ;;
-    "restart")
-        if [ "$LOCAL_MODE" = "locally" ]; then
-            echo "🔄 Restarting local AI-SwAutoMorph services..."
-            # Stop Flask application
-            if [ -f "app.pid" ]; then
-                PID=$(cat app.pid)
-                if kill -0 "$PID" 2>/dev/null; then
-                    kill "$PID"
-                    echo "✅ Flask application stopped (PID: $PID)"
-                fi
-                rm -f app.pid
-            fi
-            # Start Flask application
-            echo "🚀 Starting Flask application..."
-            nohup python3 app.py > app.log 2>&1 &
-            echo $! > app.pid
-            # Reload nginx configuration
-            sudo nginx -t && sudo systemctl reload nginx
-            echo "✅ Local services restarted"
-        else
-            echo "🔄 Restarting AI-SwAutoMorph services..."
-            PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose restart
-            echo "✅ Services restarted"
-        fi
-        exit 0
-        ;;
-    "start")
-        if [ "$LOCAL_MODE" = "locally" ]; then
-            echo "🚀 Starting AI-SwAutoMorph locally (no Docker)..."
-        else
-            echo "🚀 Starting AI-SwAutoMorph deployment..."
-        fi
-        ;;
-    *)
-        echo "Usage: $0 [start|stop|restart|ps|logs] [locally]"
-        echo "  start        - Start services including building (default)"
-        echo "  start locally - Start services locally without Docker"
-        echo "  stop         - Stop all services"
-        echo "  stop locally - Stop local services (Flask + Nginx config)"
-        echo "  restart      - Restart all services, docker style"
-        echo "  restart locally - Restart local services (Flask + Nginx reload)"
-        echo "  ps           - Show service status"
-        echo "  ps locally   - Show local service status (Flask + Nginx)"
-        echo "  logs         - Show service logs"
-        echo "  logs locally - Show local service logs (Flask + Nginx)"
-        exit 1
-        ;;
-esac
-
-# Validate user_id
-if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
-    echo "❌ Error: user_id must be a number"
-    exit 1
-fi
-
-# Check requirements based on mode
-if [ "$LOCAL_MODE" = "locally" ]; then
-    # Check for local requirements
-    if ! command -v python3 &> /dev/null; then
-        echo "❌ Python3 is not installed. Please install Python3 first."
-        exit 1
-    fi
+# Check service status
+check_status() {
+    show_environment "ps"
     
-    if ! command -v nginx &> /dev/null; then
-        echo "📦 Installing Nginx..."
-        sudo apt update && sudo apt install -y nginx
-        sudo systemctl enable nginx
-        echo "✅ Nginx installed successfully"
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        echo "📊 AI-SwAutoMorph Local Service Status:"
+        check_flask_status
+        check_nginx_status
+    else
+        echo "📊 AI-SwAutoMorph Service Status:"
+        check_docker_status
     fi
-else
-    # Check for Docker requirements
-    if ! command -v docker &> /dev/null; then
-        echo "❌ Docker is not installed. Please install Docker first."
-        exit 1
+}
+
+check_flask_status() {
+    if [ -f "app.pid" ]; then
+        PID=$(cat app.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            echo "✅ Flask application: Running (PID: $PID)"
+        else
+            echo "❌ Flask application: Not running (stale PID: $PID)"
+        fi
+    else
+        echo "❌ Flask application: Not running (no PID file)"
     fi
+}
+
+check_nginx_status() {
+    if systemctl is-active --quiet nginx; then
+        echo "✅ Nginx: Running"
+        if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
+            echo "✅ AI-SwAutoMorph site: Configured"
+        else
+            echo "⚠️ AI-SwAutoMorph site: Not configured"
+        fi
+    else
+        echo "❌ Nginx: Not running"
+    fi
+}
+
+check_docker_status() {
+    if command -v docker-compose &> /dev/null; then
+        PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose ps
+    else
+        echo "❌ Docker Compose not installed"
+    fi
+}
+
+# Stop services
+stop_services() {
+    show_environment "stop"
     
-    if ! command -v docker-compose &> /dev/null; then
-        echo "❌ Docker Compose is not installed. Please install Docker Compose first."
-        exit 1
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        echo "🛑 Stopping local AI-SwAutoMorph services..."
+        stop_flask_service
+        remove_nginx_config
+        echo "✅ Local services stopped"
+    else
+        echo "🛑 Stopping AI-SwAutoMorph services..."
+        stop_docker_services
+        echo "✅ Services stopped"
     fi
-fi
+}
 
-# Create necessary directories
-echo "📁 Creating directories..."
-mkdir -p data ssl logs
+stop_flask_service() {
+    if [ -f "app.pid" ]; then
+        PID=$(cat app.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            kill "$PID"
+            echo "✅ Flask application stopped (PID: $PID)"
+        else
+            echo "⚠️ Flask process not running (PID: $PID)"
+        fi
+        rm -f app.pid
+    else
+        echo "⚠️ No app.pid file found"
+    fi
+}
 
-# Set proper permissions
-chmod 755 data ssl logs
+remove_nginx_config() {
+    if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
+        sudo rm -f /etc/nginx/sites-enabled/ai-swautomorph
+        sudo nginx -t && sudo systemctl reload nginx
+        echo "✅ Nginx configuration removed"
+    fi
+}
 
-# Generate SSL certificates if they don't exist
-if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
-    echo "🔐 Generating SSL certificates..."
-    ./generate_ssl.sh
-else
-    echo "✅ SSL certificates already exist"
-fi
+stop_docker_services() {
+    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down
+}
 
-# Generate secret key if not exists
-if [ ! -f .env ]; then
-    echo "🔑 Generating environment configuration..."
-    SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-    cat > .env << EOF
-SECRET_KEY=${SECRET_KEY}
-FLASK_ENV=production
-EOF
-    echo "✅ Environment file created (.env)"
-fi
+# Show logs
+show_logs() {
+    show_environment "logs"
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        echo "📋 AI-SwAutoMorph Local Service Logs:"
+        show_flask_logs
+        show_nginx_logs
+    else
+        show_docker_logs
+    fi
+}
 
-if [ "$LOCAL_MODE" = "locally" ]; then
-    # Local deployment
+show_flask_logs() {
+    if [ -f "app.log" ]; then
+        echo "🐍 Flask Application Logs (last 50 lines):"
+        tail -n 50 app.log
+        echo ""
+        echo "📊 Follow Flask logs: tail -f app.log"
+    else
+        echo "❌ No Flask log file found (app.log)"
+    fi
+}
+
+show_nginx_logs() {
+    echo ""
+    echo "🌐 Nginx Error Logs (last 20 lines):"
+    sudo tail -n 20 /var/log/nginx/error.log 2>/dev/null || echo "❌ Cannot access Nginx logs"
+}
+
+show_docker_logs() {
+    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose logs -f
+}
+
+# Restart services
+restart_services() {
+    show_environment "restart"
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        echo "🔄 Restarting local AI-SwAutoMorph services..."
+        restart_flask_service
+        reload_nginx_config
+        echo "✅ Local services restarted"
+    else
+        echo "🔄 Restarting AI-SwAutoMorph services..."
+        restart_docker_services
+        echo "✅ Services restarted"
+    fi
+}
+
+restart_flask_service() {
+    stop_flask_service
+    echo "🚀 Starting Flask application..."
+    nohup python3 app.py > app.log 2>&1 &
+    echo $! > app.pid
+}
+
+reload_nginx_config() {
+    sudo nginx -t && sudo systemctl reload nginx
+}
+
+restart_docker_services() {
+    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose restart
+}
+
+# Start services
+start_services() {
+    show_environment "start"
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        echo "🚀 Starting AI-SwAutoMorph locally (no Docker)..."
+        start_local_deployment
+    else
+        echo "🚀 Starting AI-SwAutoMorph deployment..."
+        start_docker_deployment
+    fi
+}
+
+start_local_deployment() {
     echo "💻 Starting local deployment..."
-    
-    # Install Python dependencies
+    install_python_dependencies
+    start_flask_application
+    configure_nginx
+    configure_firewall
+}
+
+start_docker_deployment() {
+    echo "🐳 Starting Docker deployment..."
+    cleanup_docker
+    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose up -d --build
+    echo "✅ Docker services started"
+}
+
+install_python_dependencies() {
     if [ -f "requirements.txt" ]; then
         echo "📦 Installing Python dependencies..."
         pip3 install -r requirements.txt
     fi
-    
-    # Start Flask application in background
+}
+
+start_flask_application() {
     echo "🚀 Starting Flask application..."
     nohup python3 app.py > app.log 2>&1 &
     echo $! > app.pid
-    
-    # Configure and start nginx
+}
+
+configure_nginx() {
     echo "🌐 Configuring Nginx..."
+    create_nginx_config
+    enable_nginx_site
+    test_and_reload_nginx
+}
+
+create_nginx_config() {
     cat > /tmp/ai-swautomorph-site << 'EOF'
 server {
     listen 80;
@@ -255,97 +259,153 @@ server {
     }
 }
 EOF
+}
+
+enable_nginx_site() {
     sudo mv /tmp/ai-swautomorph-site /etc/nginx/sites-available/ai-swautomorph
     sudo ln -sf /etc/nginx/sites-available/ai-swautomorph /etc/nginx/sites-enabled/
-    
-    # Configure firewall for internet access
+}
+
+test_and_reload_nginx() {
+    sudo nginx -t && sudo systemctl reload nginx
+}
+
+configure_firewall() {
     echo "🔥 Configuring firewall for internet access..."
     sudo ufw allow 80/tcp
     sudo ufw allow 443/tcp
     sudo ufw --force enable
-    
-    sudo nginx -t && sudo systemctl reload nginx
-    
-else
-    # Docker deployment
+}
+
+cleanup_docker() {
     echo "🧹 Cleaning up..."
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans 2>/dev/null || true
-    
-    # Build and start services
-    echo "🔨 Building Docker images..."
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose build --no-cache
-    
-    echo "🚀 Starting services..."
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose up -d
-fi
+    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
+}
 
-# Wait for services to be ready
-echo "⏳ Waiting for services to start..."
-sleep 10
-
-if [ "$LOCAL_MODE" = "locally" ]; then
-    # Check local services
-    if [ -f "app.pid" ] && kill -0 $(cat app.pid) 2>/dev/null; then
-        echo "✅ Local services are running!"
-        echo ""
-        echo "🌐 Application URLs:"
-        echo "   Web Interface: https://188.165.71.139 (HTTPS via Nginx)"
-        echo "   HTTP Redirect: http://188.165.71.139 (redirects to HTTPS)"
-        echo "   Direct Flask:  http://188.165.71.139:5000"
-        echo ""
-        echo "🌍 Internet Access:"
-        echo "   ✅ Firewall configured (ports 80, 443 open)"
-        echo "   ✅ Nginx listening on all interfaces (0.0.0.0)"
-        echo "   🌐 Public access: https://188.165.71.139"
-        echo ""
-        echo "📋 Management Commands:"
-        echo "   View logs:     tail -f app.log"
-        echo "   Stop services: ./deploy.sh stop locally"
-        echo "   Check Flask:   ps aux | grep python3"
-    else
-        echo "❌ Failed to start local services. Check app.log"
+# Validate user input
+validate_user_id() {
+    if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
+        echo "❌ Error: user_id must be a number"
         exit 1
     fi
-else
-    # Check Docker services
-    ACTUAL_PORT=${PORT_START:-$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED))}
-    ACTUAL_HTTPS_PORT=${HTTPS_PORT:-$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 1))}
-    
-    if PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose ps | grep -q "Up"; then
-        echo "✅ Services are running!"
-        echo ""
-        echo "🌐 Application URLs (User ID: $USER_ID):"
-        echo "   Web Interface: https://localhost:$ACTUAL_HTTPS_PORT"
-        echo "   HTTP Interface: http://localhost:$ACTUAL_PORT"
-        echo "   API Endpoint:  https://localhost:$ACTUAL_HTTPS_PORT/api"
-        echo ""
-        echo "🔧 Port Configuration:"
-        echo "   HTTP Port:  $ACTUAL_PORT"
-        echo "   HTTPS Port: $ACTUAL_HTTPS_PORT"
-        echo "   User ID:    $USER_ID"
-        echo ""
-        echo "📋 Management Commands:"
-        echo "   View logs:     ./deploy.sh logs"
-        echo "   Stop services: ./deploy.sh stop"
-        echo "   Restart:       ./deploy.sh restart"
-        echo "   Check status:  ./deploy.sh ps"
-        echo ""
-        echo "📊 Service Status:"
-        PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose ps
+}
+
+# Check system requirements
+check_requirements() {
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        check_local_requirements
     else
-        echo "❌ Failed to start services. Check logs:"
-        PORT=$ACTUAL_PORT HTTPS_PORT=$ACTUAL_HTTPS_PORT USER_ID=$USER_ID docker-compose logs
+        check_docker_requirements
+    fi
+}
+
+check_local_requirements() {
+    if ! command -v python3 &> /dev/null; then
+        echo "❌ Python3 is not installed. Please install Python3 first."
         exit 1
     fi
-fi
+    
+    if ! command -v nginx &> /dev/null; then
+        echo "📦 Installing Nginx..."
+        sudo apt update && sudo apt install -y nginx
+        sudo systemctl enable nginx
+        echo "✅ Nginx installed successfully"
+    fi
+}
 
-echo ""
-echo "🎉 Deployment completed successfully!"
-echo "📖 Check the user guide at: https://www.swautomorph.com/static/userguide.html"
-echo ""
-echo "🔒 HTTPS Security:"
-echo "   ✅ SSL/TLS encryption enabled"
-echo "   ✅ HTTP to HTTPS redirect active"
-echo "   ✅ Security headers configured"
-echo "   ⚠️  Using self-signed certificate (browser warning expected)"
-echo "   📝 For production: Replace with CA-signed certificate"
+check_docker_requirements() {
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker is not installed. Please install Docker first."
+        exit 1
+    fi
+    
+    if ! command -v docker-compose &> /dev/null; then
+        echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+        exit 1
+    fi
+}
+
+# Setup directories and certificates
+setup_environment() {
+    create_directories
+    setup_ssl_certificates
+    generate_environment_file
+}
+
+create_directories() {
+    echo "📁 Creating directories..."
+    mkdir -p data ssl logs
+    chmod 755 data ssl logs
+}
+
+setup_ssl_certificates() {
+    if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
+        echo "🔐 Generating SSL certificates..."
+        ./generate_ssl.sh
+    else
+        echo "✅ SSL certificates already exist"
+    fi
+}
+
+generate_environment_file() {
+    if [ ! -f .env ]; then
+        echo "🔑 Generating environment configuration..."
+        SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        cat > .env << EOF
+SECRET_KEY=${SECRET_KEY}
+FLASK_ENV=production
+EOF
+        echo "✅ Environment file created (.env)"
+    fi
+}
+
+# Show usage information
+show_usage() {
+    echo "Usage: $0 [start|stop|restart|ps|logs] [locally]"
+    echo "  start        - Start services including building (default)"
+    echo "  start locally - Start services locally without Docker"
+    echo "  stop         - Stop all services"
+    echo "  stop locally - Stop local services (Flask + Nginx config)"
+    echo "  restart      - Restart all services, docker style"
+    echo "  restart locally - Restart local services (Flask + Nginx reload)"
+    echo "  ps           - Show service status"
+    echo "  ps locally   - Show local service status (Flask + Nginx)"
+    echo "  logs         - Show service logs"
+    echo "  logs locally - Show local service logs (Flask + Nginx)"
+}
+
+# Main function - orchestrates the deployment process
+main() {
+    case $COMMAND in
+        "ps")
+            check_status
+            exit 0
+            ;;
+        "stop")
+            stop_services
+            exit 0
+            ;;
+        "logs")
+            show_logs
+            exit 0
+            ;;
+        "restart")
+            restart_services
+            exit 0
+            ;;
+        "start")
+            validate_user_id
+            check_requirements
+            setup_environment
+            start_services
+            echo "🎉 Deployment completed successfully!"
+            ;;
+        *)
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function
+main "$@"

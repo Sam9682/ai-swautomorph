@@ -484,3 +484,65 @@ def api_deployment_logs(deployment_id):
     except Exception as e:
         print(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
+
+@api_bp.route('/qchat', methods=['POST'])
+def api_qchat():
+    import subprocess
+    import re
+    
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json()
+    message = data.get('message', '').strip()
+    auto_approve = data.get('auto_approve', True)
+    
+    if not message:
+        return jsonify({'error': 'Message required'}), 400
+    
+    try:
+        # Prepare Q Chat command with auto-approve flag
+        cmd_args = ['q', 'chat']
+        if auto_approve:
+            cmd_args.append('--auto-approve')
+        cmd_args.append(message)
+        
+        # Execute Q Chat command
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
+        
+        response_text = result.stdout.strip() if result.stdout else 'No response from Q Chat'
+        
+        # Check if command was executed (look for command patterns)
+        command_executed = False
+        executed_command = None
+        command_output = None
+        
+        # Look for command execution patterns in the response
+        if 'executing:' in response_text.lower() or 'running:' in response_text.lower():
+            command_executed = True
+            # Extract command from response
+            cmd_match = re.search(r'(?:executing|running):\s*(.+)', response_text, re.IGNORECASE)
+            if cmd_match:
+                executed_command = cmd_match.group(1).strip()
+        
+        # If stderr contains command output, include it
+        if result.stderr:
+            command_output = result.stderr.strip()
+        
+        return jsonify({
+            'response': response_text,
+            'command_executed': command_executed,
+            'command': executed_command,
+            'command_output': command_output,
+            'auto_approve_used': auto_approve
+        })
+        
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Q Chat request timed out'}), 408
+    except subprocess.CalledProcessError as e:
+        return jsonify({
+            'error': f'Q Chat command failed: {e.stderr}',
+            'response': e.stdout if e.stdout else 'No output'
+        }), 500
+    except Exception as e:
+        return jsonify({'error': f'Q Chat error: {str(e)}'}), 500
