@@ -12,6 +12,8 @@ USER_ID=${3:-0}
 USER_NAME=${4:-"User"}
 USER_EMAIL=${5:-"user@example.com"}
 DESCRIPTION=${6:-"Basic Information Display"}
+
+# Port configuration
 APPLICATION_IDENTITY_NUMBER=0
 RANGE_START=80
 RANGE_RESERVED=10

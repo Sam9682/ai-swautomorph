@@ -405,11 +405,11 @@ def api_deployments():
                 local_mode = data.get('local_mode', True)  # Default to local mode
                 if local_mode:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, 'locally', str(session['user_id']), user_name, user_email], 
+                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 else:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, '', str(session['user_id']), user_name, user_email], 
+                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
@@ -514,13 +514,10 @@ def api_qchat():
         return jsonify({'error': 'Message required'}), 400
     
     try:
-        # Prepare Q Chat command with auto-approve flag
-        cmd_args = ['q', 'chat']
-        if auto_approve:
-            cmd_args.append('--auto-approve')
-        cmd_args.append(message)
+        # Prepare Q Chat command with --trust-all-tools option
+        cmd_args = ['qchat', 'chat', '--trust-all-tools', message]
         
-        print(f"[Q CHAT API] User {user_id} - Executing command: {' '.join(cmd_args[:2])} {'--auto-approve' if auto_approve else ''} [message]")
+        print(f"[Q CHAT API] User {user_id} - Executing command: {' '.join(cmd_args[:2])} [message]")
         start_time = time.time()
         
         # Execute Q Chat command
@@ -544,6 +541,11 @@ def api_qchat():
             response_text = result.stderr.strip()
         else:
             response_text = 'Q Chat completed but returned no output'
+        
+        # Strip ANSI color codes from response
+        import re
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        response_text = ansi_escape.sub('', response_text)
         
         # Check if command was executed (look for command patterns)
         command_executed = False

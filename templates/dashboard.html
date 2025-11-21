@@ -794,22 +794,34 @@ function checkAllApplicationStatus() {
 }
 
 function checkApplicationStatus(appName, openBtn) {
-    const data = {
-        action: 'ps',
-        application_name: appName,
-        local_mode: true
-    };
-    
-    fetch('/api/deployments', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    })
+    // First check if user has any deployments for this app
+    fetch('/api/deployments')
     .then(response => response.json())
-    .then(data => {
-        if (data.logs) {
-            updateApplicationButtonStatus(appName, data.logs);
+    .then(deployments => {
+        const hasDeployment = deployments.some(d => d.application_name === appName && d.status !== 'failed');
+        if (!hasDeployment) {
+            // No deployment exists, keep default state
+            return;
         }
+        
+        // Only check status if deployment exists
+        const data = {
+            action: 'ps',
+            application_name: appName,
+            local_mode: true
+        };
+        
+        return fetch('/api/deployments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.logs) {
+                updateApplicationButtonStatus(appName, data.logs);
+            }
+        });
     })
     .catch(error => {
         console.log('Status check failed for', appName);
