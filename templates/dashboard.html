@@ -38,7 +38,7 @@
                 <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
             </div>
             <div class="app-buttons">
-                <a href="{{ url_for('sso.sso_app_login', app_name=app[1]) }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
+                <a href="{{ app[2] }}?sso_token={{ sso_token }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
                     <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 Clone</button>

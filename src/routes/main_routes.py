@@ -44,7 +44,7 @@ def dashboard():
     # Get SSO token for the user
     sso_token = session.get('sso_token', '')
     
-    return render_template('dashboard.html', applications=applications, username=username, sso_token=sso_token)
+    return render_template('dashboard.html', applications=applications, username=username, sso_token=sso_token, user_id=session['user_id'])
 
 @main_bp.route('/set_language/<language>')
 def set_language(language):

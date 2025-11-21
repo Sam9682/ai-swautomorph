@@ -50,6 +50,15 @@ def api_applications():
         git_url = data.get('git_url', '')
         cursor.execute('INSERT INTO applications (name, url, description, git_url) VALUES (?, ?, ?, ?)',
                       (name, url, description, git_url))
+        app_id = cursor.lastrowid
+        
+        # Assign new application to all existing users
+        cursor.execute('SELECT id FROM users')
+        user_ids = cursor.fetchall()
+        for user_id in user_ids:
+            cursor.execute('INSERT INTO user_applications (user_id, application_id) VALUES (?, ?)',
+                          (user_id[0], app_id))
+        
         conn.commit()
         conn.close()
         
@@ -140,8 +149,14 @@ def api_users():
                 INSERT INTO users (username, email, password_hash, first_name, last_name)
                 VALUES (?, ?, ?, ?, ?)
             ''', (username, email, password_hash, first_name, last_name))
+            user_id = cursor.lastrowid
             conn.commit()
             conn.close()
+            
+            # Assign default applications to new user
+            from ..database import assign_default_apps_to_user
+            assign_default_apps_to_user(user_id)
+            
             return jsonify({'message': 'User created successfully'}), 201
         except sqlite3.IntegrityError:
             conn.close()
@@ -405,11 +420,11 @@ def api_deployments():
                 local_mode = data.get('local_mode', True)  # Default to local mode
                 if local_mode:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
+                    result = subprocess.run([deploy_script, action, 'locally', str(session['user_id']), user_name, user_email], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 else:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
+                    result = subprocess.run([deploy_script, action, '', str(session['user_id']), user_name, user_email], 
                                           cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
