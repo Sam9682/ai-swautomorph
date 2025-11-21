@@ -417,13 +417,8 @@ def api_deployments():
                 user_email = user_details[1] if user_details else 'user@example.com'
                 
                 # Execute deploy.sh with action and user environment variables
-                if local_mode:
-                    print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, 'locally', str(session['user_id']), user_name, user_email], 
-                                          cwd=deploy_path, capture_output=True, text=True, timeout=600)
-                else:
-                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
+                print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
+                result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
                                           cwd=deployment_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
