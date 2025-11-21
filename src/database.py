@@ -27,7 +27,6 @@ def init_db():
         CREATE TABLE IF NOT EXISTS applications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            url TEXT NOT NULL,
             description TEXT,
             git_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -52,6 +51,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
             application_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (application_id) REFERENCES applications (id),
@@ -82,12 +82,12 @@ def init_db():
         RANGE_RESERVED = 100
         
         default_apps = [
-            ('ai-foodflow', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 1 * RANGE_RESERVED +1}', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
-            ('ai-haccp', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 2 * RANGE_RESERVED +1}', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
-            ('ai-checkinatwork', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 3 * RANGE_RESERVED +1}', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
-            ('ai-staticwebsite', f'https://www.swautomorph.com:{PORT_RANGE_BEGIN + 4 * RANGE_RESERVED +1}', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
+            ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
+            ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
+            ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
+            ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
         ]
-        cursor.executemany('INSERT INTO applications (name, url, description, git_url) VALUES (?, ?, ?, ?)', default_apps)
+        cursor.executemany('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)', default_apps)
     
     # Create default admin user if none exists
     cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
@@ -98,12 +98,25 @@ def init_db():
             VALUES (?, ?, ?, ?, ?)
         ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator'))
         
-        # Get admin user ID and assign all applications
+        # Get admin user ID and assign all applications with URLs
         admin_id = cursor.lastrowid
-        cursor.execute('SELECT id FROM applications')
-        app_ids = cursor.fetchall()
-        for app_id in app_ids:
-            cursor.execute('INSERT INTO user_applications (user_id, application_id) VALUES (?, ?)', (admin_id, app_id[0]))
+        cursor.execute('SELECT id, name FROM applications')
+        apps = cursor.fetchall()
+        for app in apps:
+            app_id, app_name = app[0], app[1]
+            # Calculate URL based on admin user_id (1) and app
+            base_port = 6000 + (admin_id * 10)
+            if app_name == 'ai-haccp':
+                url = f'https://www.swautomorph.com:{base_port + 201}'
+            elif app_name == 'ai-foodflow':
+                url = f'https://www.swautomorph.com:{base_port + 101}'
+            elif app_name == 'ai-checkinatwork':
+                url = f'https://www.swautomorph.com:{base_port + 301}'
+            elif app_name == 'ai-staticwebsite':
+                url = f'https://www.swautomorph.com:{base_port + 401}'
+            else:
+                url = f'https://www.swautomorph.com:{base_port}'
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
     
     conn.commit()
     conn.close()
@@ -113,21 +126,34 @@ def assign_default_apps_to_user(user_id):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Get all application IDs
-    cursor.execute('SELECT id FROM applications')
-    app_ids = cursor.fetchall()
+    # Get all applications
+    cursor.execute('SELECT id, name FROM applications')
+    apps = cursor.fetchall()
     
-    # Assign all applications to the user
-    for app_id in app_ids:
+    # Assign all applications to the user with calculated URLs
+    for app in apps:
+        app_id, app_name = app[0], app[1]
+        # Calculate URL based on user_id and app
+        base_port = 6000 + (user_id * 10)
+        if app_name == 'ai-haccp':
+            url = f'https://www.swautomorph.com:{base_port + 201}'
+        elif app_name == 'ai-foodflow':
+            url = f'https://www.swautomorph.com:{base_port + 101}'
+        elif app_name == 'ai-checkinatwork':
+            url = f'https://www.swautomorph.com:{base_port + 301}'
+        elif app_name == 'ai-staticwebsite':
+            url = f'https://www.swautomorph.com:{base_port + 401}'
+        else:
+            url = f'https://www.swautomorph.com:{base_port}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id) 
-            VALUES (?, ?)
-        ''', (user_id, app_id[0]))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
+            VALUES (?, ?, ?)
+        ''', (user_id, app_id, url))
     
     conn.commit()
     conn.close()
 
-def assign_app_to_all_users(app_id):
+def assign_app_to_all_users(app_id, app_name):
     """Assign a new application to all existing users"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -136,12 +162,25 @@ def assign_app_to_all_users(app_id):
     cursor.execute('SELECT id FROM users')
     user_ids = cursor.fetchall()
     
-    # Assign application to all users
+    # Assign application to all users with calculated URLs
     for user_id in user_ids:
+        uid = user_id[0]
+        # Calculate URL based on user_id and app
+        base_port = 6000 + (uid * 10)
+        if app_name == 'ai-haccp':
+            url = f'https://www.swautomorph.com:{base_port + 201}'
+        elif app_name == 'ai-foodflow':
+            url = f'https://www.swautomorph.com:{base_port + 101}'
+        elif app_name == 'ai-checkinatwork':
+            url = f'https://www.swautomorph.com:{base_port + 301}'
+        elif app_name == 'ai-staticwebsite':
+            url = f'https://www.swautomorph.com:{base_port + 401}'
+        else:
+            url = f'https://www.swautomorph.com:{base_port}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id) 
-            VALUES (?, ?)
-        ''', (user_id[0], app_id))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
+            VALUES (?, ?, ?)
+        ''', (uid, app_id, url))
     
     conn.commit()
     conn.close()

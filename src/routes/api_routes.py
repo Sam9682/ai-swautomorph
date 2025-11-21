@@ -20,8 +20,8 @@ def api_applications():
     if request.method == 'GET':
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, url, description, git_url FROM applications ORDER BY name')
-        apps = [{'id': row[0], 'name': row[1], 'url': row[2], 'description': row[3], 'git_url': row[4]} 
+        cursor.execute('SELECT id, name, description, git_url FROM applications ORDER BY name')
+        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3]} 
                 for row in cursor.fetchall()]
         conn.close()
         return jsonify(apps)
@@ -41,23 +41,19 @@ def api_applications():
         
         data = request.get_json()
         name = data.get('name')
-        url = data.get('url')
         description = data.get('description', '')
         
-        if not all([name, url]):
-            return jsonify({'error': 'Name and URL required'}), 400
+        if not name:
+            return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
-        cursor.execute('INSERT INTO applications (name, url, description, git_url) VALUES (?, ?, ?, ?)',
-                      (name, url, description, git_url))
+        cursor.execute('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
+                      (name, description, git_url))
         app_id = cursor.lastrowid
         
-        # Assign new application to all existing users
-        cursor.execute('SELECT id FROM users')
-        user_ids = cursor.fetchall()
-        for user_id in user_ids:
-            cursor.execute('INSERT INTO user_applications (user_id, application_id) VALUES (?, ?)',
-                          (user_id[0], app_id))
+        # Assign new application to all existing users with URLs
+        from ..database import assign_app_to_all_users
+        assign_app_to_all_users(app_id, name)
         
         conn.commit()
         conn.close()
@@ -81,17 +77,16 @@ def api_application_actions(app_id):
     if request.method == 'PUT':
         data = request.get_json()
         name = data.get('name')
-        url = data.get('url')
         description = data.get('description', '')
         
-        if not all([name, url]):
-            return jsonify({'error': 'Name and URL required'}), 400
+        if not name:
+            return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
         cursor.execute('''
-            UPDATE applications SET name = ?, url = ?, description = ?, git_url = ?
+            UPDATE applications SET name = ?, description = ?, git_url = ?
             WHERE id = ?
-        ''', (name, url, description, git_url, app_id))
+        ''', (name, description, git_url, app_id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Application updated successfully'})
