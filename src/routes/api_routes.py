@@ -343,7 +343,7 @@ def api_deployments():
                 # Clone repository
                 print(f"[DEPLOYMENT API] CLONE - Executing git clone command")
                 result = subprocess.run(['git', 'clone', git_url, deployment_path], 
-                                      capture_output=True, text=True, timeout=300)
+                                      capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] CLONE - Git clone completed with return code: {result.returncode}")
                 
                 command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
@@ -406,11 +406,11 @@ def api_deployments():
                 if local_mode:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing in LOCAL mode: {deploy_script} {action} locally {session['user_id']} '{user_name}' {user_email}")
                     result = subprocess.run([deploy_script, action, 'locally', str(session['user_id']), user_name, user_email], 
-                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 else:
                     print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
                     result = subprocess.run([deploy_script, action, '', str(session['user_id']), user_name, user_email], 
-                                          cwd=deploy_path, capture_output=True, text=True, timeout=300)
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
                 command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
@@ -489,15 +489,29 @@ def api_deployment_logs(deployment_id):
 def api_qchat():
     import subprocess
     import re
+    import time
+    
+    # Log API call details
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    print(f"[Q CHAT API] {timestamp} - POST /api/qchat - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
     
     if 'user_id' not in session:
+        print(f"[Q CHAT API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     data = request.get_json()
     message = data.get('message', '').strip()
     auto_approve = data.get('auto_approve', True)
     
+    print(f"[Q CHAT API] User {user_id} - Message length: {len(message)} chars, Auto-approve: {auto_approve}")
+    print(f"[Q CHAT API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    
     if not message:
+        print(f"[Q CHAT API] FAILED - Empty message from user {user_id}")
         return jsonify({'error': 'Message required'}), 400
     
     try:
@@ -507,8 +521,21 @@ def api_qchat():
             cmd_args.append('--auto-approve')
         cmd_args.append(message)
         
+        print(f"[Q CHAT API] User {user_id} - Executing command: {' '.join(cmd_args[:2])} {'--auto-approve' if auto_approve else ''} [message]")
+        start_time = time.time()
+        
         # Execute Q Chat command
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
+        execution_time = time.time() - start_time
+        
+        print(f"[Q CHAT API] User {user_id} - Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        print(f"[Q CHAT API] User {user_id} - STDOUT length: {len(result.stdout)} chars")
+        print(f"[Q CHAT API] User {user_id} - STDERR length: {len(result.stderr)} chars")
+        
+        if result.stdout:
+            print(f"[Q CHAT API] User {user_id} - STDOUT preview: {result.stdout[:200]}{'...' if len(result.stdout) > 200 else ''}")
+        if result.stderr:
+            print(f"[Q CHAT API] User {user_id} - STDERR preview: {result.stderr[:200]}{'...' if len(result.stderr) > 200 else ''}")
         
         response_text = result.stdout.strip() if result.stdout else 'No response from Q Chat'
         
@@ -517,32 +544,49 @@ def api_qchat():
         executed_command = None
         command_output = None
         
+        print(f"[Q CHAT API] User {user_id} - Analyzing response for command execution patterns...")
+        
         # Look for command execution patterns in the response
         if 'executing:' in response_text.lower() or 'running:' in response_text.lower():
             command_executed = True
+            print(f"[Q CHAT API] User {user_id} - Command execution detected in response")
             # Extract command from response
             cmd_match = re.search(r'(?:executing|running):\s*(.+)', response_text, re.IGNORECASE)
             if cmd_match:
                 executed_command = cmd_match.group(1).strip()
+                print(f"[Q CHAT API] User {user_id} - Extracted command: {executed_command}")
+        else:
+            print(f"[Q CHAT API] User {user_id} - No command execution patterns found")
         
         # If stderr contains command output, include it
         if result.stderr:
             command_output = result.stderr.strip()
+            print(f"[Q CHAT API] User {user_id} - Command output captured from stderr")
         
-        return jsonify({
+        response_data = {
             'response': response_text,
             'command_executed': command_executed,
             'command': executed_command,
             'command_output': command_output,
-            'auto_approve_used': auto_approve
-        })
+            'auto_approve_used': auto_approve,
+            'execution_time': round(execution_time, 2)
+        }
+        
+        print(f"[Q CHAT API] User {user_id} - SUCCESS - Returning response with {len(response_text)} chars")
+        return jsonify(response_data)
         
     except subprocess.TimeoutExpired:
+        print(f"[Q CHAT API] User {user_id} - TIMEOUT - Q Chat request exceeded 60s timeout")
         return jsonify({'error': 'Q Chat request timed out'}), 408
     except subprocess.CalledProcessError as e:
+        print(f"[Q CHAT API] User {user_id} - PROCESS ERROR - Return code: {e.returncode}")
+        print(f"[Q CHAT API] User {user_id} - PROCESS ERROR - STDERR: {e.stderr}")
         return jsonify({
             'error': f'Q Chat command failed: {e.stderr}',
             'response': e.stdout if e.stdout else 'No output'
         }), 500
     except Exception as e:
+        print(f"[Q CHAT API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[Q CHAT API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
         return jsonify({'error': f'Q Chat error: {str(e)}'}), 500

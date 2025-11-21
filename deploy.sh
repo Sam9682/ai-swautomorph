@@ -134,13 +134,13 @@ show_logs() {
 }
 
 show_flask_logs() {
-    if [ -f "app.log" ]; then
+    if [ -f "app.logs" ]; then
         echo "🐍 Flask Application Logs (last 50 lines):"
-        tail -n 50 app.log
+        tail -n 50 app.logs
         echo ""
-        echo "📊 Follow Flask logs: tail -f app.log"
+        echo "📊 Follow Flask logs: tail -f app.logs"
     else
-        echo "❌ No Flask log file found (app.log)"
+        echo "❌ No Flask log file found (app.logs)"
     fi
 }
 
@@ -173,7 +173,7 @@ restart_services() {
 restart_flask_service() {
     stop_flask_service
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.log 2>&1 &
+    nohup python3 app.py > app.logs 2>&1 &
     echo $! > app.pid
 }
 
@@ -222,7 +222,7 @@ install_python_dependencies() {
 
 start_flask_application() {
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.log 2>&1 &
+    nohup python3 app.py > app.logs 2>&1 &
     echo $! > app.pid
 }
 
@@ -284,8 +284,8 @@ cleanup_docker() {
 
 # Validate user input
 validate_user_id() {
-    if ! [[ "$USER_ID" =~ ^[0-9]+$ ]]; then
-        echo "❌ Error: user_id must be a number"
+    if ! [[ "$USER_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "❌ Error: user_id must be alphanumeric (letters, numbers, underscore, hyphen)"
         exit 1
     fi
 }

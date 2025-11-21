@@ -590,12 +590,38 @@ function deployApp(appName, gitUrl, action) {
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
     appendLog(`Starting ${action} operation...`);
     
+    // Add loading indicator for long operations
+    if (['start', 'clone', 'restart'].includes(action)) {
+        appendLog(`⏳ This may take several minutes for Docker builds...`);
+    }
+    
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+    
     fetch('/api/deployments', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
+        signal: controller.signal
     })
-    .then(response => response.json())
+    .then(response => {
+        clearTimeout(timeoutId);
+        appendLog(`Server response status: ${response.status} ${response.statusText}`);
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
+            });
+        }
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                appendLog(`Invalid JSON response: ${text.substring(0, 200)}`);
+                throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}`);
+            }
+        });
+    })
     .then(data => {
         if (data.error) {
             appendLog(`ERROR: ${data.error}`);
@@ -615,8 +641,13 @@ function deployApp(appName, gitUrl, action) {
         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
     })
     .catch(error => {
+        clearTimeout(timeoutId);
         console.error('Deployment error:', error);
-        appendLog(`NETWORK ERROR: ${error.message}`);
+        if (error.name === 'AbortError') {
+            appendLog(`TIMEOUT ERROR: Operation exceeded 10 minutes`);
+        } else {
+            appendLog(`NETWORK ERROR: ${error.message}`);
+        }
         appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
     });
 }
@@ -794,7 +825,7 @@ function updateApplicationButtonStatus(appName, logs) {
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
-    if (logs.includes('is not running ⚠️') || logs.includes('Not running')) {
+    if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && line.toLowerCase().includes('not running'))) {
         // Application is not running - RED and DISABLED
         openBtn.classList.remove('btn-primary', 'btn-success');
         openBtn.classList.add('btn-danger');
@@ -821,7 +852,7 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.style.opacity = '0.6';
             restartBtn.title = 'Application is not running';
         }
-    } else if (logs.includes('Up (healthy)') || logs.includes('Running')) {
+    } else if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && (line.toLowerCase().includes('up') || line.toLowerCase().includes('running')))) {
         // Application is running - GREEN and ENABLED
         openBtn.classList.remove('btn-primary', 'btn-danger');
         openBtn.classList.add('btn-success');
