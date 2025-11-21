@@ -1,0 +1,118 @@
+ * Tip: There are .env or .flaskenv files present. Do "pip install python-dotenv" to use them.
+ * Serving Flask app 'src.app'
+ * Debug mode: off
+[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://188.165.71.139:5000
+[33mPress CTRL+C to quit[0m
+127.0.0.1 - - [21/Nov/2025 17:10:12] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:12] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:13] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:13] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:16] "[32mGET /logout HTTP/1.0[0m" 302 -
+127.0.0.1 - - [21/Nov/2025 17:10:16] "GET / HTTP/1.0" 200 -
+127.0.0.1 - - [21/Nov/2025 17:10:16] "GET /static/css/style.css HTTP/1.0" 200 -
+127.0.0.1 - - [21/Nov/2025 17:10:16] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [21/Nov/2025 17:10:16] "[33mGET /favicon.ico HTTP/1.0[0m" 404 -
+127.0.0.1 - - [21/Nov/2025 17:10:19] "[32mPOST /login HTTP/1.0[0m" 302 -
+127.0.0.1 - - [21/Nov/2025 17:10:20] "GET /dashboard HTTP/1.0" 200 -
+127.0.0.1 - - [21/Nov/2025 17:10:20] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [21/Nov/2025 17:10:20] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [21/Nov/2025 17:10:20] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:21] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:21] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:22] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-checkinatwork'
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-staticwebsite
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-haccp
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-checkinatwork
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-foodflow
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-checkinatwork'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-checkinatwork
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-checkinatwork/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-foodflow'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-foodflow/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-haccp'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-haccp'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-haccp
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-haccp/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-staticwebsite'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-staticwebsite'
+[DEPLOYMENT API] PS - Found deployment at: /home/ubuntu/deployments/admin/ai-staticwebsite
+[DEPLOYMENT API] PS - Looking for deploy script: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh
+[DEPLOYMENT API] PS - Executing in LOCAL mode: /home/ubuntu/deployments/admin/ai-staticwebsite/deploy.sh ps locally 1 'System Administrator' admin@swautomorph.com
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-staticwebsite
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-staticwebsite' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-checkinatwork
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-checkinatwork' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-haccp
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-haccp' by user 1
+[DEPLOYMENT API] PS - Command completed with return code: 0
+[DEPLOYMENT API] PS - Database status updated = completed for application ai-foodflow
+[DEPLOYMENT API] POST - SUCCESS - Action 'ps' completed for app 'ai-foodflow' by user 1
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-checkinatwork'
+[DEPLOYMENT API] POST /api/deployments - User: 1, IP: 176.191.56.67, UA: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0
+[DEPLOYMENT API] POST - User 1 requesting action 'ps' for app 'ai-foodflow'
+[DEPLOYMENT API] POST - Deployment path: /home/ubuntu/deployments/admin/ai-foodflow
+[DEPLOYMENT API] PS - Looking for existing deployment for app 'ai-foodflow'127.0.0.1 - - [21/Nov/2025 17:10:26] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:26] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:26] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:27] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:31] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:31] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:31] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -
+127.0.0.1 - - [21/Nov/2025 17:10:32] "[35m[1mPOST /api/deployments HTTP/1.0[0m" 202 -

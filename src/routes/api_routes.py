@@ -418,12 +418,11 @@ def api_deployments():
                 status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
                 
                 # Update deployment status
-                print(f"[DEPLOYMENT API] {action.upper()} - Updating deployment status to: {status}")
                 cursor.execute('''
                     UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = ? AND application_name = ?
                 ''', (status, session['user_id'], app_name))
-                print(f"[DEPLOYMENT API] {action.upper()} - Database status updated")
+                print(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
             
             conn.commit()
             conn.close()

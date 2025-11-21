@@ -825,34 +825,7 @@ function updateApplicationButtonStatus(appName, logs) {
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
-    if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && line.toLowerCase().includes('not running'))) {
-        // Application is not running - RED and DISABLED
-        openBtn.classList.remove('btn-primary', 'btn-success');
-        openBtn.classList.add('btn-danger');
-        openBtn.style.pointerEvents = 'none';
-        openBtn.style.opacity = '0.6';
-        openBtn.title = 'Application is not running';
-        // Enable Clone and Start buttons
-        if (cloneBtn) {
-            cloneBtn.style.pointerEvents = 'auto';
-            cloneBtn.style.opacity = '1';
-        }
-        if (startBtn) {
-            startBtn.style.pointerEvents = 'auto';
-            startBtn.style.opacity = '1';
-        }
-        // Disable Stop and Restart buttons when not running
-        if (stopBtn) {
-            stopBtn.style.pointerEvents = 'none';
-            stopBtn.style.opacity = '0.6';
-            stopBtn.title = 'Application is not running';
-        }
-        if (restartBtn) {
-            restartBtn.style.pointerEvents = 'none';
-            restartBtn.style.opacity = '0.6';
-            restartBtn.title = 'Application is not running';
-        }
-    } else if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && (line.toLowerCase().includes('up') || line.toLowerCase().includes('running')))) {
+    if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && (line.toLowerCase().includes('up') || line.toLowerCase().includes('running')))) {
         // Application is running - GREEN and ENABLED
         openBtn.classList.remove('btn-primary', 'btn-danger');
         openBtn.classList.add('btn-success');
@@ -880,6 +853,35 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.style.opacity = '1';
         }
     }
+    else {
+        // Application is not running - RED and DISABLED
+        openBtn.classList.remove('btn-primary', 'btn-success');
+        openBtn.classList.add('btn-danger');
+        openBtn.style.pointerEvents = 'none';
+        openBtn.style.opacity = '0.6';
+        openBtn.title = 'Application is not running';
+        // Enable Clone and Start buttons
+        if (cloneBtn) {
+            cloneBtn.style.pointerEvents = 'auto';
+            cloneBtn.style.opacity = '1';
+        }
+        if (startBtn) {
+            startBtn.style.pointerEvents = 'auto';
+            startBtn.style.opacity = '1';
+        }
+        // Disable Stop and Restart buttons when not running
+        if (stopBtn) {
+            stopBtn.style.pointerEvents = 'none';
+            stopBtn.style.opacity = '0.6';
+            stopBtn.title = 'Application is not running';
+        }
+        if (restartBtn) {
+            restartBtn.style.pointerEvents = 'none';
+            restartBtn.style.opacity = '0.6';
+            restartBtn.title = 'Application is not running';
+        }
+    }
+
 }
 
 // Q Chat functions

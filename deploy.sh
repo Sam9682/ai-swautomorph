@@ -134,13 +134,11 @@ show_logs() {
 }
 
 show_flask_logs() {
-    if [ -f "app.logs" ]; then
-        echo "🐍 Flask Application Logs (last 50 lines):"
-        tail -n 50 app.logs
-        echo ""
-        echo "📊 Follow Flask logs: tail -f app.logs"
+    if [ -f "app.log" ]; then
+        echo "🐍 Flask Application Logs:"
+        cat app.log
     else
-        echo "❌ No Flask log file found (app.logs)"
+        echo "❌ No Flask log file found (app.log)"
     fi
 }
 
