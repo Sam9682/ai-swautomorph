@@ -171,7 +171,7 @@ restart_services() {
 restart_flask_service() {
     stop_flask_service
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.logs 2>&1 &
+    nohup python3 app.py > app.log 2>&1 &
     echo $! > app.pid
 }
 
@@ -220,7 +220,7 @@ install_python_dependencies() {
 
 start_flask_application() {
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.logs 2>&1 &
+    nohup python3 app.py > app.log 2>&1 &
     echo $! > app.pid
 }
 

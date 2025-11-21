@@ -524,7 +524,7 @@ def api_qchat():
         start_time = time.time()
         
         # Execute Q Chat command
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=60)
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600)
         execution_time = time.time() - start_time
         
         print(f"[Q CHAT API] User {user_id} - Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
@@ -536,7 +536,14 @@ def api_qchat():
         if result.stderr:
             print(f"[Q CHAT API] User {user_id} - STDERR preview: {result.stderr[:200]}{'...' if len(result.stderr) > 200 else ''}")
         
-        response_text = result.stdout.strip() if result.stdout else 'No response from Q Chat'
+        # Handle response from both stdout and stderr
+        response_text = ''
+        if result.stdout and result.stdout.strip():
+            response_text = result.stdout.strip()
+        elif result.stderr and result.stderr.strip():
+            response_text = result.stderr.strip()
+        else:
+            response_text = 'Q Chat completed but returned no output'
         
         # Check if command was executed (look for command patterns)
         command_executed = False
