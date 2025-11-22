@@ -557,8 +557,7 @@ def api_deployment_logs(deployment_id):
 
 @api_bp.route('/qchat', methods=['POST'])
 def api_qchat():
-    import subprocess
-    import re
+    from .automorph_application import process_qchat_request
     import time
     
     # Log API call details
@@ -585,87 +584,27 @@ def api_qchat():
         return jsonify({'error': 'Message required'}), 400
     
     try:
-        # Prepare Q Chat command with --trust-all-tools option
-        cmd_args = ['qchat', 'chat', '--trust-all-tools', message]
+        # Use automorph_application module to process the request
+        result = process_qchat_request(message, auto_approve)
         
-        print(f"[Q CHAT API] User {user_id} - Executing command: {' '.join(cmd_args[:2])} [message]")
-        start_time = time.time()
-        
-        # Execute Q Chat command
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600)
-        execution_time = time.time() - start_time
-        
-        print(f"[Q CHAT API] User {user_id} - Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
-        print(f"[Q CHAT API] User {user_id} - STDOUT length: {len(result.stdout)} chars")
-        print(f"[Q CHAT API] User {user_id} - STDERR length: {len(result.stderr)} chars")
-        
-        if result.stdout:
-            print(f"[Q CHAT API] User {user_id} - STDOUT preview: {result.stdout[:200]}{'...' if len(result.stdout) > 200 else ''}")
-        if result.stderr:
-            print(f"[Q CHAT API] User {user_id} - STDERR preview: {result.stderr[:200]}{'...' if len(result.stderr) > 200 else ''}")
-        
-        # Handle response from both stdout and stderr
-        response_text = ''
-        if result.stdout and result.stdout.strip():
-            response_text = result.stdout.strip()
-        elif result.stderr and result.stderr.strip():
-            response_text = result.stderr.strip()
-        else:
-            response_text = 'Q Chat completed but returned no output'
-        
-        # Strip ANSI color codes from response
-        import re
-        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-        response_text = ansi_escape.sub('', response_text)
-        
-        # Check if command was executed (look for command patterns)
-        command_executed = False
-        executed_command = None
-        command_output = None
-        
-        print(f"[Q CHAT API] User {user_id} - Analyzing response for command execution patterns...")
-        
-        # Look for command execution patterns in the response
-        if 'executing:' in response_text.lower() or 'running:' in response_text.lower():
-            command_executed = True
-            print(f"[Q CHAT API] User {user_id} - Command execution detected in response")
-            # Extract command from response
-            cmd_match = re.search(r'(?:executing|running):\s*(.+)', response_text, re.IGNORECASE)
-            if cmd_match:
-                executed_command = cmd_match.group(1).strip()
-                print(f"[Q CHAT API] User {user_id} - Extracted command: {executed_command}")
-        else:
-            print(f"[Q CHAT API] User {user_id} - No command execution patterns found")
-        
-        # If stderr contains command output, include it
-        if result.stderr:
-            command_output = result.stderr.strip()
-            print(f"[Q CHAT API] User {user_id} - Command output captured from stderr")
+        if 'error' in result:
+            print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")
+            return jsonify(result), 500
         
         response_data = {
-            'response': response_text,
-            'command_executed': command_executed,
-            'command': executed_command,
-            'command_output': command_output,
+            'response': result['response'],
+            'command_executed': result['command_executed'],
+            'branch_name': result.get('branch_name'),
             'auto_approve_used': auto_approve,
-            'execution_time': round(execution_time, 2)
+            'execution_time': result['execution_time'],
+            'success': result['success']
         }
         
-        print(f"[Q CHAT API] User {user_id} - SUCCESS - Returning response with {len(response_text)} chars")
+        print(f"[Q CHAT API] User {user_id} - SUCCESS - Automorph processing completed")
         return jsonify(response_data)
         
-    except subprocess.TimeoutExpired:
-        print(f"[Q CHAT API] User {user_id} - TIMEOUT - Q Chat request exceeded 60s timeout")
-        return jsonify({'error': 'Q Chat request timed out'}), 408
-    except subprocess.CalledProcessError as e:
-        print(f"[Q CHAT API] User {user_id} - PROCESS ERROR - Return code: {e.returncode}")
-        print(f"[Q CHAT API] User {user_id} - PROCESS ERROR - STDERR: {e.stderr}")
-        return jsonify({
-            'error': f'Q Chat command failed: {e.stderr}',
-            'response': e.stdout if e.stdout else 'No output'
-        }), 500
     except Exception as e:
         print(f"[Q CHAT API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
         import traceback
         print(f"[Q CHAT API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
-        return jsonify({'error': f'Q Chat error: {str(e)}'}), 500
+        return jsonify({'error': f'Automorph Q Chat error: {str(e)}'}), 500

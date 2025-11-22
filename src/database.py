@@ -68,9 +68,25 @@ def init_db():
             status TEXT DEFAULT 'pending',
             deployment_path TEXT,
             git_url TEXT,
+            server_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (server_id) REFERENCES servers (id)
+        )
+    ''')
+    
+    # Servers table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS servers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            SERVER_IP TEXT UNIQUE NOT NULL,
+            SERVER_NAME TEXT NOT NULL,
+            SERVER_CAPACITY_USER_MAX INTEGER NOT NULL,
+            SERVER_CAPACITY_APPLI_MAX INTEGER NOT NULL,
+            SERVER_STATUS TEXT DEFAULT 'active',
+            SERVER_TYPE TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -88,6 +104,24 @@ def init_db():
             ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
         ]
         cursor.executemany('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)', default_apps)
+    
+    # Insert current server if none exists
+    cursor.execute('SELECT COUNT(*) FROM servers')
+    if cursor.fetchone()[0] == 0:
+        import socket
+        try:
+            # Get current server IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            current_ip = s.getsockname()[0]
+            s.close()
+        except:
+            current_ip = "127.0.0.1"
+        
+        cursor.execute('''
+            INSERT INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (current_ip, 'main-server', 10, 50, 'active', 'primary'))
     
     # Create default admin user if none exists
     cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))

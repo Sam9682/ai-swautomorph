@@ -6,3 +6,5 @@
  * Running on http://127.0.0.1:5001
  * Running on http://188.165.71.139:5001
 [33mPress CTRL+C to quit[0m
+127.0.0.1 - - [22/Nov/2025 14:29:26] "[33mGET /.env HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 14:29:26] "[31m[1mPOST / HTTP/1.0[0m" 405 -

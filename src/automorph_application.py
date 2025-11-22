@@ -1,5 +1,7 @@
 import subprocess
 import datetime
+import time
+import re
 
 # 📁 Chemin du repo qui sert à docker-compose up
 REPO_DIR = "/srv/app/myapp"
@@ -7,14 +9,17 @@ REPO_DIR = "/srv/app/myapp"
 # 🌐 URL du remote Gitea local
 GITEA_REMOTE_URL = "git@gitea.local:monorg/myapp.git"
 
-def send_update_request_to_qchat(user_request: str):
+def process_qchat_request(user_request: str, auto_approve: bool = True):
     """
-    user_request = description de la modif demandée, ex:
-    "Ajoute une route /healthcheck en GET qui retourne {status: 'ok'}"
+    Process Q Chat request using automorph application logic
+    Returns dict with response, execution details, and timing
     """
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     branch_name = f"auto-update-{timestamp}"
-
+    start_time = time.time()
+    
+    print(f"[AUTOMORPH] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
+    
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
 You are an autonomous DevOps/code agent running on a Linux server
@@ -97,12 +102,75 @@ Follow these steps EXACTLY:
 If ANY step fails, explain clearly which step failed and why.
 """
 
-    # 🚀 Appel de Q Chat via subprocess
-    cmd = ["q", "chat", prompt]
-    subprocess.run(cmd, check=True)
+    try:
+        # Prepare Q Chat command with --trust-all-tools option if auto_approve
+        cmd_args = ['qchat', 'chat']
+        if auto_approve:
+            cmd_args.append('--trust-all-tools')
+        cmd_args.append(prompt)
+        
+        print(f"[AUTOMORPH] Executing qchat command with auto_approve={auto_approve}")
+        
+        # Execute Q Chat command
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600)
+        execution_time = time.time() - start_time
+        
+        print(f"[AUTOMORPH] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        
+        # Handle response from both stdout and stderr
+        response_text = ''
+        if result.stdout and result.stdout.strip():
+            response_text = result.stdout.strip()
+        elif result.stderr and result.stderr.strip():
+            response_text = result.stderr.strip()
+        else:
+            response_text = 'Automorph Q Chat completed but returned no output'
+        
+        # Strip ANSI color codes from response
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        response_text = ansi_escape.sub('', response_text)
+        
+        # Check if command was executed
+        command_executed = 'git commit' in response_text.lower() or 'docker-compose' in response_text.lower()
+        
+        return {
+            'response': response_text,
+            'command_executed': command_executed,
+            'branch_name': branch_name,
+            'execution_time': round(execution_time, 2),
+            'success': result.returncode == 0
+        }
+        
+    except subprocess.TimeoutExpired:
+        print(f"[AUTOMORPH] Request timed out after 600s")
+        return {
+            'error': 'Automorph request timed out',
+            'execution_time': round(time.time() - start_time, 2)
+        }
+    except Exception as e:
+        print(f"[AUTOMORPH] Error: {str(e)}")
+        return {
+            'error': f'Automorph error: {str(e)}',
+            'execution_time': round(time.time() - start_time, 2)
+        }
+
+def send_update_request_to_qchat(user_request: str):
+    """
+    Legacy function for backward compatibility
+    """
+    result = process_qchat_request(user_request)
+    if 'error' in result:
+        raise Exception(result['error'])
+    return result
 
 
 if __name__ == "__main__":
     # Exemple d’appel
     demande = "Ajoute un endpoint /healthcheck sur /health en GET qui retourne un JSON {{'status': 'ok'}}."
     send_update_request_to_qchat(demande)
+
+if __name__ == "__main__":
+    # Exemple d'appel
+    demande = "Ajoute un endpoint /healthcheck sur /health en GET qui retourne un JSON {{'status': 'ok'}}."
+    result = process_qchat_request(demande)
+    print(f"Result: {result}")
