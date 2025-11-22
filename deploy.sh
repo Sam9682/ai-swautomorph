@@ -430,7 +430,7 @@ create_gitea_admin_user() {
     echo "🔑 Gitea Admin Credentials:"
     echo "   Username: gitadmin"
     echo "   Password: password"
-    echo "   URL: http://www.swautomorph.com:3000"
+    echo "   URL: http://www.swautomorph.com/gitea"
     
     # Try to generate API token
     setup_api_token

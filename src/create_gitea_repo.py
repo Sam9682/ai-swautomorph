@@ -81,9 +81,9 @@ def git_push():
 def main():
     print("Creating Gitea repository and pushing ai-checkinatwork project...")
     
-    # Check if we're in the right directory
-    if not os.path.exists("README.md") or "ai-checkinatwork" not in os.getcwd():
-        print("✗ Please run this script from the ai-checkinatwork project directory")
+    # Check if we're not in a git repo directory
+    if os.path.exists(".git"):
+        print("✗ This script should not be run from inside a git repository")
         sys.exit(1)
     
     # Create user
