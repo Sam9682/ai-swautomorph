@@ -9,7 +9,7 @@ REPO_DIR = "/srv/app/myapp"
 # 🌐 URL du remote Gitea local
 GITEA_REMOTE_URL = "git@gitea.local:monorg/myapp.git"
 
-def process_qchat_request(user_request: str, auto_approve: bool = True):
+def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = ''):
     """
     Process Q Chat request using automorph application logic
     Returns dict with response, execution details, and timing
@@ -18,7 +18,12 @@ def process_qchat_request(user_request: str, auto_approve: bool = True):
     branch_name = f"auto-update-{timestamp}"
     start_time = time.time()
     
+    # Use provided app folder or default REPO_DIR
+    repo_dir = app_folder if app_folder else REPO_DIR
+    repo_git_url = git_url if git_url else GITEA_REMOTE_URL
+    
     print(f"[AUTOMORPH] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
+    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}, Git: {repo_git_url}")
     
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
@@ -26,14 +31,14 @@ You are an autonomous DevOps/code agent running on a Linux server
 with access to the local filesystem and shell commands.
 
 The application source code is located in the following git repository:
-  REPO_DIR = "{REPO_DIR}"
+  REPO_DIR = "{repo_dir}"
 
 This repository is the one used by docker-compose to run the application.
 The deployment command is executed from the repo root:
   docker-compose up -d --build
 
 There is (or must be) a local Gitea instance reachable with the Git URL:
-  GITEA_REMOTE_URL = "{GITEA_REMOTE_URL}"
+  GITEA_REMOTE_URL = "{repo_git_url}"
 
 Your goal is to:
   - modify the source code according to the user request,
@@ -47,18 +52,18 @@ USER REQUEST (what must be changed in the app):
 Follow these steps EXACTLY:
 
 1. Change directory to the repository:
-   cd {REPO_DIR}
+   cd {repo_dir}
 
 2. Check that the working tree is clean (no uncommitted changes).
    If there are local changes, STOP and print a clear error message,
    do NOT try to auto-commit existing local changes.
 
 3. Ensure that a git remote named 'gitea' exists and points to:
-     {GITEA_REMOTE_URL}
+     {repo_git_url}
    - If 'gitea' does not exist, add it:
-       git remote add gitea {GITEA_REMOTE_URL}
+       git remote add gitea {repo_git_url}
    - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {GITEA_REMOTE_URL}
+       git remote set-url gitea {repo_git_url}
 
 4. Fetch from 'gitea':
      git fetch gitea
@@ -91,7 +96,7 @@ Follow these steps EXACTLY:
 
 10. Rebuild and redeploy the running application by executing:
       docker-compose up -d --build
-    from the repository root ({REPO_DIR}).
+    from the repository root ({repo_dir}).
 
 11. At the end, print a short summary including:
     - the branch name,
@@ -162,12 +167,6 @@ def send_update_request_to_qchat(user_request: str):
     if 'error' in result:
         raise Exception(result['error'])
     return result
-
-
-if __name__ == "__main__":
-    # Exemple d’appel
-    demande = "Ajoute un endpoint /healthcheck sur /health en GET qui retourne un JSON {{'status': 'ok'}}."
-    send_update_request_to_qchat(demande)
 
 if __name__ == "__main__":
     # Exemple d'appel

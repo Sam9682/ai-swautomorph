@@ -945,10 +945,47 @@ function sendQChatMessage() {
     // Send to Q Chat API
     const autoYes = document.getElementById('qChatAutoYes').checked;
     const selectedApp = document.getElementById('qChatAppSelect').value;
+    
+    // Get application details from the applications data
+    let appFolder = '';
+    let githubUrl = '';
+    let giteaUrl = '';
+    
+    if (selectedApp) {
+        // Find the selected application in the applications list
+        const appCards = document.querySelectorAll('.app-card');
+        for (const card of appCards) {
+            const appName = card.querySelector('h3').textContent;
+            if (appName === selectedApp) {
+                // Get deployment path for this user and app
+                const username = '{{ username }}';
+                const userId = '{{ session.user_id }}';
+                appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
+                
+                // Extract git URL from deployment buttons (if available)
+                const cloneBtn = card.querySelector('[onclick*="clone"]');
+                if (cloneBtn) {
+                    const onclickAttr = cloneBtn.getAttribute('onclick');
+                    const match = onclickAttr.match(/deployApp\('([^']+)',\s*'([^']*)',\s*'clone'\)/);
+                    if (match && match[2]) {
+                        githubUrl = match[2];
+                    }
+                }
+                
+                // Generate Gitea URL based on app name
+                giteaUrl = `http://localhost:3000/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}.git`;
+                break;
+            }
+        }
+    }
+    
     const payload = {
         message: message,
         auto_approve: autoYes,
-        application_name: selectedApp
+        application_name: selectedApp,
+        application_folder: appFolder,
+        github_url: githubUrl,
+        gitea_url: giteaUrl
     };
     
     fetch('/api/qchat', {

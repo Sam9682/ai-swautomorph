@@ -575,8 +575,13 @@ def api_qchat():
     data = request.get_json()
     message = data.get('message', '').strip()
     auto_approve = data.get('auto_approve', True)
+    app_name = data.get('application_name', '')
+    app_folder = data.get('application_folder', '')
+    gitea_url = data.get('gitea_url', '')
+    github_url = data.get('github_url', '')
     
     print(f"[Q CHAT API] User {user_id} - Message length: {len(message)} chars, Auto-approve: {auto_approve}")
+    print(f"[Q CHAT API] User {user_id} - App: {app_name}, Folder: {app_folder}, Gitea: {gitea_url}, GitHub: {github_url}")
     print(f"[Q CHAT API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
     
     if not message:
@@ -585,7 +590,7 @@ def api_qchat():
     
     try:
         # Use automorph_application module to process the request
-        result = process_qchat_request(message, auto_approve)
+        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url)
         
         if 'error' in result:
             print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")
