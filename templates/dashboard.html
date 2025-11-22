@@ -6,8 +6,8 @@
 <div class="dashboard-container">
     {% if username == 'admin' %}
     <div class="admin-menu">
-        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">Applications</button>
-        <button id="usersTab" class="tab-btn" onclick="showTab('users')">Users</button>
+        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
+        <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
     </div>
     {% endif %}
     
@@ -41,12 +41,12 @@
                 <a href="{{ app[2] }}?sso_token={{ sso_token }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 Clone</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ Start</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ Stop</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 Restart</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 Status</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 Logs</button>
+                    <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 {{ get_text('status') }}</button>
+                    <button onclick="deployApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 {{ get_text('logs') }}</button>
                 </div>
                 {% endif %}
             </div>
@@ -171,10 +171,10 @@
 
 <!-- Deployment Logs Section -->
 <div id="deploymentLogsSection" class="logs-section" style="display: none;">
-    <h3>Deployment Logs</h3>
+    <h3>{{ get_text('deployment_logs') }}</h3>
     <div class="logs-controls">
-        <button onclick="clearLogs()" class="btn btn-secondary btn-small">Clear Logs</button>
-        <button onclick="hideLogs()" class="btn btn-secondary btn-small">Hide</button>
+        <button onclick="clearLogs()" class="btn btn-secondary btn-small">{{ get_text('clear_logs') }}</button>
+        <button onclick="hideLogs()" class="btn btn-secondary btn-small">{{ get_text('hide') }}</button>
     </div>
     <pre id="deploymentLogsContent" class="logs-content">Ready for deployment commands...</pre>
 </div>
@@ -228,18 +228,27 @@
 <div id="qChatModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>🤖 Q Chat - GenAI Assistant</h3>
+            <h3>🤖 {{ get_text('qchat_title') }}</h3>
             <span class="close" onclick="closeQChatModal()">&times;</span>
         </div>
         <div class="modal-body">
+            <div class="chat-app-selection">
+                <label for="qChatAppSelect">{{ get_text('select_application') }}:</label>
+                <select id="qChatAppSelect">
+                    <option value="">-- {{ get_text('select_application') }} --</option>
+                    {% for app in applications %}
+                    <option value="{{ app[1] }}">{{ app[1] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div id="qChatMessages" class="chat-messages"></div>
             <div class="chat-input-area">
-                <textarea id="qChatInput" placeholder="Type your message to Q Chat..." rows="3"></textarea>
+                <textarea id="qChatInput" placeholder="{{ get_text('qchat_placeholder') }}" rows="3"></textarea>
                 <div class="chat-controls">
                     <label>
-                        <input type="checkbox" id="qChatAutoYes" checked> Auto-approve updates/writes
+                        <input type="checkbox" id="qChatAutoYes" checked> {{ get_text('auto_approve') }}
                     </label>
-                    <button onclick="sendQChatMessage()" class="btn btn-primary">Send</button>
+                    <button onclick="sendQChatMessage()" class="btn btn-primary">{{ get_text('send') }}</button>
                 </div>
             </div>
         </div>
@@ -837,7 +846,21 @@ function updateApplicationButtonStatus(appName, logs) {
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
-    if (logs.split('\n').some(line => line.toLowerCase().includes(appName.toLowerCase()) && (line.toLowerCase().includes('up') || line.toLowerCase().includes('running')))) {
+    // Debug logging
+    console.log(`Checking status for ${appName}:`, logs);
+    
+    // Check if application is not running (more specific check first)
+    const isNotRunning = logs.toLowerCase().includes('not running') || 
+                        logs.toLowerCase().includes('is not running') ||
+                        logs.toLowerCase().includes('⚠️');
+    
+    // Check if application is running
+    const isRunning = !isNotRunning && (logs.toLowerCase().includes(' up ') || 
+                     logs.toLowerCase().includes('running'));
+    
+    console.log(`${appName} - isRunning: ${isRunning}, isNotRunning: ${isNotRunning}`);
+    
+    if (isRunning) {
         // Application is running - GREEN and ENABLED
         openBtn.classList.remove('btn-primary', 'btn-danger');
         openBtn.classList.add('btn-success');
@@ -864,9 +887,8 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.style.pointerEvents = 'auto';
             restartBtn.style.opacity = '1';
         }
-    }
-    else {
-        // Application is not running - RED and DISABLED
+    } else {
+        // Application is explicitly not running - RED and DISABLED
         openBtn.classList.remove('btn-primary', 'btn-success');
         openBtn.classList.add('btn-danger');
         openBtn.style.pointerEvents = 'none';
@@ -893,6 +915,7 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.title = 'Application is not running';
         }
     }
+    // If neither running nor explicitly not running, keep current state
 
 }
 
@@ -900,7 +923,7 @@ function updateApplicationButtonStatus(appName, logs) {
 function showQChatModal() {
     document.getElementById('qChatModal').style.display = 'block';
     if (document.getElementById('qChatMessages').innerHTML === '') {
-        addQChatMessage('system', 'Q Chat Assistant ready. Auto-approve mode is enabled for updates and writes.');
+        addQChatMessage('system', '{{ get_text("qchat_ready") }}');
     }
 }
 
@@ -921,9 +944,11 @@ function sendQChatMessage() {
     
     // Send to Q Chat API
     const autoYes = document.getElementById('qChatAutoYes').checked;
+    const selectedApp = document.getElementById('qChatAppSelect').value;
     const payload = {
         message: message,
-        auto_approve: autoYes
+        auto_approve: autoYes,
+        application_name: selectedApp
     };
     
     fetch('/api/qchat', {

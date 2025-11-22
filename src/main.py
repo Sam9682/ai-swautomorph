@@ -33,9 +33,10 @@ def main():
     app = create_app()
     
     # Run application
+    port = int(os.environ.get('FLASK_RUN_PORT', 5000))
     app.run(
         host='0.0.0.0', 
-        port=5000, 
+        port=port, 
         debug=os.environ.get('FLASK_ENV') == 'development'
     )
 

@@ -17,7 +17,7 @@ def init_db():
             password_hash TEXT NOT NULL,
             first_name TEXT,
             last_name TEXT,
-            suspended INTEGER DEFAULT 0,
+            suspended INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -94,9 +94,9 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         admin_password_hash = generate_password_hash('password')
         cursor.execute('''
-            INSERT INTO users (username, email, password_hash, first_name, last_name)
-            VALUES (?, ?, ?, ?, ?)
-        ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator'))
+            INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator', 0))
         
         # Get admin user ID and assign all applications with URLs
         admin_id = cursor.lastrowid

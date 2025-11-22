@@ -27,9 +27,9 @@ def register():
         try:
             password_hash = generate_password_hash(password)
             cursor.execute('''
-                INSERT INTO users (username, email, password_hash, first_name, last_name)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (username, email, password_hash, first_name, last_name))
+                INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (username, email, password_hash, first_name, last_name, 1))
             conn.commit()
             
             if request.is_json:

@@ -6,18 +6,30 @@
 set -e
 
 # Global Variables
-COMMAND=${1:-help}
-LOCAL_MODE=${2:-""}
-USER_ID=${3:-0}
-USER_NAME=${4:-"User"}
-USER_EMAIL=${5:-"user@example.com"}
-DESCRIPTION=${6:-"Basic Information Display"}
-
-# Port configuration
+NAME_OF_APPLICATION="ai-swautomorph"
 APPLICATION_IDENTITY_NUMBER=0
 RANGE_START=80
 RANGE_RESERVED=10
-PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
+
+# Global Parameters
+COMMAND=${1:-help}
+LOCAL_MODE=${2:-0}
+USER_ID=${3:-0}
+USER_NAME=${4:-"user"}
+USER_EMAIL=${5:-"user@swautomorph.com"}
+DESCRIPTION=${6:-"Basic Information Display"}
+
+# Configuration
+DOMAIN=${DOMAIN:-"www.swautomorph.com"}
+EMAIL=${EMAIL:-"user@swautomorph.com"}
+ENV_FILE=".env.prod"
+
+# Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
+calculate_ports() {
+    PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
+    HTTP_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED))
+    HTTPS_PORT=$((HTTP_PORT + 1))
+}
 
 # Display environment variables for operations
 show_environment() {
@@ -28,19 +40,19 @@ show_environment() {
     echo "  USER_ID=${USER_ID}"
     echo "  USER_NAME=${USER_NAME}"
     echo "  USER_EMAIL=${USER_EMAIL}"
+    echo "  PORT=${HTTP_PORT}"
+    echo "  HTTPS_PORT=${HTTPS_PORT}"
     echo ""
 }
 
 # Check service status
 check_status() {
-    show_environment "ps"
-    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "📊 AI-SwAutoMorph Local Service Status:"
+        echo "📊 $NAME_OF_APPLICATION Local Service Status:"
         check_flask_status
         check_nginx_status
     else
-        echo "📊 AI-SwAutoMorph Service Status:"
+        echo "📊 $NAME_OF_APPLICATION Service Status:"
         check_docker_status
     fi
 }
@@ -62,9 +74,9 @@ check_nginx_status() {
     if systemctl is-active --quiet nginx; then
         echo "✅ Nginx: Running"
         if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-            echo "✅ AI-SwAutoMorph site: Configured"
+            echo "✅ $NAME_OF_APPLICATION site: Configured"
         else
-            echo "⚠️ AI-SwAutoMorph site: Not configured"
+            echo "⚠️ $NAME_OF_APPLICATION site: Not configured"
         fi
     else
         echo "❌ Nginx: Not running"
@@ -73,7 +85,7 @@ check_nginx_status() {
 
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
-        PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose ps
+        HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose ps
     else
         echo "❌ Docker Compose not installed"
     fi
@@ -81,15 +93,13 @@ check_docker_status() {
 
 # Stop services
 stop_services() {
-    show_environment "stop"
-    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🛑 Stopping local AI-SwAutoMorph services..."
+        echo "🛑 Stopping local $NAME_OF_APPLICATION services..."
         stop_flask_service
         remove_nginx_config
         echo "✅ Local services stopped"
     else
-        echo "🛑 Stopping AI-SwAutoMorph services..."
+        echo "🛑 Stopping $NAME_OF_APPLICATION services..."
         stop_docker_services
         echo "✅ Services stopped"
     fi
@@ -119,15 +129,13 @@ remove_nginx_config() {
 }
 
 stop_docker_services() {
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down
+    HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down
 }
 
 # Show logs
 show_logs() {
-    show_environment "logs"
-    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "📋 AI-SwAutoMorph Local Service Logs:"
+        echo "📋 $NAME_OF_APPLICATION Local Service Logs:"
         show_flask_logs
         show_nginx_logs
     else
@@ -151,20 +159,18 @@ show_nginx_logs() {
 }
 
 show_docker_logs() {
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose logs -f
+    HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose logs -f
 }
 
 # Restart services
 restart_services() {
-    show_environment "restart"
-    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🔄 Restarting local AI-SwAutoMorph services..."
+        echo "🔄 Restarting local $NAME_OF_APPLICATION services..."
         restart_flask_service
         reload_nginx_config
         echo "✅ Local services restarted"
     else
-        echo "🔄 Restarting AI-SwAutoMorph services..."
+        echo "🔄 Restarting $NAME_OF_APPLICATION services..."
         restart_docker_services
         echo "✅ Services restarted"
     fi
@@ -182,18 +188,16 @@ reload_nginx_config() {
 }
 
 restart_docker_services() {
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose restart
+    HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose restart
 }
 
 # Start services
 start_services() {
-    show_environment "start"
-    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🚀 Starting AI-SwAutoMorph locally (no Docker)..."
+        echo "🚀 Starting $NAME_OF_APPLICATION locally (no Docker)..."
         start_local_deployment
     else
-        echo "🚀 Starting AI-SwAutoMorph deployment..."
+        echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
         start_docker_deployment
     fi
 }
@@ -209,7 +213,7 @@ start_local_deployment() {
 start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose up -d --build
+    HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose up -d --build
     echo "✅ Docker services started"
 }
 
@@ -222,7 +226,11 @@ install_python_dependencies() {
 
 start_flask_application() {
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.log 2>&1 &
+    # Stop any existing Flask processes on port 5000
+    pkill -f "python3 app.py" || true
+    sleep 2
+    # Start Flask on port 5001 to avoid conflicts
+    FLASK_RUN_PORT=5001 nohup python3 app.py > app.log 2>&1 &
     echo $! > app.pid
 }
 
@@ -251,7 +259,7 @@ server {
     ssl_ciphers HIGH:!aNULL:!MD5;
     
     location / {
-        proxy_pass http://127.0.0.1:5000;
+        proxy_pass http://127.0.0.1:5001;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -279,7 +287,7 @@ configure_firewall() {
 
 cleanup_docker() {
     echo "🧹 Cleaning up..."
-    PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED)) HTTPS_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
+    HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
 }
 
 # Validate user input
@@ -359,6 +367,15 @@ EOF
     fi
 }
 
+# Start env
+start() {
+    validate_user_id
+    check_requirements
+    setup_environment
+    start_services
+    echo "🎉 Deployment completed successfully!"
+}
+
 # Show usage information
 show_usage() {
     echo "Usage: $0 [start|stop|restart|ps|logs] [locally]"
@@ -376,6 +393,9 @@ show_usage() {
 
 # Main function - orchestrates the deployment process
 main() {
+    calculate_ports
+    show_environment 
+
     case $COMMAND in
         "ps")
             check_status
@@ -394,11 +414,8 @@ main() {
             exit 0
             ;;
         "start")
-            validate_user_id
-            check_requirements
-            setup_environment
-            start_services
-            echo "🎉 Deployment completed successfully!"
+            start
+            exit 0
             ;;
         *)
             show_usage
