@@ -6,3 +6,30 @@
  * Running on http://127.0.0.1:5001
  * Running on http://188.165.71.139:5001
 [33mPress CTRL+C to quit[0m
+127.0.0.1 - - [22/Nov/2025 15:07:28] "[31m[1mPROPFIND / HTTP/1.0[0m" 405 -
+127.0.0.1 - - [22/Nov/2025 15:10:13] "[33mGET /gitea/ HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:11:23] "[33mGET /gitea/ HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/js/webcomponents.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/css/index.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/css/theme-auto.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/js/index.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/img/logo.svg HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:34] "[33mGET /assets/img/favicon.svg HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:48] "[33mGET /assets/js/webcomponents.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:48] "[33mGET /assets/css/index.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:48] "[33mGET /assets/css/theme-auto.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:48] "[33mGET /assets/js/index.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:12:48] "[33mGET /assets/img/logo.svg HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:05] "GET / HTTP/1.0" 200 -
+127.0.0.1 - - [22/Nov/2025 15:13:05] "[36mGET /static/css/style.css HTTP/1.0[0m" 304 -
+127.0.0.1 - - [22/Nov/2025 15:13:05] "[36mGET /static/js/app.js HTTP/1.0[0m" 304 -
+127.0.0.1 - - [22/Nov/2025 15:13:12] "[33mGET /assets/js/webcomponents.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:12] "[33mGET /assets/css/index.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:12] "[33mGET /assets/css/theme-auto.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:12] "[33mGET /assets/js/index.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:12] "[33mGET /assets/img/logo.svg HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:51] "[33mGET /assets/js/webcomponents.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:51] "[33mGET /assets/css/index.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:51] "[33mGET /assets/css/theme-auto.css?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:51] "[33mGET /assets/js/index.js?v=1.21.3 HTTP/1.0[0m" 404 -
+127.0.0.1 - - [22/Nov/2025 15:13:51] "[33mGET /assets/img/logo.svg HTTP/1.0[0m" 404 -
