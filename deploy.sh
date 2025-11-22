@@ -51,6 +51,7 @@ check_status() {
         echo "📊 $NAME_OF_APPLICATION Local Service Status:"
         check_flask_status
         check_nginx_status
+        check_gitea_status
     else
         echo "📊 $NAME_OF_APPLICATION Service Status:"
         check_docker_status
@@ -83,6 +84,14 @@ check_nginx_status() {
     fi
 }
 
+check_gitea_status() {
+    if systemctl is-active --quiet gitea 2>/dev/null; then
+        echo "✅ Gitea: Running on http://localhost:3000"
+    else
+        echo "❌ Gitea: Not running"
+    fi
+}
+
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
         HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose ps
@@ -97,12 +106,41 @@ stop_services() {
         echo "🛑 Stopping local $NAME_OF_APPLICATION services..."
         stop_flask_service
         remove_nginx_config
+        stop_nginx_service
+        remove_gitea
         echo "✅ Local services stopped"
     else
         echo "🛑 Stopping $NAME_OF_APPLICATION services..."
         stop_docker_services
         echo "✅ Services stopped"
     fi
+}
+
+# Remove Gitea installation
+remove_gitea() {
+    echo "🗑️ Removing Gitea installation..."
+    
+    # Stop and disable Gitea service
+    sudo systemctl stop gitea 2>/dev/null || true
+    sudo systemctl disable gitea 2>/dev/null || true
+    
+    # Remove systemd service file
+    sudo rm -f /etc/systemd/system/gitea.service
+    sudo systemctl daemon-reload
+    
+    # Remove Gitea binary
+    sudo rm -f /usr/local/bin/gitea
+    
+    # Remove configuration and data
+    sudo rm -rf /etc/gitea
+    sudo rm -rf /var/lib/gitea
+    sudo rm -rf /home/ubuntu/admin
+    
+    # Remove git user
+    sudo userdel git 2>/dev/null || true
+    sudo groupdel git 2>/dev/null || true
+    
+    echo "✅ Gitea removed successfully"
 }
 
 stop_flask_service() {
@@ -123,8 +161,20 @@ stop_flask_service() {
 remove_nginx_config() {
     if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
         sudo rm -f /etc/nginx/sites-enabled/ai-swautomorph
-        sudo nginx -t && sudo systemctl reload nginx
+        # Only reload nginx if it's running
+        if systemctl is-active --quiet nginx; then
+            sudo nginx -t && sudo systemctl reload nginx
+        fi
         echo "✅ Nginx configuration removed"
+    fi
+}
+
+stop_nginx_service() {
+    if systemctl is-active --quiet nginx; then
+        sudo systemctl stop nginx
+        echo "✅ Nginx service stopped"
+    else
+        echo "⚠️ Nginx service was not running"
     fi
 }
 
@@ -184,7 +234,12 @@ restart_flask_service() {
 }
 
 reload_nginx_config() {
-    sudo nginx -t && sudo systemctl reload nginx
+    if systemctl is-active --quiet nginx; then
+        sudo nginx -t && sudo systemctl reload nginx
+    else
+        sudo systemctl start nginx
+        sudo nginx -t
+    fi
 }
 
 restart_docker_services() {
@@ -205,9 +260,204 @@ start_services() {
 start_local_deployment() {
     echo "💻 Starting local deployment..."
     install_python_dependencies
+    setup_gitea
     start_flask_application
     configure_nginx
     configure_firewall
+}
+
+# Setup Gitea for local development
+setup_gitea() {
+    echo "🔧 Checking Gitea installation..."
+    
+    # Check if Gitea is already running
+    if systemctl is-active --quiet gitea 2>/dev/null; then
+        echo "✅ Gitea is already running"
+        return 0
+    fi
+    
+    # Check if already configured
+    if [ -f "/etc/gitea/app.ini" ]; then
+        echo "✅ Gitea is already configured"
+        sudo systemctl start gitea 2>/dev/null || true
+        if systemctl is-active --quiet gitea; then
+            echo "✅ Gitea is running on http://localhost:3000"
+            # Try to reset admin password if user exists
+            create_gitea_admin_user
+        fi
+        return 0
+    fi
+    
+    # Check if Gitea is installed
+    if ! command -v gitea &> /dev/null; then
+        echo "📦 Installing Gitea..."
+        
+        # Download and install Gitea
+        wget -O /tmp/gitea https://dl.gitea.io/gitea/1.21.3/gitea-1.21.3-linux-amd64
+        sudo mv /tmp/gitea /usr/local/bin/gitea
+        sudo chmod +x /usr/local/bin/gitea
+        
+        # Create gitea user
+        sudo adduser --system --shell /bin/bash --gecos 'Git Version Control' --group --disabled-password --home /home/git git || true
+        
+        # Create directories
+        sudo mkdir -p /var/lib/gitea/{custom,data,log}
+        sudo chown -R git:git /var/lib/gitea/
+        sudo chmod -R 750 /var/lib/gitea/
+        
+        # Create systemd service
+        sudo tee /etc/systemd/system/gitea.service > /dev/null << 'EOF'
+[Unit]
+Description=Gitea (Git with a cup of tea)
+After=syslog.target
+After=network.target
+
+[Service]
+RestartSec=2s
+Type=simple
+User=git
+Group=git
+WorkingDirectory=/var/lib/gitea/
+ExecStart=/usr/local/bin/gitea web --config /etc/gitea/app.ini
+Restart=always
+Environment=USER=git HOME=/home/git GITEA_WORK_DIR=/var/lib/gitea
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        
+        # Create config directory
+        sudo mkdir -p /etc/gitea
+        sudo chown root:git /etc/gitea
+        sudo chmod 770 /etc/gitea
+        
+        echo "✅ Gitea installed successfully"
+        configure_gitea
+    fi
+    
+    # Start Gitea service
+    echo "🚀 Starting Gitea service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable gitea
+    sudo systemctl start gitea
+    
+    # Wait for Gitea to start
+    sleep 5
+    
+    if systemctl is-active --quiet gitea; then
+        echo "✅ Gitea is running on http://localhost:3000"
+        echo "📝 Complete initial setup at http://localhost:3000/install"
+        echo "📝 Recommended admin credentials: admin/password"
+    else
+        echo "❌ Failed to start Gitea"
+    fi
+}
+
+# Configure Gitea with predefined settings
+configure_gitea() {
+    echo "⚙️ Configuring Gitea..."
+    
+    # Create required directories
+    sudo mkdir -p /home/ubuntu/admin/data/gitea-repositories
+    sudo mkdir -p /home/ubuntu/admin/db
+    sudo mkdir -p /home/ubuntu/admin
+    sudo chown -R git:git /home/ubuntu/admin
+    
+    # Create Gitea configuration
+    sudo tee /etc/gitea/app.ini > /dev/null << 'EOF'
+[database]
+DB_TYPE = sqlite3
+PATH = /home/ubuntu/admin/db/gitea.db
+
+[repository]
+ROOT = /home/ubuntu/admin/data/gitea-repositories
+
+[server]
+DOMAIN = www.swautomorph.com
+HTTP_ADDR = 0.0.0.0
+HTTP_PORT = 3000
+ROOT_URL = http://www.swautomorph.com:3000/
+
+[mailer]
+ENABLED = false
+
+[service]
+DISABLE_REGISTRATION = false
+REQUIRE_SIGNIN_VIEW = false
+
+[log]
+MODE = file
+LEVEL = Info
+ROOT_PATH = /var/lib/gitea/log
+
+[security]
+INSTALL_LOCK = true
+DISABLE_QUERY_AUTH_TOKEN = true
+
+[git.lfs]
+START_SERVER = true
+CONTENT_PATH = /home/ubuntu/admin
+EOF
+    
+    sudo chown git:git /etc/gitea/app.ini
+    sudo chmod 640 /etc/gitea/app.ini
+    
+    echo "✅ Gitea configured successfully"
+}
+
+# Setup Gitea admin user and API token
+create_gitea_admin_user() {
+    echo "👤 Setting up Gitea admin access..."
+    
+    # Wait for Gitea to be fully ready
+    sleep 15
+    
+    # Set environment variables for Gitea CLI
+    export GITEA_WORK_DIR=/var/lib/gitea
+    export USER=git
+    export HOME=/home/git
+    
+    # Create gitadmin user
+    echo "👤 Creating gitadmin user..."
+    sudo -u git -E /usr/local/bin/gitea admin user create \
+        --username gitadmin \
+        --password password \
+        --email admin@swautomorph.com \
+        --admin \
+        --config /etc/gitea/app.ini \
+        --work-path /var/lib/gitea 2>/dev/null || true
+    
+    echo "🔑 Gitea Admin Credentials:"
+    echo "   Username: gitadmin"
+    echo "   Password: password"
+    echo "   URL: http://www.swautomorph.com:3000"
+    
+    # Try to generate API token
+    setup_api_token
+}
+
+# Setup API token for admin user
+setup_api_token() {
+    echo "🔑 Setting up API token..."
+    
+    # Try to generate API token for admin user
+    TOKEN=$(sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
+        --username gitadmin \
+        --token-name "api-access" \
+        --config /etc/gitea/app.ini \
+        --work-path /var/lib/gitea 2>/dev/null | grep -o '[a-f0-9]\{40\}')
+    
+    if [ -n "$TOKEN" ]; then
+        echo "$TOKEN" > /tmp/gitea_admin_token
+        chmod 600 /tmp/gitea_admin_token
+        echo "✅ API token created and saved to /tmp/gitea_admin_token"
+    else
+        echo "⚠️ Could not generate API token automatically"
+        echo "📝 Manual steps to create API token:"
+        echo "   1. Login to Gitea at http://localhost:3000"
+        echo "   2. Go to Settings > Applications > Generate New Token"
+        echo "   3. Save the token to /tmp/gitea_admin_token"
+    fi
 }
 
 start_docker_deployment() {
@@ -245,13 +495,13 @@ create_nginx_config() {
     cat > /tmp/ai-swautomorph-site << 'EOF'
 server {
     listen 80;
-    server_name _;
+    server_name localhost www.swautomorph.com;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name _;
+    server_name localhost www.swautomorph.com;
     
     ssl_certificate /home/ubuntu/ai-swautomorph/ssl/cert.pem;
     ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/key.pem;
@@ -275,13 +525,19 @@ enable_nginx_site() {
 }
 
 test_and_reload_nginx() {
-    sudo nginx -t && sudo systemctl reload nginx
+    if systemctl is-active --quiet nginx; then
+        sudo nginx -t && sudo systemctl reload nginx
+    else
+        sudo systemctl start nginx
+        sudo nginx -t
+    fi
 }
 
 configure_firewall() {
     echo "🔥 Configuring firewall for internet access..."
     sudo ufw allow 80/tcp
     sudo ufw allow 443/tcp
+    sudo ufw allow 3000/tcp
     sudo ufw --force enable
 }
 
@@ -315,7 +571,7 @@ check_local_requirements() {
     
     if ! command -v nginx &> /dev/null; then
         echo "📦 Installing Nginx..."
-        sudo apt update && sudo apt install -y nginx
+        sudo apt update && sudo apt install -y nginx wget
         sudo systemctl enable nginx
         echo "✅ Nginx installed successfully"
     fi

@@ -4,9 +4,68 @@ from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 import shutil
+import requests
 from ..config import DB_PATH
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+def create_gitea_user(username, email, password, first_name='', last_name=''):
+    """Create user in Gitea server"""
+    try:
+        # Gitea API endpoint
+        gitea_url = 'http://localhost:3000/api/v1/admin/users'
+        
+        # Admin credentials (you may want to configure these)
+        admin_token = get_gitea_admin_token()
+        
+        if not admin_token:
+            print(f"[GITEA] Failed to get admin token for user creation: {username}")
+            return False
+        
+        # User data for Gitea
+        user_data = {
+            'username': username,
+            'email': email,
+            'password': password,
+            'full_name': f"{first_name} {last_name}".strip(),
+            'must_change_password': False,
+            'send_notify': False
+        }
+        
+        headers = {
+            'Authorization': f'token {admin_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.post(gitea_url, json=user_data, headers=headers, timeout=10)
+        
+        if response.status_code == 201:
+            print(f"[GITEA] User {username} created successfully")
+            return True
+        else:
+            print(f"[GITEA] Failed to create user {username}: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"[GITEA] Error creating user {username}: {str(e)}")
+        return False
+
+def get_gitea_admin_token():
+    """Get or create admin token for Gitea API access"""
+    try:
+        # Try to get existing token from file
+        token_file = '/tmp/gitea_admin_token'
+        if os.path.exists(token_file):
+            with open(token_file, 'r') as f:
+                return f.read().strip()
+        
+        # If no token file, return None (manual setup required)
+        print("[GITEA] No admin token found. Manual Gitea setup required.")
+        return None
+        
+    except Exception as e:
+        print(f"[GITEA] Error getting admin token: {str(e)}")
+        return None
 
 @api_bp.route('/auth/status')
 def auth_status():
@@ -151,6 +210,9 @@ def api_users():
             # Assign default applications to new user
             from ..database import assign_default_apps_to_user
             assign_default_apps_to_user(user_id)
+            
+            # Create user in Gitea
+            create_gitea_user(username, email, password, first_name, last_name)
             
             return jsonify({'message': 'User created successfully'}), 201
         except sqlite3.IntegrityError:
