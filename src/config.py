@@ -78,7 +78,10 @@ TRANSLATIONS = {
         'auto_deploy_desc': 'From code to production in minutes, not months',
         'multi_app_title': 'Multi-App Management',
         'multi_app_desc': 'Control multiple applications from one collaborative dashboard',
-        'revolution_message': 'The software development industry as we know it is about to change forever. Get ready to get wet - the wave of agentic AI is here.'
+        'revolution_message': 'The software development industry as we know it is about to change forever. Get ready to get wet - the wave of agentic AI is here.',
+        'all_rights_reserved': 'All rights reserved.',
+        'developed_by': 'Developed by',
+        'and': 'and'
     },
     'fr': {
         'login': 'Connexion',
@@ -142,6 +145,9 @@ TRANSLATIONS = {
         'auto_deploy_desc': 'Du code à la production en minutes, pas en mois',
         'multi_app_title': 'Gestion Multi-Applications',
         'multi_app_desc': 'Contrôlez plusieurs applications depuis un tableau de bord collaboratif',
-        'revolution_message': 'L\'industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.'
+        'revolution_message': 'L\'industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.',
+        'all_rights_reserved': 'Tous droits réservés.',
+        'developed_by': 'Développé par',
+        'and': 'et'
     }
 }

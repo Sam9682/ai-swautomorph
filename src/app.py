@@ -26,7 +26,12 @@ def create_app():
 
     @app.context_processor
     def inject_language():
-        return {'get_text': get_text, 'current_lang': get_language()}
+        from datetime import datetime
+        return {
+            'get_text': get_text, 
+            'current_lang': get_language(),
+            'moment': lambda: datetime.now()
+        }
     
     # Register blueprints
     app.register_blueprint(main_bp)
