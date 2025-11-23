@@ -573,7 +573,7 @@ def api_qchat():
     user_id = session.get('user_id', 'anonymous')
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     user_agent = request.headers.get('User-Agent', 'Unknown')
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = time.strftime('%Y-%m-%d-%H:%M:%S')
     
     print(f"[Q CHAT API] {timestamp} - POST /api/qchat - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
     
@@ -599,7 +599,7 @@ def api_qchat():
     
     try:
         # Use automorph_application module to process the request
-        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url)
+        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url, user_id)
         
         if 'error' in result:
             print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")

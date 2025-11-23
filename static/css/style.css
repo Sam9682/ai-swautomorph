@@ -505,6 +505,9 @@ body {
     max-height: 80vh;
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    resize: both;
+    min-width: 400px;
+    min-height: 300px;
 }
 
 .modal-header {

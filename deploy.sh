@@ -467,6 +467,10 @@ DISABLE_QUERY_AUTH_TOKEN = true
 [git.lfs]
 START_SERVER = true
 CONTENT_PATH = /home/ubuntu/admin
+
+[repository]
+ENABLE_PUSH_CREATE_USER = true
+ENABLE_PUSH_CREATE_ORG = true
 EOF
     
     sudo chown git:git /etc/gitea/app.ini

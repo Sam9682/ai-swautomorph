@@ -7,24 +7,27 @@ import re
 REPO_DIR = "/home/ubuntu/deployments/"
 
 # 🌐 URL du remote Gitea local
-GITEA_REMOTE_URL = "http://gitadmin:password@www.swautomorph.com/gitea/gitadmin/"
+GITHUB_REMOTE_URL = "git@github.com:Sam9682/"
+GITEA_REMOTE_URL = "http://gitadmin:password@localhost:3000/gitadmin/"
 
-def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = ''):
+def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = '', user_id: str = 'default-user'):
     """
     Process Q Chat request using automorph application logic
     Returns dict with response, execution details, and timing
     """
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    branch_name = f"automorph-{app_name}-{timestamp}"
+    branch_name = f"{user_id}-automorph-{app_name}-{timestamp}"
     start_time = time.time()
     
     # Use provided app folder or default REPO_DIR
     repo_dir = app_folder if app_folder else REPO_DIR
-    repo_github_url = git_url if git_url else GITEA_REMOTE_URL
+    repo_github_url = git_url if git_url else GITHUB_REMOTE_URL + app_name
     repo_gitea_url = GITEA_REMOTE_URL + branch_name
 
     print(f"[AUTOMORPH] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
-    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}, Github: {repo_github_url}")
+    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}")
+    print(f"[AUTOMORPH] Github: {repo_github_url}")
+    print(f"[AUTOMORPH] Gitea: {repo_gitea_url}")
     
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
@@ -60,21 +63,19 @@ Follow these steps EXACTLY:
    do NOT try to auto-commit existing local changes.
 
 3. Ensure that a git remote named 'gitea' exists and points to:
-     {repo_github_url}
+     {repo_gitea_url}
    - If 'gitea' does not exist, add it:
-       git remote add gitea {repo_github_url}
+       git remote add gitea {repo_gitea_url}
    - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {repo_github_url}
+       git remote set-url gitea {repo_gitea_url}
 
-4. Fetch from 'gitea':
-     git fetch gitea
+4. Fetch from 'origin':
+     git pull origin
 
 5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
-   Then create and checkout a new branch named:
+   Then create and checkout a new local branch named:
      {branch_name}
    starting from the default branch, for example:
-     git checkout main
-     git pull --ff-only
      git checkout -b {branch_name}
 
 6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
@@ -93,11 +94,10 @@ Follow these steps EXACTLY:
      git commit -m "Auto-update: {user_request}"
 
 9. Push the new branch to the 'gitea' remote:
-     git push gitea {repo_gitea_url}
+     git push gitea --all
 
 10. Update table Application from swautomorph.db localted in ~/swautomorph/db/ folder, 
-    set the field 'gitea_url' of Deployments table to the value  {repo_gitea_url} 
-    where application_name = {app_name}
+    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
 
 11. Rebuild and redeploy the running application by executing:
       docker-compose up -d --build

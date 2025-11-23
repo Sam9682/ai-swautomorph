@@ -29,18 +29,9 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             git_url TEXT,
-            gitea_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # Add gitea_url column if it doesn't exist (migration)
-    try:
-        cursor.execute('ALTER TABLE applications ADD COLUMN gitea_url TEXT')
-        print("Added gitea_url column to applications table")
-    except sqlite3.OperationalError:
-        # Column already exists
-        pass
     
     # Authentication tokens table for SSO
     cursor.execute('''
@@ -77,7 +68,6 @@ def init_db():
             status TEXT DEFAULT 'pending',
             deployment_path TEXT,
             git_url TEXT,
-            gitea_url TEXT,
             server_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

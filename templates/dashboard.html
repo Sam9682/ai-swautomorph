@@ -1137,7 +1137,7 @@ function sendVirtualDeveloperMessage() {
                 }
                 
                 // Generate Gitea URL based on app name
-                giteaUrl = `http://localhost:3000/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}.git`;
+                giteaUrl = `http://gitadmin:password@localhost:3000/gitadmin/${username}-automorph-${app_name}-%DATETIME%.git`;
                 break;
             }
         }
