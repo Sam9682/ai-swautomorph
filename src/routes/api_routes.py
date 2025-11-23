@@ -79,8 +79,8 @@ def api_applications():
     if request.method == 'GET':
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, description, git_url, gitea_url FROM applications ORDER BY name')
-        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3], 'gitea_url': row[4]} 
+        cursor.execute('SELECT id, name, description, git_url FROM applications ORDER BY name')
+        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3]} 
                 for row in cursor.fetchall()]
         conn.close()
         return jsonify(apps)
@@ -106,9 +106,8 @@ def api_applications():
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
-        gitea_url = data.get('gitea_url', '')
-        cursor.execute('INSERT INTO applications (name, description, git_url, gitea_url) VALUES (?, ?, ?, ?)',
-                      (name, description, git_url, gitea_url))
+        cursor.execute('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
+                      (name, description, git_url))
         app_id = cursor.lastrowid
         
         # Assign new application to all existing users with URLs
@@ -143,11 +142,10 @@ def api_application_actions(app_id):
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
-        gitea_url = data.get('gitea_url', '')
         cursor.execute('''
-            UPDATE applications SET name = ?, description = ?, git_url = ?, gitea_url = ?
+            UPDATE applications SET name = ?, description = ?, git_url = ?
             WHERE id = ?
-        ''', (name, description, git_url, gitea_url, app_id))
+        ''', (name, description, git_url, app_id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Application updated successfully'})
@@ -570,7 +568,7 @@ def api_qchat():
     import time
     
     # Log API call details
-    user_id = session.get('user_id', 'anonymous')
+    user_id = session.get('user_id', '0')
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     user_agent = request.headers.get('User-Agent', 'Unknown')
     timestamp = time.strftime('%Y-%m-%d-%H:%M:%S')
@@ -588,10 +586,12 @@ def api_qchat():
     app_folder = data.get('application_folder', '')
     gitea_url = data.get('gitea_url', '')
     github_url = data.get('github_url', '')
+    userid = data.get('userid', '0')
+    username = data.get('username', 'anonymous')
     
-    print(f"[Q CHAT API] User {user_id} - Message length: {len(message)} chars, Auto-approve: {auto_approve}")
-    print(f"[Q CHAT API] User {user_id} - App: {app_name}, Folder: {app_folder}, Gitea: {gitea_url}, GitHub: {github_url}")
-    print(f"[Q CHAT API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    print(f"[Q CHAT API] User {username} - Message length: {len(message)} chars, Auto-approve: {auto_approve}")
+    print(f"[Q CHAT API] User {username} - App: {app_name}, Folder: {app_folder}, Gitea: {gitea_url}, GitHub: {github_url}")
+    print(f"[Q CHAT API] User {username} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
     
     if not message:
         print(f"[Q CHAT API] FAILED - Empty message from user {user_id}")
@@ -599,7 +599,7 @@ def api_qchat():
     
     try:
         # Use automorph_application module to process the request
-        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url, user_id)
+        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url, userid, username)
         
         if 'error' in result:
             print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")

@@ -10,7 +10,7 @@ REPO_DIR = "/home/ubuntu/deployments/"
 GITHUB_REMOTE_URL = "git@github.com:Sam9682/"
 GITEA_REMOTE_URL = "http://gitadmin:password@localhost:3000/gitadmin/"
 
-def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = '', user_id: str = 'default-user'):
+def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = '', user_id: str = '0', user_name: str = 'anonymous'):
     """
     Process Q Chat request using automorph application logic
     Returns dict with response, execution details, and timing
@@ -100,7 +100,8 @@ Follow these steps EXACTLY:
     set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
 
 11. Rebuild and redeploy the running application by executing:
-      docker-compose up -d --build
+      deploy.sh stop
+      deploy.sh start {user_id} {user_name}
     from the repository root ({repo_dir}).
 
 12. At the end, print a short summary including:

@@ -24,7 +24,7 @@
         <div class="app-card">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}')" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
@@ -33,7 +33,7 @@
             </div>
             {% else %}
             <div class="app-actions">
-                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="View Details">
+                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}')" class="btn-icon" title="View Details">
                     👁️
                 </button>
             </div>
@@ -86,10 +86,7 @@
                 <label for="app_git_url">Github Official Readonly Repository URL:</label>
                 <input type="url" id="app_git_url" name="git_url" placeholder="https://github.com/user/repo.git">
             </div>
-            <div class="form-group">
-                <label for="app_gitea_url">Gitea URL (optional):</label>
-                <input type="url" id="app_gitea_url" name="gitea_url" placeholder="http://localhost:3000/user/repo.git">
-            </div>
+
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
             <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">Cancel</button>
         </form>
@@ -119,10 +116,7 @@
                 <label for="editAppGitUrl">Github Official Readonly Repository URL:</label>
                 <input type="url" id="editAppGitUrl">
             </div>
-            <div class="form-group">
-                <label for="editAppGiteaUrl">Gitea Local SwAutomorph URL (optional):</label>
-                <input type="url" id="editAppGiteaUrl">
-            </div>
+
             <button type="submit" class="btn btn-secondary">Update Application</button>
             <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">Cancel</button>
         </form>
@@ -154,10 +148,7 @@
             <label>Github Official Readonly Repository URL:</label>
             <div id="viewAppGitUrl" class="readonly-field" style="color: green;"></div>
         </div>
-        <div class="form-group">
-            <label>Gitea Local SwAutomorph URL:</label>
-            <div id="viewAppGiteaUrl" class="readonly-field" style="color: green;"></div>
-        </div>
+
         <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
     </div>
     </div>
@@ -516,14 +507,13 @@ function hideAddAppForm() {
     document.getElementById('addAppForm').reset();
 }
 
-function editApp(id, name, url, description, gitUrl, giteaUrl) {
+function editApp(id, name, url, description, gitUrl) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
     document.getElementById('editAppUrl').value = url;
     document.getElementById('editAppDescription').value = description;
     document.getElementById('editAppGitUrl').value = gitUrl || '';
-    document.getElementById('editAppGiteaUrl').value = giteaUrl || '';
     document.getElementById('editAppForm').style.display = 'block';
 }
 
@@ -532,13 +522,12 @@ function hideEditAppForm() {
     document.getElementById('updateAppForm').reset();
 }
 
-function viewApp(id, name, url, description, gitUrl, giteaUrl) {
+function viewApp(id, name, url, description, gitUrl) {
     document.getElementById('viewAppIdentity').textContent = id;
     document.getElementById('viewAppName').textContent = name;
     document.getElementById('viewAppUrl').textContent = url;
     document.getElementById('viewAppDescription').textContent = description || 'No description';
     document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
-    document.getElementById('viewAppGiteaUrl').textContent = giteaUrl || 'Not specified';
     document.getElementById('viewAppForm').style.display = 'block';
 }
 
@@ -566,8 +555,7 @@ document.getElementById('addAppForm').addEventListener('submit', function(e) {
         name: document.getElementById('app_name').value,
         url: document.getElementById('app_url').value,
         description: document.getElementById('app_description').value,
-        git_url: document.getElementById('app_git_url').value,
-        gitea_url: document.getElementById('app_gitea_url').value
+        git_url: document.getElementById('app_git_url').value
     };
     
     fetch('/api/applications', {
@@ -593,8 +581,7 @@ document.getElementById('updateAppForm').addEventListener('submit', function(e) 
         name: document.getElementById('editAppName').value,
         url: document.getElementById('editAppUrl').value,
         description: document.getElementById('editAppDescription').value,
-        git_url: document.getElementById('editAppGitUrl').value,
-        gitea_url: document.getElementById('editAppGiteaUrl').value
+        git_url: document.getElementById('editAppGitUrl').value
     };
     
     fetch(`/api/applications/${appId}`, {
@@ -1152,7 +1139,9 @@ function sendVirtualDeveloperMessage() {
         application_name: selectedApp,
         application_folder: appFolder,
         github_url: githubUrl,
-        gitea_url: giteaUrl
+        gitea_url: giteaUrl,
+        username: username,
+        userid: userid
     };
     
     addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');
