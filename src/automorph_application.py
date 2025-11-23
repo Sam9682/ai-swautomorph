@@ -93,13 +93,17 @@ Follow these steps EXACTLY:
      git commit -m "Auto-update: {user_request}"
 
 9. Push the new branch to the 'gitea' remote:
-     git push gitea {branch_name}
+     git push gitea {repo_gitea_url}
 
-10. Rebuild and redeploy the running application by executing:
+10. Update table Application from swautomorph.db localted in ~/swautomorph/db/ folder, 
+    set the field 'gitea_url' of Deployments table to the value  {repo_gitea_url} 
+    where application_name = {app_name}
+
+11. Rebuild and redeploy the running application by executing:
       docker-compose up -d --build
     from the repository root ({repo_dir}).
 
-11. At the end, print a short summary including:
+12. At the end, print a short summary including:
     - the branch name,
     - the git commit hash,
     - the result of the docker-compose command (success or failure),
