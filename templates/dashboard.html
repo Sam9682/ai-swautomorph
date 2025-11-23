@@ -969,12 +969,16 @@ function updateApplicationButtonStatus(appName, logs) {
     // Check if application is not cloned/installed
     const isNotCloned = logs.toLowerCase().includes('deploy.sh not found');
     
-    // Check if application is running
-    const isRunning = !isNotCloned && (logs.toLowerCase().includes(' up ');
-    
     // Check if application is not running but cloned
-    const isNotRunning = !isNotCloned && !isRunning && 
-                        (logs.toLowerCase().includes('not running');
+    const logLines = logs.toLowerCase().split('\n');
+    const hasUpStatus = logs.toLowerCase().includes(' up ');
+    const hasNotRunningWithAppName = logLines.some(line => 
+        line.includes('not running') && line.includes(appName.toLowerCase())
+    );
+    const isNotRunning = !isNotCloned && hasNotRunningWithAppName;
+    
+    // Check if application is running
+    const isRunning = !isNotCloned && !isNotRunning && hasUpStatus;
     
     if (isNotCloned) {
         // Application is not cloned - GRAY and only Clone enabled
