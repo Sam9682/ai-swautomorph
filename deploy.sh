@@ -111,33 +111,33 @@ check_flask_status() {
     if [ -f "app.pid" ]; then
         PID=$(cat app.pid)
         if kill -0 "$PID" 2>/dev/null; then
-            echo "✅ Flask application: Running (PID: $PID)"
+            echo "  ✅ Flask application: Running (PID: $PID)"
         else
-            echo "❌ Flask application: Not running (stale PID: $PID)"
+            echo "  ❌ Flask application: Not running (stale PID: $PID)"
         fi
     else
-        echo "❌ Flask application: Not running (no PID file)"
+        echo "  ❌ Flask application: Not running (no PID file)"
     fi
 }
 
 check_nginx_status() {
     if systemctl is-active --quiet nginx; then
-        echo "✅ Nginx: Running"
+        echo "  ✅ Nginx: Running"
         if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-            echo "✅ $NAME_OF_APPLICATION site: Configured"
+            echo "  ✅ $NAME_OF_APPLICATION site: Configured"
         else
-            echo "⚠️ $NAME_OF_APPLICATION site: Not configured"
+            echo "  ⚠️ $NAME_OF_APPLICATION site: Not configured"
         fi
     else
-        echo "❌ Nginx: Not running"
+        echo "  ❌ Nginx: Not running"
     fi
 }
 
 check_gitea_status() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
-        echo "✅ Gitea: Running on http://localhost:3000"
+        echo "  ✅ Gitea: Running on http://localhost:3000"
     else
-        echo "❌ Gitea: Not running"
+        echo "  ❌ Gitea: Not running"
     fi
 }
 
@@ -145,7 +145,7 @@ check_docker_status() {
     if command -v docker-compose &> /dev/null; then
         HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose ps
     else
-        echo "❌ Docker Compose not installed"
+        echo "  ❌ Docker Compose not installed"
     fi
 }
 
@@ -168,7 +168,7 @@ stop_services() {
         stop_docker_services
     fi
     
-    echo "✅ Services stopped"
+    echo "  ✅ Services stopped"
 }
 
 # Remove Gitea installation
@@ -195,7 +195,7 @@ remove_gitea() {
     sudo userdel git 2>/dev/null || true
     sudo groupdel git 2>/dev/null || true
     
-    echo "✅ Gitea removed successfully"
+    echo "  ✅ Gitea removed successfully"
 }
 
 stop_flask_service() {
@@ -203,13 +203,13 @@ stop_flask_service() {
         PID=$(cat app.pid)
         if kill -0 "$PID" 2>/dev/null; then
             kill "$PID"
-            echo "✅ Flask application stopped (PID: $PID)"
+            echo "  ✅ Flask application stopped (PID: $PID)"
         else
-            echo "⚠️ Flask process not running (PID: $PID)"
+            echo "  ⚠️ Flask process not running (PID: $PID)"
         fi
         rm -f app.pid
     else
-        echo "⚠️ No app.pid file found"
+        echo "  ⚠️ No app.pid file found"
     fi
 }
 
@@ -220,16 +220,16 @@ remove_nginx_config() {
         if systemctl is-active --quiet nginx; then
             sudo nginx -t && sudo systemctl reload nginx
         fi
-        echo "✅ Nginx configuration removed"
+        echo "  ✅ Nginx configuration removed"
     fi
 }
 
 stop_nginx_service() {
     if systemctl is-active --quiet nginx; then
         sudo systemctl stop nginx
-        echo "✅ Nginx service stopped"
+        echo "  ✅ Nginx service stopped"
     else
-        echo "⚠️ Nginx service was not running"
+        echo "  ⚠️ Nginx service was not running"
     fi
 }
 
@@ -248,10 +248,10 @@ show_logs() {
 show_flask_logs() {
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     if [ -f "$LOG_FILE" ]; then
-        echo "🐍 Flask Application Logs ($LOG_FILE):"
+        echo "  🐍 Flask Application Logs ($LOG_FILE):"
         cat "$LOG_FILE"
     else
-        echo "❌ No Flask log file found ($LOG_FILE)"
+        echo "  ❌ No Flask log file found ($LOG_FILE)"
         # Try to find any app logs in logs directory
         if ls logs/app_logs_*.log 1> /dev/null 2>&1; then
             echo "📋 Available log files:"
@@ -263,7 +263,7 @@ show_flask_logs() {
 show_nginx_logs() {
     echo ""
     echo "🌐 Nginx Error Logs (last 20 lines):"
-    sudo tail -n 20 /var/log/nginx/error.log 2>/dev/null || echo "❌ Cannot access Nginx logs"
+    sudo tail -n 20 /var/log/nginx/error.log 2>/dev/null || echo "  ❌ Cannot access Nginx logs"
 }
 
 show_docker_logs() {
@@ -290,7 +290,7 @@ restart_services() {
 
 restart_flask_service() {
     stop_flask_service
-    echo "🚀 Starting Flask application..."
+    echo "  🚀 Starting Flask application..."
     # Create logs directory if it doesn't exist
     mkdir -p logs
     # Start Flask with date-based log file
@@ -342,16 +342,16 @@ setup_gitea() {
     
     # Check if Gitea is already running
     if systemctl is-active --quiet gitea 2>/dev/null; then
-        echo "✅ Gitea is already running"
+        echo "  ✅ Gitea is already running"
         return 0
     fi
     
     # Check if already configured
     if [ -f "/etc/gitea/app.ini" ]; then
-        echo "✅ Gitea is already configured"
+        echo "  ✅ Gitea is already configured"
         sudo systemctl start gitea 2>/dev/null || true
         if systemctl is-active --quiet gitea; then
-            echo "✅ Gitea is running on http://localhost:3000"
+            echo "  ✅ Gitea is running on http://localhost:3000"
             # Try to reset admin password if user exists
             create_gitea_admin_user
         fi
@@ -360,7 +360,7 @@ setup_gitea() {
     
     # Check if Gitea is installed
     if ! command -v gitea &> /dev/null; then
-        echo "📦 Installing Gitea..."
+        echo "  📦 Installing Gitea..."
         
         # Download and install Gitea
         wget -O /tmp/gitea https://dl.gitea.io/gitea/1.21.3/gitea-1.21.3-linux-amd64
@@ -401,7 +401,7 @@ EOF
         sudo chown root:git /etc/gitea
         sudo chmod 770 /etc/gitea
         
-        echo "✅ Gitea installed successfully"
+        echo "  ✅ Gitea installed successfully"
         configure_gitea
     fi
     
@@ -415,17 +415,17 @@ EOF
     sleep 5
     
     if systemctl is-active --quiet gitea; then
-        echo "✅ Gitea is running on http://localhost:3000"
-        echo "📝 Complete initial setup at http://localhost:3000/install"
-        echo "📝 Recommended admin credentials: admin/password"
+        echo "  ✅ Gitea is running on http://localhost:3000"
+        echo "  📝 Complete initial setup at http://localhost:3000/install"
+        echo "  📝 Recommended admin credentials: admin/password"
     else
-        echo "❌ Failed to start Gitea"
+        echo "  ❌ Failed to start Gitea"
     fi
 }
 
 # Configure Gitea with predefined settings
 configure_gitea() {
-    echo "⚙️ Configuring Gitea..."
+    echo "  ⚙️ Configuring Gitea..."
     
     # Create required directories
     sudo mkdir -p /home/ubuntu/admin/data/gitea-repositories
@@ -472,7 +472,7 @@ EOF
     sudo chown git:git /etc/gitea/app.ini
     sudo chmod 640 /etc/gitea/app.ini
     
-    echo "✅ Gitea configured successfully"
+    echo "  ✅ Gitea configured successfully"
 }
 
 # Setup Gitea admin user and API token
@@ -497,10 +497,10 @@ create_gitea_admin_user() {
         --config /etc/gitea/app.ini \
         --work-path /var/lib/gitea 2>/dev/null || true
     
-    echo "🔑 Gitea Admin Credentials:"
-    echo "   Username: gitadmin"
-    echo "   Password: password"
-    echo "   URL: http://www.swautomorph.com/gitea"
+    echo "  🔑 Gitea Admin Credentials:"
+    echo "      Username: gitadmin"
+    echo "      Password: password"
+    echo "      URL: http://www.swautomorph.com/gitea"
     
     # Try to generate API token
     setup_api_token
@@ -508,7 +508,7 @@ create_gitea_admin_user() {
 
 # Setup API token for admin user
 setup_api_token() {
-    echo "🔑 Setting up API token..."
+    echo "  🔑 Setting up API token..."
     
     # Try to generate API token for admin user with all required scopes
     TOKEN=$(sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
@@ -523,11 +523,11 @@ setup_api_token() {
         chmod 600 /tmp/gitea_admin_token
         echo "✅ API token created and saved to /tmp/gitea_admin_token"
     else
-        echo "⚠️ Could not generate API token automatically"
-        echo "📝 Manual steps to create API token:"
-        echo "   1. Login to Gitea at http://localhost:3000"
-        echo "   2. Go to Settings > Applications > Generate New Token"
-        echo "   3. Save the token to /tmp/gitea_admin_token"
+        echo "      ⚠️ Could not generate API token automatically"
+        echo "      📝 Manual steps to create API token:"
+        echo "          1. Login to Gitea at http://localhost:3000"
+        echo "          2. Go to Settings > Applications > Generate New Token"
+        echo "          3. Save the token to /tmp/gitea_admin_token"
     fi
 }
 
@@ -535,18 +535,18 @@ start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
     HTTP_PORT=$((HTTP_PORT)) HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose up -d --build
-    echo "✅ Docker services started"
+    echo "  ✅ Docker services started"
 }
 
 install_python_dependencies() {
     if [ -f "requirements.txt" ]; then
-        echo "📦 Installing Python dependencies..."
+        echo "  📦 Installing Python dependencies..."
         pip3 install -r requirements.txt
     fi
 }
 
 start_flask_application() {
-    echo "🚀 Starting Flask application..."
+    echo "  🚀 Starting Flask application..."
     # Stop any existing Flask processes on port 5000
     pkill -f "python3 app.py" || true
     sleep 2
@@ -631,7 +631,7 @@ cleanup_docker() {
 # Validate user input
 validate_user_id() {
     if ! [[ "$USER_ID" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-        echo "❌ Error: user_id must be alphanumeric (letters, numbers, underscore, hyphen)"
+        echo "  ❌ Error: user_id must be alphanumeric (letters, numbers, underscore, hyphen)"
         exit 1
     fi
 }
@@ -661,12 +661,12 @@ check_local_requirements() {
 
 check_docker_requirements() {
     if ! command -v docker &> /dev/null; then
-        echo "❌ Docker is not installed. Please install Docker first."
+        echo "  ❌ Docker is not installed. Please install Docker first."
         exit 1
     fi
     
     if ! command -v docker-compose &> /dev/null; then
-        echo "❌ Docker Compose is not installed. Please install Docker Compose first."
+        echo "  ❌ Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
 }
@@ -689,7 +689,7 @@ setup_ssl_certificates() {
         echo "🔐 Generating SSL certificates..."
         ./generate_ssl.sh
     else
-        echo "✅ SSL certificates already exist"
+        echo "  ✅ SSL certificates already exist"
     fi
 }
 
@@ -701,7 +701,7 @@ generate_environment_file() {
 SECRET_KEY=${SECRET_KEY}
 FLASK_ENV=production
 EOF
-        echo "✅ Environment file created (.env)"
+        echo "  ✅ Environment file created (.env)"
     fi
 }
 

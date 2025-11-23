@@ -224,40 +224,64 @@
     </div>
 </div>
 
-<!-- Q Chat Modal -->
-<div id="qChatModal" class="modal" style="display: none;">
+<!-- Virtual Developer Modal -->
+<div id="virtualDeveloperModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>🤖 {{ get_text('qchat_title') }}</h3>
-            <span class="close" onclick="closeQChatModal()">&times;</span>
+            <h3>🤖 Virtual Developer</h3>
+            <span class="close" onclick="closeVirtualDeveloperModal()">&times;</span>
         </div>
         <div class="modal-body">
             <div class="chat-app-selection">
-                <label for="qChatAppSelect">{{ get_text('select_application') }}:</label>
-                <select id="qChatAppSelect">
+                <label for="virtualDeveloperAppSelect">{{ get_text('select_application') }}:</label>
+                <select id="virtualDeveloperAppSelect">
                     <option value="">-- {{ get_text('select_application') }} --</option>
                     {% for app in applications %}
                     <option value="{{ app[1] }}">{{ app[1] }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div id="qChatMessages" class="chat-messages"></div>
+            <div id="virtualDeveloperMessages" class="chat-messages"></div>
             <div class="chat-input-area">
-                <textarea id="qChatInput" placeholder="{{ get_text('qchat_placeholder') }}" rows="3"></textarea>
+                <textarea id="virtualDeveloperInput" placeholder="{{ get_text('qchat_placeholder') }}" rows="3"></textarea>
                 <div class="chat-controls">
                     <label>
-                        <input type="checkbox" id="qChatAutoYes" checked> {{ get_text('auto_approve') }}
+                        <input type="checkbox" id="virtualDeveloperAutoYes" checked> {{ get_text('auto_approve') }}
                     </label>
-                    <button onclick="sendQChatMessage()" class="btn btn-primary">{{ get_text('send') }}</button>
+                    <button onclick="sendVirtualDeveloperMessage()" class="btn btn-primary">{{ get_text('send') }}</button>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Q Chat Toggle Button -->
-<div id="qChatToggle" class="chat-toggle" onclick="showQChatModal()">
-    🤖 Q Chat
+<!-- Virtual Advisor Modal -->
+<div id="virtualAdvisorModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>💡 Virtual Advisor</h3>
+            <span class="close" onclick="closeVirtualAdvisorModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="virtualAdvisorMessages" class="chat-messages"></div>
+            <div class="chat-input-area">
+                <textarea id="virtualAdvisorInput" placeholder="Ask your question..." rows="3"></textarea>
+                <div class="chat-controls">
+                    <button onclick="sendVirtualAdvisorMessage()" class="btn btn-primary">Ask Question</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Virtual Developer Toggle Button -->
+<div id="virtualDeveloperToggle" class="chat-toggle" onclick="showVirtualDeveloperModal()">
+    🤖 My Virtual Developer: ask him to modify the application
+</div>
+
+<!-- Virtual Advisor Toggle Button -->
+<div id="virtualAdvisorToggle" class="chat-toggle" onclick="showVirtualAdvisorModal()" style="bottom: 120px;">
+    💡 My Virtual Advisor : ask him a question
 </div>
 
 <script>
@@ -919,32 +943,35 @@ function updateApplicationButtonStatus(appName, logs) {
 
 }
 
-// Q Chat functions
-function showQChatModal() {
-    document.getElementById('qChatModal').style.display = 'block';
-    if (document.getElementById('qChatMessages').innerHTML === '') {
-        addQChatMessage('system', '{{ get_text("qchat_ready") }}');
+// Virtual Developer functions
+function showVirtualDeveloperModal() {
+    document.getElementById('virtualDeveloperModal').style.display = 'block';
+    if (document.getElementById('virtualDeveloperMessages').innerHTML === '') {
+        addVirtualDeveloperMessage('system', '{{ get_text("qchat_ready") }}');
     }
 }
 
-function closeQChatModal() {
-    document.getElementById('qChatModal').style.display = 'none';
+function closeVirtualDeveloperModal() {
+    document.getElementById('virtualDeveloperModal').style.display = 'none';
 }
 
-function sendQChatMessage() {
-    const input = document.getElementById('qChatInput');
+function sendVirtualDeveloperMessage() {
+    const input = document.getElementById('virtualDeveloperInput');
     const message = input.value.trim();
     if (!message) return;
     
-    addQChatMessage('user', message);
+    addVirtualDeveloperMessage('user', message);
     input.value = '';
     
     // Show typing indicator
-    addQChatMessage('system', 'Q is thinking...');
+    addVirtualDeveloperMessage('system', 'Virtual Developer is thinking...');
     
-    // Send to Q Chat API
-    const autoYes = document.getElementById('qChatAutoYes').checked;
-    const selectedApp = document.getElementById('qChatAppSelect').value;
+    // Add real-time logging
+    addVirtualDeveloperMessage('system', '🔄 Preparing request...');
+    
+    // Send to Virtual Developer API
+    const autoYes = document.getElementById('virtualDeveloperAutoYes').checked;
+    const selectedApp = document.getElementById('virtualDeveloperAppSelect').value;
     
     // Get application details from the applications data
     let appFolder = '';
@@ -952,6 +979,7 @@ function sendQChatMessage() {
     let giteaUrl = '';
     
     if (selectedApp) {
+        addVirtualDeveloperMessage('system', `📱 Selected application: ${selectedApp}`);
         // Find the selected application in the applications list
         const appCards = document.querySelectorAll('.app-card');
         for (const card of appCards) {
@@ -977,6 +1005,9 @@ function sendQChatMessage() {
                 break;
             }
         }
+        addVirtualDeveloperMessage('system', `📁 App folder: ${appFolder}`);
+        addVirtualDeveloperMessage('system', `🔗 GitHub URL: ${githubUrl || 'Not specified'}`);
+        addVirtualDeveloperMessage('system', `🏠 Gitea URL: ${giteaUrl}`);
     }
     
     const payload = {
@@ -988,39 +1019,84 @@ function sendQChatMessage() {
         gitea_url: giteaUrl
     };
     
+    addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');
+    
     fetch('/api/qchat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     })
-    .then(response => response.json())
+    .then(response => {
+        addVirtualDeveloperMessage('system', `📥 Received response (${response.status} ${response.statusText})`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.text().then(text => {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                addVirtualDeveloperMessage('error', `JSON Parse Error: ${text.substring(0, 200)}`);
+                throw new Error(`Invalid JSON response: ${e.message}`);
+            }
+        });
+    })
     .then(data => {
-        // Remove typing indicator
-        const messages = document.getElementById('qChatMessages');
-        messages.removeChild(messages.lastChild);
+        // Remove typing indicators
+        const messages = document.getElementById('virtualDeveloperMessages');
+        const systemMessages = messages.querySelectorAll('.chat-system');
+        // Remove the last few system messages (typing indicators and logs)
+        for (let i = systemMessages.length - 1; i >= Math.max(0, systemMessages.length - 6); i--) {
+            if (systemMessages[i].textContent.includes('thinking') || 
+                systemMessages[i].textContent.includes('Preparing') ||
+                systemMessages[i].textContent.includes('Sending') ||
+                systemMessages[i].textContent.includes('Received') ||
+                systemMessages[i].textContent.includes('Selected') ||
+                systemMessages[i].textContent.includes('folder') ||
+                systemMessages[i].textContent.includes('URL')) {
+                systemMessages[i].remove();
+            }
+        }
         
         if (data.error) {
-            addQChatMessage('error', `Error: ${data.error}`);
+            addVirtualDeveloperMessage('error', `Error: ${data.error}`);
         } else {
-            addQChatMessage('assistant', data.response);
+            addVirtualDeveloperMessage('assistant', data.response);
             if (data.command_executed) {
-                addQChatMessage('system', `Command executed: ${data.command}`);
-                if (data.command_output) {
-                    addQChatMessage('output', data.command_output);
+                addVirtualDeveloperMessage('system', `✅ Command executed successfully`);
+                if (data.branch_name) {
+                    addVirtualDeveloperMessage('system', `🌿 Branch created: ${data.branch_name}`);
                 }
+            }
+            if (data.execution_time) {
+                addVirtualDeveloperMessage('system', `⏱️ Execution time: ${data.execution_time}s`);
             }
         }
     })
     .catch(error => {
-        // Remove typing indicator
-        const messages = document.getElementById('qChatMessages');
-        messages.removeChild(messages.lastChild);
-        addQChatMessage('error', `Network error: ${error.message}`);
+        // Remove typing indicators
+        const messages = document.getElementById('virtualDeveloperMessages');
+        const systemMessages = messages.querySelectorAll('.chat-system');
+        for (let i = systemMessages.length - 1; i >= Math.max(0, systemMessages.length - 6); i--) {
+            if (systemMessages[i].textContent.includes('thinking') || 
+                systemMessages[i].textContent.includes('Preparing') ||
+                systemMessages[i].textContent.includes('Sending') ||
+                systemMessages[i].textContent.includes('Received') ||
+                systemMessages[i].textContent.includes('Selected') ||
+                systemMessages[i].textContent.includes('folder') ||
+                systemMessages[i].textContent.includes('URL')) {
+                systemMessages[i].remove();
+            }
+        }
+        
+        addVirtualDeveloperMessage('error', `Network error: ${error.message}`);
+        console.error('Virtual Developer error:', error);
     });
 }
 
-function addQChatMessage(type, content) {
-    const messages = document.getElementById('qChatMessages');
+function addVirtualDeveloperMessage(type, content) {
+    const messages = document.getElementById('virtualDeveloperMessages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `chat-message chat-${type}`;
     
@@ -1045,19 +1121,117 @@ function addQChatMessage(type, content) {
     messages.scrollTop = messages.scrollHeight;
 }
 
-// Handle Enter key in Q Chat input
+// Handle Enter key in Virtual Developer and Virtual Advisor inputs
 document.addEventListener('keydown', function(e) {
-    if (e.target.id === 'qChatInput' && e.key === 'Enter' && !e.shiftKey) {
+    if (e.target.id === 'virtualDeveloperInput' && e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendQChatMessage();
+        sendVirtualDeveloperMessage();
+    }
+    if (e.target.id === 'virtualAdvisorInput' && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendVirtualAdvisorMessage();
     }
 });
+
+// Virtual Advisor functions
+function showVirtualAdvisorModal() {
+    document.getElementById('virtualAdvisorModal').style.display = 'block';
+    if (document.getElementById('virtualAdvisorMessages').innerHTML === '') {
+        addVirtualAdvisorMessage('system', 'Hello! I\'m your Virtual Advisor. Ask me any question and I\'ll help you.');
+    }
+}
+
+function closeVirtualAdvisorModal() {
+    document.getElementById('virtualAdvisorModal').style.display = 'none';
+}
+
+function sendVirtualAdvisorMessage() {
+    const input = document.getElementById('virtualAdvisorInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    addVirtualAdvisorMessage('user', message);
+    input.value = '';
+    
+    // Show typing indicator
+    addVirtualAdvisorMessage('system', 'Virtual Advisor is thinking...');
+    
+    // Send to Virtual Advisor API
+    fetch('/api/qchat_question', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message: message})
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Remove typing indicator
+        const messages = document.getElementById('virtualAdvisorMessages');
+        const systemMessages = messages.querySelectorAll('.chat-system');
+        for (let i = systemMessages.length - 1; i >= 0; i--) {
+            if (systemMessages[i].textContent.includes('thinking')) {
+                systemMessages[i].remove();
+                break;
+            }
+        }
+        
+        if (data.error) {
+            addVirtualAdvisorMessage('error', `Error: ${data.error}`);
+        } else {
+            addVirtualAdvisorMessage('assistant', data.response);
+        }
+    })
+    .catch(error => {
+        // Remove typing indicator
+        const messages = document.getElementById('virtualAdvisorMessages');
+        const systemMessages = messages.querySelectorAll('.chat-system');
+        for (let i = systemMessages.length - 1; i >= 0; i--) {
+            if (systemMessages[i].textContent.includes('thinking')) {
+                systemMessages[i].remove();
+                break;
+            }
+        }
+        
+        addVirtualAdvisorMessage('error', `Network error: ${error.message}`);
+        console.error('Virtual Advisor error:', error);
+    });
+}
+
+function addVirtualAdvisorMessage(type, content) {
+    const messages = document.getElementById('virtualAdvisorMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message chat-${type}`;
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const icon = {
+        'user': '👤',
+        'assistant': '💡',
+        'system': '⚙️',
+        'error': '❌'
+    }[type] || '💬';
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">${icon}</span>
+            <span class="message-time">${timestamp}</span>
+        </div>
+        <div class="message-content">${content}</div>
+    `;
+    
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+}
 
 // Close modal when clicking outside
 window.onclick = function(event) {
     const deploymentModal = document.getElementById('deploymentModal');
     const automorphModal = document.getElementById('automorphModal');
-    const qChatModal = document.getElementById('qChatModal');
+    const virtualDeveloperModal = document.getElementById('virtualDeveloperModal');
+    const virtualAdvisorModal = document.getElementById('virtualAdvisorModal');
     
     if (event.target === deploymentModal) {
         deploymentModal.style.display = 'none';
@@ -1065,8 +1239,11 @@ window.onclick = function(event) {
     if (event.target === automorphModal) {
         automorphModal.style.display = 'none';
     }
-    if (event.target === qChatModal) {
-        qChatModal.style.display = 'none';
+    if (event.target === virtualDeveloperModal) {
+        virtualDeveloperModal.style.display = 'none';
+    }
+    if (event.target === virtualAdvisorModal) {
+        virtualAdvisorModal.style.display = 'none';
     }
 }
 </script>

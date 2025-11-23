@@ -108,13 +108,31 @@ If ANY step fails, explain clearly which step failed and why.
 """
 
     try:
+        # Try different possible paths for qchat
+        qchat_paths = ['/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+        qchat_cmd = None
+        
+        for path in qchat_paths:
+            try:
+                subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                qchat_cmd = path
+                break
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        
+        if not qchat_cmd:
+            return {
+                'error': 'Q Chat command not found. Please install qchat or check PATH.',
+                'execution_time': round(time.time() - start_time, 2)
+            }
+        
         # Prepare Q Chat command with --trust-all-tools option if auto_approve
-        cmd_args = ['qchat', 'chat']
+        cmd_args = [qchat_cmd, 'chat']
         if auto_approve:
             cmd_args.append('--trust-all-tools')
         cmd_args.append(prompt)
         
-        print(f"[AUTOMORPH] Executing qchat command with auto_approve={auto_approve}")
+        print(f"[AUTOMORPH] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
         
         # Execute Q Chat command
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600)
@@ -156,6 +174,87 @@ If ANY step fails, explain clearly which step failed and why.
         print(f"[AUTOMORPH] Error: {str(e)}")
         return {
             'error': f'Automorph error: {str(e)}',
+            'execution_time': round(time.time() - start_time, 2)
+        }
+
+def process_qchat_question(user_question: str):
+    """
+    Process Virtual Advisor question using Q Chat for simple Q&A
+    Returns dict with response and timing
+    """
+    start_time = time.time()
+    
+    print(f"[VIRTUAL ADVISOR] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
+    
+    # Simple prompt for Q&A without code execution
+    prompt = f"""
+You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+Do not execute any commands or modify any files. Just provide helpful information and guidance.
+
+User Question: {user_question}
+
+Provide a helpful and informative response.
+"""
+
+    try:
+        # Execute Q Chat command without --trust-all-tools (no code execution)
+        # Try different possible paths for qchat
+        qchat_paths = ['/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+        qchat_cmd = None
+        
+        for path in qchat_paths:
+            try:
+                subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                qchat_cmd = path
+                break
+            except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        
+        if not qchat_cmd:
+            return {
+                'error': 'Q Chat command not found. Please install qchat or check PATH.',
+                'execution_time': round(time.time() - start_time, 2)
+            }
+        
+        cmd_args = [qchat_cmd, 'chat', prompt]
+        
+        print(f"[VIRTUAL ADVISOR] Executing qchat command for question using: {qchat_cmd}")
+        
+        # Execute Q Chat command
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300)
+        execution_time = time.time() - start_time
+        
+        print(f"[VIRTUAL ADVISOR] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        
+        # Handle response from both stdout and stderr
+        response_text = ''
+        if result.stdout and result.stdout.strip():
+            response_text = result.stdout.strip()
+        elif result.stderr and result.stderr.strip():
+            response_text = result.stderr.strip()
+        else:
+            response_text = 'Virtual Advisor completed but returned no output'
+        
+        # Strip ANSI color codes from response
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        response_text = ansi_escape.sub('', response_text)
+        
+        return {
+            'response': response_text,
+            'execution_time': round(execution_time, 2),
+            'success': result.returncode == 0
+        }
+        
+    except subprocess.TimeoutExpired:
+        print(f"[VIRTUAL ADVISOR] Question timed out after 300s")
+        return {
+            'error': 'Virtual Advisor question timed out',
+            'execution_time': round(time.time() - start_time, 2)
+        }
+    except Exception as e:
+        print(f"[VIRTUAL ADVISOR] Error: {str(e)}")
+        return {
+            'error': f'Virtual Advisor error: {str(e)}',
             'execution_time': round(time.time() - start_time, 2)
         }
 

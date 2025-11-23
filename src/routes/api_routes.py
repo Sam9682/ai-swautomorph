@@ -557,7 +557,7 @@ def api_deployment_logs(deployment_id):
 
 @api_bp.route('/qchat', methods=['POST'])
 def api_qchat():
-    from .automorph_application import process_qchat_request
+    from ..automorph_application import process_qchat_request
     import time
     
     # Log API call details
@@ -613,3 +613,52 @@ def api_qchat():
         import traceback
         print(f"[Q CHAT API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
         return jsonify({'error': f'Automorph Q Chat error: {str(e)}'}), 500
+
+@api_bp.route('/qchat_question', methods=['POST'])
+def api_qchat_question():
+    from ..automorph_application import process_qchat_question
+    import time
+    
+    # Log API call details
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+    
+    print(f"[VIRTUAL ADVISOR API] {timestamp} - POST /api/qchat_question - User: {user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        print(f"[VIRTUAL ADVISOR API] FAILED - Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json()
+    message = data.get('message', '').strip()
+    
+    print(f"[VIRTUAL ADVISOR API] User {user_id} - Message length: {len(message)} chars")
+    print(f"[VIRTUAL ADVISOR API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    
+    if not message:
+        print(f"[VIRTUAL ADVISOR API] FAILED - Empty message from user {user_id}")
+        return jsonify({'error': 'Message required'}), 400
+    
+    try:
+        # Use automorph_application module to process the question
+        result = process_qchat_question(message)
+        
+        if 'error' in result:
+            print(f"[VIRTUAL ADVISOR API] User {user_id} - ERROR: {result['error']}")
+            return jsonify(result), 500
+        
+        response_data = {
+            'response': result['response'],
+            'execution_time': result['execution_time'],
+            'success': result['success']
+        }
+        
+        print(f"[VIRTUAL ADVISOR API] User {user_id} - SUCCESS - Question processing completed")
+        return jsonify(response_data)
+        
+    except Exception as e:
+        print(f"[VIRTUAL ADVISOR API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
+        import traceback
+        print(f"[VIRTUAL ADVISOR API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
+        return jsonify({'error': f'Virtual Advisor error: {str(e)}'}), 500
