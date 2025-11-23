@@ -680,8 +680,8 @@ setup_environment() {
 
 create_directories() {
     echo "📁 Creating directories..."
-    mkdir -p data ssl logs
-    chmod 755 data ssl logs
+    mkdir -p data ssl logs db
+    chmod 755 data ssl logs db
 }
 
 setup_ssl_certificates() {
