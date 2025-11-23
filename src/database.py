@@ -29,6 +29,7 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             git_url TEXT,
+            gitea_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -68,6 +69,7 @@ def init_db():
             status TEXT DEFAULT 'pending',
             deployment_path TEXT,
             git_url TEXT,
+            gitea_url TEXT,
             server_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -77,8 +77,12 @@
                 <textarea id="app_description" name="description" rows="3"></textarea>
             </div>
             <div class="form-group">
-                <label for="app_git_url">Git Repository URL (optional):</label>
+                <label for="app_git_url">Github Official Readonly Repository URL:</label>
                 <input type="url" id="app_git_url" name="git_url" placeholder="https://github.com/user/repo.git">
+            </div>
+            <div class="form-group">
+                <label for="app_gitea_url">Gitea URL (optional):</label>
+                <input type="url" id="app_gitea_url" name="gitea_url" placeholder="http://localhost:3000/user/repo.git">
             </div>
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
             <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">Cancel</button>
@@ -106,8 +110,12 @@
                 <textarea id="editAppDescription" rows="3"></textarea>
             </div>
             <div class="form-group">
-                <label for="editAppGitUrl">Git Repository URL (optional):</label>
+                <label for="editAppGitUrl">Github Official Readonly Repository URL:</label>
                 <input type="url" id="editAppGitUrl">
+            </div>
+            <div class="form-group">
+                <label for="editAppGiteaUrl">Gitea URL (optional):</label>
+                <input type="url" id="editAppGiteaUrl">
             </div>
             <button type="submit" class="btn btn-secondary">Update Application</button>
             <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">Cancel</button>
@@ -470,13 +478,14 @@ function hideAddAppForm() {
     document.getElementById('addAppForm').reset();
 }
 
-function editApp(id, name, url, description, gitUrl) {
+function editApp(id, name, url, description, gitUrl, giteaUrl) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
     document.getElementById('editAppUrl').value = url;
     document.getElementById('editAppDescription').value = description;
     document.getElementById('editAppGitUrl').value = gitUrl || '';
+    document.getElementById('editAppGiteaUrl').value = giteaUrl || '';
     document.getElementById('editAppForm').style.display = 'block';
 }
 
@@ -505,7 +514,8 @@ document.getElementById('addAppForm').addEventListener('submit', function(e) {
         name: document.getElementById('app_name').value,
         url: document.getElementById('app_url').value,
         description: document.getElementById('app_description').value,
-        git_url: document.getElementById('app_git_url').value
+        git_url: document.getElementById('app_git_url').value,
+        gitea_url: document.getElementById('app_gitea_url').value
     };
     
     fetch('/api/applications', {
@@ -531,7 +541,8 @@ document.getElementById('updateAppForm').addEventListener('submit', function(e) 
         name: document.getElementById('editAppName').value,
         url: document.getElementById('editAppUrl').value,
         description: document.getElementById('editAppDescription').value,
-        git_url: document.getElementById('editAppGitUrl').value
+        git_url: document.getElementById('editAppGitUrl').value,
+        gitea_url: document.getElementById('editAppGiteaUrl').value
     };
     
     fetch(`/api/applications/${appId}`, {
