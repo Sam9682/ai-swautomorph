@@ -47,15 +47,15 @@ show_environment() {
 
 # Check service status
 check_status() {
-    if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "📊 $NAME_OF_APPLICATION Local Service Status:"
-        check_flask_status
-        check_nginx_status
-        check_gitea_status
-    else
-        echo "📊 $NAME_OF_APPLICATION Service Status:"
-        check_docker_status
-    fi
+    # print 80 '-' to seperate a new line
+    echo "--------------------------------------------------------------------------------"
+    echo "📊 Locally Service Status:"
+    check_flask_status
+    check_nginx_status
+    check_gitea_status
+    echo "--------------------------------------------------------------------------------"
+    echo "📊 Docker Compose Status:"
+    check_docker_status
 }
 
 check_flask_status() {
@@ -102,18 +102,13 @@ check_docker_status() {
 
 # Stop services
 stop_services() {
-    if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🛑 Stopping local $NAME_OF_APPLICATION services..."
-        stop_flask_service
-        remove_nginx_config
-        stop_nginx_service
-        remove_gitea
-        echo "✅ Local services stopped"
-    else
-        echo "🛑 Stopping $NAME_OF_APPLICATION services..."
-        stop_docker_services
-        echo "✅ Services stopped"
-    fi
+    echo "🛑 Stopping $NAME_OF_APPLICATION services..."
+    stop_flask_service
+    remove_nginx_config
+    stop_nginx_service
+    remove_gitea
+    stop_docker_services
+    echo "✅ All services stopped"
 }
 
 # Remove Gitea installation
@@ -184,13 +179,10 @@ stop_docker_services() {
 
 # Show logs
 show_logs() {
-    if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "📋 $NAME_OF_APPLICATION Local Service Logs:"
-        show_flask_logs
-        show_nginx_logs
-    else
-        show_docker_logs
-    fi
+    echo "📋 $NAME_OF_APPLICATION Service Logs:"
+    show_flask_logs
+    show_nginx_logs
+    show_docker_logs
 }
 
 show_flask_logs() {
@@ -214,16 +206,11 @@ show_docker_logs() {
 
 # Restart services
 restart_services() {
-    if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🔄 Restarting local $NAME_OF_APPLICATION services..."
-        restart_flask_service
-        reload_nginx_config
-        echo "✅ Local services restarted"
-    else
-        echo "🔄 Restarting $NAME_OF_APPLICATION services..."
-        restart_docker_services
-        echo "✅ Services restarted"
-    fi
+    echo "🔄 Restarting $NAME_OF_APPLICATION services..."
+    restart_flask_service
+    reload_nginx_config
+    restart_docker_services
+    echo "✅ All services restarted"
 }
 
 restart_flask_service() {
@@ -248,19 +235,16 @@ restart_docker_services() {
 
 # Start services
 start_services() {
-    if [ "$LOCAL_MODE" = "locally" ]; then
-        echo "🚀 Starting $NAME_OF_APPLICATION locally (no Docker)..."
-        start_local_deployment
-    else
-        echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
-        start_docker_deployment
-    fi
+    echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
+    start_local_deployment
+    start_docker_deployment
 }
 
 start_local_deployment() {
     echo "💻 Starting local deployment..."
     install_python_dependencies
     setup_gitea
+    create_gitea_admin_user
     start_flask_application
     configure_nginx
     configure_firewall
@@ -440,10 +424,11 @@ create_gitea_admin_user() {
 setup_api_token() {
     echo "🔑 Setting up API token..."
     
-    # Try to generate API token for admin user
+    # Try to generate API token for admin user with all required scopes
     TOKEN=$(sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
         --username gitadmin \
         --token-name "api-access" \
+        --scopes "write:admin,write:user,write:repository" \
         --config /etc/gitea/app.ini \
         --work-path /var/lib/gitea 2>/dev/null | grep -o '[a-f0-9]\{40\}')
     
