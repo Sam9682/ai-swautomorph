@@ -28,7 +28,7 @@ def dashboard():
     if username == 'admin':
         # Admin sees all applications with URLs from user_applications
         cursor.execute('''
-            SELECT a.id, a.name, ua.url, a.description, a.git_url 
+            SELECT a.id, a.name, ua.url, a.description, a.git_url, a.gitea_url 
             FROM applications a
             JOIN user_applications ua ON a.id = ua.application_id
             WHERE ua.user_id = ?
@@ -37,7 +37,7 @@ def dashboard():
     else:
         # Regular users see only assigned applications
         cursor.execute('''
-            SELECT a.id, a.name, ua.url, a.description, a.git_url 
+            SELECT a.id, a.name, ua.url, a.description, a.git_url, a.gitea_url 
             FROM applications a
             JOIN user_applications ua ON a.id = ua.application_id
             WHERE ua.user_id = ?

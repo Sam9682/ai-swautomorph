@@ -128,35 +128,38 @@
         </form>
     </div>
     
+    {% endif %}
+    </div>
+    
+    <!-- View Application Form (available for all users) -->
     <div id="viewAppForm" class="app-form" style="display: none;">
         <h3>Application Details</h3>
         <div class="form-group">
             <label>APPLICATION IDENTITY:</label>
-            <div id="viewAppIdentity" class="readonly-field"></div>
+            <div id="viewAppIdentity" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>{{ get_text('application_name') }}:</label>
-            <div id="viewAppName" class="readonly-field"></div>
+            <div id="viewAppName" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>{{ get_text('url') }}:</label>
-            <div id="viewAppUrl" class="readonly-field"></div>
+            <div id="viewAppUrl" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>{{ get_text('description') }}:</label>
-            <div id="viewAppDescription" class="readonly-field"></div>
+            <div id="viewAppDescription" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>Github Official Readonly Repository URL:</label>
-            <div id="viewAppGitUrl" class="readonly-field"></div>
+            <div id="viewAppGitUrl" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>Gitea Local SwAutomorph URL:</label>
-            <div id="viewAppGiteaUrl" class="readonly-field"></div>
+            <div id="viewAppGiteaUrl" class="readonly-field" style="color: green;"></div>
         </div>
         <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
     </div>
-    {% endif %}
     </div>
     
     {% if username == 'admin' %}
@@ -1020,6 +1023,13 @@ function sendVirtualDeveloperMessage() {
     const message = input.value.trim();
     if (!message) return;
     
+    // Check if application is selected
+    const selectedApp = document.getElementById('virtualDeveloperAppSelect').value;
+    if (!selectedApp) {
+        addVirtualDeveloperMessage('error', 'Please select an application before sending your request.');
+        return;
+    }
+    
     addVirtualDeveloperMessage('user', message);
     input.value = '';
     
@@ -1031,7 +1041,6 @@ function sendVirtualDeveloperMessage() {
     
     // Send to Virtual Developer API
     const autoYes = document.getElementById('virtualDeveloperAutoYes').checked;
-    const selectedApp = document.getElementById('virtualDeveloperAppSelect').value;
     
     // Get application details from the applications data
     let appFolder = '';
@@ -1085,6 +1094,14 @@ function sendVirtualDeveloperMessage() {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
+    })
+    .then(response => {
+        // Set a longer timeout for Virtual Developer requests (20 minutes)
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Request timeout after 20 minutes')), 20 * 60 * 1000)
+        );
+        
+        return Promise.race([response, timeoutPromise]);
     })
     .then(response => {
         addVirtualDeveloperMessage('system', `📥 Received response (${response.status} ${response.statusText})`);

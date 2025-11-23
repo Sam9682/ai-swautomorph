@@ -7,7 +7,7 @@ import re
 REPO_DIR = "/home/ubuntu/deployments/"
 
 # 🌐 URL du remote Gitea local
-GITEA_REMOTE_URL = "git@gitea.local:monorg/myapp.git"
+GITEA_REMOTE_URL = "http://gitadmin:password@www.swautomorph.com/gitea/gitadmin/"
 
 def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = ''):
     """
@@ -15,15 +15,16 @@ def process_qchat_request(user_request: str, auto_approve: bool = True, app_name
     Returns dict with response, execution details, and timing
     """
     timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    branch_name = f"auto-update-{timestamp}"
+    branch_name = f"automorph-{app_name}-{timestamp}"
     start_time = time.time()
     
     # Use provided app folder or default REPO_DIR
     repo_dir = app_folder if app_folder else REPO_DIR
-    repo_git_url = git_url if git_url else GITEA_REMOTE_URL
-    
+    repo_github_url = git_url if git_url else GITEA_REMOTE_URL
+    repo_gitea_url = GITEA_REMOTE_URL + branch_name
+
     print(f"[AUTOMORPH] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
-    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}, Git: {repo_git_url}")
+    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}, Github: {repo_github_url}")
     
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
@@ -37,8 +38,8 @@ This repository is the one used by docker-compose to run the application.
 The deployment command is executed from the repo root:
   docker-compose up -d --build
 
-There is (or must be) a local Gitea instance reachable with the Git URL:
-  GITEA_REMOTE_URL = "{repo_git_url}"
+There is a local Github instance reachable with the Git URL:
+  GITHUB_REMOTE_URL = "{repo_github_url}"
 
 Your goal is to:
   - modify the source code according to the user request,
@@ -59,11 +60,11 @@ Follow these steps EXACTLY:
    do NOT try to auto-commit existing local changes.
 
 3. Ensure that a git remote named 'gitea' exists and points to:
-     {repo_git_url}
+     {repo_github_url}
    - If 'gitea' does not exist, add it:
-       git remote add gitea {repo_git_url}
+       git remote add gitea {repo_github_url}
    - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {repo_git_url}
+       git remote set-url gitea {repo_github_url}
 
 4. Fetch from 'gitea':
      git fetch gitea
@@ -134,8 +135,17 @@ If ANY step fails, explain clearly which step failed and why.
         
         print(f"[AUTOMORPH] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
         
-        # Execute Q Chat command
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600)
+        # Set up proper environment to avoid permission issues
+        import os
+        qchat_env = os.environ.copy()
+        qchat_env.update({
+            'HOME': '/home/ubuntu',
+            'USER': 'ubuntu',
+            'PATH': '/usr/local/bin:/usr/bin:/bin:' + qchat_env.get('PATH', '')
+        })
+        
+        # Execute Q Chat command with proper environment
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600, env=qchat_env)
         execution_time = time.time() - start_time
         
         print(f"[AUTOMORPH] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
@@ -220,8 +230,17 @@ Provide a helpful and informative response.
         
         print(f"[VIRTUAL ADVISOR] Executing qchat command for question using: {qchat_cmd}")
         
-        # Execute Q Chat command
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300)
+        # Set up proper environment to avoid permission issues
+        import os
+        qchat_env = os.environ.copy()
+        qchat_env.update({
+            'HOME': '/home/ubuntu',
+            'USER': 'ubuntu',
+            'PATH': '/usr/local/bin:/usr/bin:/bin:' + qchat_env.get('PATH', '')
+        })
+        
+        # Execute Q Chat command with proper environment
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300, env=qchat_env)
         execution_time = time.time() - start_time
         
         print(f"[VIRTUAL ADVISOR] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")

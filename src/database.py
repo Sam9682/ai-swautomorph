@@ -34,6 +34,14 @@ def init_db():
         )
     ''')
     
+    # Add gitea_url column if it doesn't exist (migration)
+    try:
+        cursor.execute('ALTER TABLE applications ADD COLUMN gitea_url TEXT')
+        print("Added gitea_url column to applications table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+    
     # Authentication tokens table for SSO
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS auth_tokens (

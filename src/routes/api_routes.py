@@ -79,8 +79,8 @@ def api_applications():
     if request.method == 'GET':
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('SELECT id, name, description, git_url FROM applications ORDER BY name')
-        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3]} 
+        cursor.execute('SELECT id, name, description, git_url, gitea_url FROM applications ORDER BY name')
+        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3], 'gitea_url': row[4]} 
                 for row in cursor.fetchall()]
         conn.close()
         return jsonify(apps)
@@ -106,8 +106,9 @@ def api_applications():
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
-        cursor.execute('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
-                      (name, description, git_url))
+        gitea_url = data.get('gitea_url', '')
+        cursor.execute('INSERT INTO applications (name, description, git_url, gitea_url) VALUES (?, ?, ?, ?)',
+                      (name, description, git_url, gitea_url))
         app_id = cursor.lastrowid
         
         # Assign new application to all existing users with URLs
@@ -142,10 +143,11 @@ def api_application_actions(app_id):
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
+        gitea_url = data.get('gitea_url', '')
         cursor.execute('''
-            UPDATE applications SET name = ?, description = ?, git_url = ?
+            UPDATE applications SET name = ?, description = ?, git_url = ?, gitea_url = ?
             WHERE id = ?
-        ''', (name, description, git_url, app_id))
+        ''', (name, description, git_url, gitea_url, app_id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Application updated successfully'})
@@ -412,10 +414,16 @@ def api_deployments():
                 os.makedirs(deployment_path, exist_ok=True)
                 print(f"[DEPLOYMENT API] CLONE - Directory created successfully")
                 
-                # Clone repository
+                # Clone repository with proper Git environment
                 print(f"[DEPLOYMENT API] CLONE - Executing git clone command")
+                git_env = os.environ.copy()
+                git_env.update({
+                    'GIT_CONFIG_NOSYSTEM': '1',
+                    'HOME': '/home/ubuntu',
+                    'USER': 'ubuntu'
+                })
                 result = subprocess.run(['git', 'clone', git_url, deployment_path], 
-                                      capture_output=True, text=True, timeout=600)
+                                      capture_output=True, text=True, timeout=600, env=git_env)
                 print(f"[DEPLOYMENT API] CLONE - Git clone completed with return code: {result.returncode}")
                 
                 command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"

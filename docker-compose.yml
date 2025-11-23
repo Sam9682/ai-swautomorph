@@ -67,6 +67,9 @@ services:
       - GITEA__security__DISABLE_QUERY_AUTH_TOKEN=true
       - GITEA__git.lfs__START_SERVER=true
       - GITEA__git.lfs__CONTENT_PATH=/home/ubuntu/admin
+      - GITEA__REPOSITORY__ENABLE_PUSH_CREATE_USER=true
+      - GITEA__WEBHOOK__SKIP_TLS_VERIFY=true
+      - GITEA__MAILER__SKIP_VERIFY=true
       - INSTALL_LOCK=true
       - GITEA_ADMIN_USERNAME=admin
       - GITEA_ADMIN_PASSWORD=password
