@@ -729,11 +729,13 @@ function deployApp(appName, gitUrl, action) {
             if (data.logs) {
                 appendLog(`\nCommand Output:\n${data.logs}`);
             }
-            if (action === 'ps') {
-                // Update button color based on status
-                updateApplicationButtonStatus(appName, data.logs);
-            }
         }
+        
+        // Always update button status after any deployment action
+        setTimeout(() => {
+            checkApplicationStatus(appName);
+        }, 1000);
+        
         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
     })
     .catch(error => {
@@ -742,9 +744,14 @@ function deployApp(appName, gitUrl, action) {
         if (error.name === 'AbortError') {
             appendLog(`TIMEOUT ERROR: Operation exceeded 10 minutes`);
         } else {
-            appendLog(`NETWORK ERROR: ${error.message}`);
+            appendLog(`APP SERVER ERROR: ${error.message}`);
         }
         appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
+        
+        // Update button status even on failure
+        setTimeout(() => {
+            checkApplicationStatus(appName);
+        }, 1000);
     });
 }
 
@@ -872,56 +879,82 @@ function appendLog(message) {
     logsContent.scrollTop = logsContent.scrollHeight;
 }
 
-// Check application status on page load and every 5 seconds
+// Check application status on page load and every 10 seconds
 document.addEventListener('DOMContentLoaded', function() {
     checkAllApplicationStatus();
-    setInterval(checkAllApplicationStatus, 5000);
+    setInterval(checkAllApplicationStatus, 10000);
 });
+
+// Initial button state setup - disable all buttons except clone for apps that might not be cloned
+function initializeButtonStates() {
+    const appCards = document.querySelectorAll('.app-card');
+    appCards.forEach(card => {
+        const appName = card.querySelector('h3').textContent;
+        const openBtn = card.querySelector('[id^="openBtn-"]');
+        const startBtn = card.querySelector('[id^="startBtn-"]');
+        const stopBtn = card.querySelector('[id^="stopBtn-"]');
+        const restartBtn = card.querySelector('[id^="restartBtn-"]');
+        
+        // Initially assume apps are not cloned and disable buttons
+        if (openBtn) {
+            openBtn.classList.remove('btn-primary', 'btn-success');
+            openBtn.classList.add('btn-danger');
+            openBtn.style.pointerEvents = 'none';
+            openBtn.style.opacity = '0.6';
+            openBtn.title = 'Checking application status...';
+        }
+        
+        [startBtn, stopBtn, restartBtn].forEach(btn => {
+            if (btn) {
+                btn.style.pointerEvents = 'none';
+                btn.style.opacity = '0.6';
+                btn.title = 'Checking application status...';
+            }
+        });
+    });
+}
+
+// Initialize button states immediately
+initializeButtonStates();
 
 function checkAllApplicationStatus() {
     const appCards = document.querySelectorAll('.app-card');
     appCards.forEach(card => {
         const appName = card.querySelector('h3').textContent;
-        const openBtn = card.querySelector('[id^="openBtn-"]');
-        if (openBtn) {
-            checkApplicationStatus(appName, openBtn);
-        }
+        checkApplicationStatus(appName);
     });
 }
 
 function checkApplicationStatus(appName, openBtn) {
-    // First check if user has any deployments for this app
-    fetch('/api/deployments')
+    // Always check status to determine if app is cloned or not
+    const data = {
+        action: 'ps',
+        application_name: appName,
+        local_mode: true
+    };
+    
+    fetch('/api/deployments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
     .then(response => response.json())
-    .then(deployments => {
-        const hasDeployment = deployments.some(d => d.application_name === appName && d.status !== 'failed');
-        if (!hasDeployment) {
-            // No deployment exists, keep default state
-            return;
+    .then(data => {
+        if (data.error && data.error.includes('deploy.sh not found')) {
+            // Application is not cloned
+            updateApplicationButtonStatus(appName, data.error);
+        } else if (data.logs) {
+            // Application is cloned, check running status
+            updateApplicationButtonStatus(appName, data.logs);
+        } else if (data.error) {
+            // Other error, treat as not cloned
+            updateApplicationButtonStatus(appName, data.error);
         }
-        
-        // Only check status if deployment exists
-        const data = {
-            action: 'ps',
-            application_name: appName,
-            local_mode: true
-        };
-        
-        return fetch('/api/deployments', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.logs) {
-                updateApplicationButtonStatus(appName, data.logs);
-            }
-        });
     })
     .catch(error => {
-        console.log('Status check failed for', appName);
-        // Keep default state on error
+        console.log('Status check failed for', appName, error.message);
+        // On network error, assume not cloned to be safe
+        updateApplicationButtonStatus(appName, 'deploy.sh not found');
     });
 }
 
@@ -933,29 +966,54 @@ function updateApplicationButtonStatus(appName, logs) {
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
-    // Debug logging
-    console.log(`Checking status for ${appName}:`, logs);
-    
-    // Check if application is not running (more specific check first)
-    const isNotRunning = logs.toLowerCase().includes('not running') || 
-                        logs.toLowerCase().includes('is not running');
+    // Check if application is not cloned/installed
+    const isNotCloned = logs.toLowerCase().includes('deploy.sh not found');
     
     // Check if application is running
-    const isRunning = !isNotRunning && (logs.toLowerCase().includes(' up ') || 
-                     logs.toLowerCase().includes('running'));
-
-                         // Check if application is running
-    const isNotInstalled = (logs.toLowerCase().includes('deploy.sh not found in deployment'));
-
-    console.log(`${appName} - isRunning: ${isRunning}, isNotRunning: ${isNotRunning}`);
+    const isRunning = !isNotCloned && (logs.toLowerCase().includes(' up ');
     
-    if (isRunning) {
+    // Check if application is not running but cloned
+    const isNotRunning = !isNotCloned && !isRunning && 
+                        (logs.toLowerCase().includes('not running');
+    
+    if (isNotCloned) {
+        // Application is not cloned - GRAY and only Clone enabled
+        openBtn.classList.remove('btn-primary', 'btn-success');
+        openBtn.classList.add('btn-danger');
+        openBtn.style.pointerEvents = 'none';
+        openBtn.style.opacity = '0.6';
+        openBtn.title = 'Application is not cloned yet';
+        
+        // Only Clone button enabled
+        if (cloneBtn) {
+            cloneBtn.style.pointerEvents = 'auto';
+            cloneBtn.style.opacity = '1';
+            cloneBtn.title = 'Clone application first';
+        }
+        // Disable all other buttons
+        if (startBtn) {
+            startBtn.style.pointerEvents = 'none';
+            startBtn.style.opacity = '0.6';
+            startBtn.title = 'Application is not cloned yet';
+        }
+        if (stopBtn) {
+            stopBtn.style.pointerEvents = 'none';
+            stopBtn.style.opacity = '0.6';
+            stopBtn.title = 'Application is not cloned yet';
+        }
+        if (restartBtn) {
+            restartBtn.style.pointerEvents = 'none';
+            restartBtn.style.opacity = '0.6';
+            restartBtn.title = 'Application is not cloned yet';
+        }
+    } else if (isRunning) {
         // Application is running - GREEN and ENABLED
         openBtn.classList.remove('btn-primary', 'btn-danger');
         openBtn.classList.add('btn-success');
         openBtn.style.pointerEvents = 'auto';
         openBtn.style.opacity = '1';
         openBtn.title = 'Application is running';
+        
         // Disable Clone and Start buttons when running
         if (cloneBtn) {
             cloneBtn.style.pointerEvents = 'none';
@@ -971,26 +1029,31 @@ function updateApplicationButtonStatus(appName, logs) {
         if (stopBtn) {
             stopBtn.style.pointerEvents = 'auto';
             stopBtn.style.opacity = '1';
+            stopBtn.title = 'Stop application';
         }
         if (restartBtn) {
             restartBtn.style.pointerEvents = 'auto';
             restartBtn.style.opacity = '1';
+            restartBtn.title = 'Restart application';
         }
-    } else {
-        // Application is explicitly not running - RED and DISABLED
+    } else if (isNotRunning) {
+        // Application is cloned but not running - RED and Start enabled
         openBtn.classList.remove('btn-primary', 'btn-success');
         openBtn.classList.add('btn-danger');
         openBtn.style.pointerEvents = 'none';
         openBtn.style.opacity = '0.6';
         openBtn.title = 'Application is not running';
+        
         // Enable Clone and Start buttons
         if (cloneBtn) {
             cloneBtn.style.pointerEvents = 'auto';
             cloneBtn.style.opacity = '1';
+            cloneBtn.title = 'Re-clone application';
         }
         if (startBtn) {
             startBtn.style.pointerEvents = 'auto';
             startBtn.style.opacity = '1';
+            startBtn.title = 'Start application';
         }
         // Disable Stop and Restart buttons when not running
         if (stopBtn) {
@@ -1003,18 +1066,7 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.style.opacity = '0.6';
             restartBtn.title = 'Application is not running';
         }
-
-        if (isNotInstalled) {
-            // Disable Start buttons when running
-            if (startBtn) {
-                startBtn.style.pointerEvents = 'none';
-                startBtn.style.opacity = '0.6';
-                startBtn.title = 'Application is not cloned yet';
-            }
-        }
     }
-    // If neither running nor explicitly not running, keep current state
-
 }
 
 // Virtual Developer functions
@@ -1178,7 +1230,7 @@ function sendVirtualDeveloperMessage() {
             }
         }
         
-        addVirtualDeveloperMessage('error', `Network error: ${error.message}`);
+        addVirtualDeveloperMessage('error', `App Server error: ${error.message}`);
         console.error('Virtual Developer error:', error);
     });
 }
@@ -1284,7 +1336,7 @@ function sendVirtualAdvisorMessage() {
             }
         }
         
-        addVirtualAdvisorMessage('error', `Network error: ${error.message}`);
+        addVirtualAdvisorMessage('error', `App Server error: ${error.message}`);
         console.error('Virtual Advisor error:', error);
     });
 }
