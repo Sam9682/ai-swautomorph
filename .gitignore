@@ -35,7 +35,6 @@ wheels/
 
 # Data directories
 data/
-logs/
 ssl/
 
 # Deployment directories
@@ -46,6 +45,8 @@ app.log
 app.pid
 *.log
 *.pid
+logs/
+app_logs_*.log
 
 # IDE
 .vscode/
@@ -61,3 +62,10 @@ Thumbs.db
 *.tmp
 *.temp
 nohup.out
+# Gitea admin token
+/tmp/gitea_admin_token
+
+# Virtual environments
+.venv/
+venv/
+env/

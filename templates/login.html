@@ -8,14 +8,14 @@
         <h1>🚀 AI-SwAutoMorph</h1>
         <h3>{{ get_text('platform_subtitle') }}</h3>
         <p class="mission-statement">
-            {{ get_text('mission_statement') }}
+            {{ get_text('mission_statement') | safe }}
         </p>
         <div class="target-audience">
             <h4>🎯 {{ get_text('target_title') }}</h4>
             <ul>
-                <li><strong>{{ get_text('restaurants_title') }}:</strong> {{ get_text('restaurants_desc') }}</li>
-                <li><strong>{{ get_text('small_business_title') }}:</strong> {{ get_text('small_business_desc') }}</li>
-                <li><strong>{{ get_text('entrepreneurs_title') }}:</strong> {{ get_text('entrepreneurs_desc') }}</li>
+                <li> <strong>{{ get_text('restaurants_title') }}:</strong> {{ get_text('restaurants_desc') }}</li>
+                <li> <strong>{{ get_text('small_business_title') }}:</strong> {{ get_text('small_business_desc') }}</li>
+                <li> <strong>{{ get_text('entrepreneurs_title') }}:</strong> {{ get_text('entrepreneurs_desc') }}</li>
             </ul>
         </div>
         <div class="platform-features">
