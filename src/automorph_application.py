@@ -4,7 +4,7 @@ import time
 import re
 
 # 📁 Chemin du repo qui sert à docker-compose up
-REPO_DIR = "/srv/app/myapp"
+REPO_DIR = "/home/ubuntu/deployments/"
 
 # 🌐 URL du remote Gitea local
 GITEA_REMOTE_URL = "git@gitea.local:monorg/myapp.git"

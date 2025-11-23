@@ -186,11 +186,17 @@ show_logs() {
 }
 
 show_flask_logs() {
-    if [ -f "app.log" ]; then
-        echo "🐍 Flask Application Logs:"
-        cat app.log
+    LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
+    if [ -f "$LOG_FILE" ]; then
+        echo "🐍 Flask Application Logs ($LOG_FILE):"
+        cat "$LOG_FILE"
     else
-        echo "❌ No Flask log file found (app.log)"
+        echo "❌ No Flask log file found ($LOG_FILE)"
+        # Try to find any app logs in logs directory
+        if ls logs/app_logs_*.log 1> /dev/null 2>&1; then
+            echo "📋 Available log files:"
+            ls -la logs/app_logs_*.log
+        fi
     fi
 }
 
@@ -216,7 +222,11 @@ restart_services() {
 restart_flask_service() {
     stop_flask_service
     echo "🚀 Starting Flask application..."
-    nohup python3 app.py > app.log 2>&1 &
+    # Create logs directory if it doesn't exist
+    mkdir -p logs
+    # Start Flask with date-based log file
+    LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
+    nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > app.pid
 }
 
@@ -464,8 +474,11 @@ start_flask_application() {
     # Stop any existing Flask processes on port 5000
     pkill -f "python3 app.py" || true
     sleep 2
-    # Start Flask on port 5001 to avoid conflicts
-    FLASK_RUN_PORT=5001 nohup python3 app.py > app.log 2>&1 &
+    # Create logs directory if it doesn't exist
+    mkdir -p logs
+    # Start Flask on port 5001 to avoid conflicts with date-based log file
+    LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
+    FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > app.pid
 }
 
@@ -634,10 +647,8 @@ show_usage() {
     echo "  stop locally - Stop local services (Flask + Nginx config)"
     echo "  restart      - Restart all services, docker style"
     echo "  restart locally - Restart local services (Flask + Nginx reload)"
-    echo "  ps           - Show service status"
-    echo "  ps locally   - Show local service status (Flask + Nginx)"
-    echo "  logs         - Show service logs"
-    echo "  logs locally - Show local service logs (Flask + Nginx)"
+    echo "  ps           - Show service status (Locally and Docker)"
+    echo "  logs         - Show service logs  (Flask + Nginx Docker)" 
 }
 
 # Main function - orchestrates the deployment process
