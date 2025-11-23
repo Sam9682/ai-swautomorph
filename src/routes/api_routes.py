@@ -478,7 +478,7 @@ def api_deployments():
                 
                 if not os.path.exists(deploy_script):
                     print(f"[DEPLOYMENT API] {action.upper()} - FAILED - deploy.sh not found at {deploy_script}")
-                    return jsonify({'error': 'deploy.sh not found in deployment'}), 400
+                    return jsonify({'error': f'deploy.sh not found in {deploy_script}'}), 400
                 
                 # Get user details for deploy.sh
                 cursor.execute('SELECT username, email, first_name, last_name FROM users WHERE id = ?', (session['user_id'],))

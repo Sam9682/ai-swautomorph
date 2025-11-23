@@ -938,13 +938,15 @@ function updateApplicationButtonStatus(appName, logs) {
     
     // Check if application is not running (more specific check first)
     const isNotRunning = logs.toLowerCase().includes('not running') || 
-                        logs.toLowerCase().includes('is not running') ||
-                        logs.toLowerCase().includes('⚠️');
+                        logs.toLowerCase().includes('is not running');
     
     // Check if application is running
     const isRunning = !isNotRunning && (logs.toLowerCase().includes(' up ') || 
                      logs.toLowerCase().includes('running'));
-    
+
+                         // Check if application is running
+    const isNotInstalled = (logs.toLowerCase().includes('deploy.sh not found in deployment'));
+
     console.log(`${appName} - isRunning: ${isRunning}, isNotRunning: ${isNotRunning}`);
     
     if (isRunning) {
@@ -1000,6 +1002,15 @@ function updateApplicationButtonStatus(appName, logs) {
             restartBtn.style.pointerEvents = 'none';
             restartBtn.style.opacity = '0.6';
             restartBtn.title = 'Application is not running';
+        }
+
+        if (isNotInstalled) {
+            // Disable Start buttons when running
+            if (startBtn) {
+                startBtn.style.pointerEvents = 'none';
+                startBtn.style.opacity = '0.6';
+                startBtn.title = 'Application is not cloned yet';
+            }
         }
     }
     // If neither running nor explicitly not running, keep current state
