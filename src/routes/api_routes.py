@@ -488,8 +488,9 @@ def api_deployments():
                 
                 # Execute deploy.sh with action and user environment variables
                 print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
+                print(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
                 result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
-                                          cwd=deployment_path, capture_output=True, text=True, timeout=600)
+                                          cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
                 command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
