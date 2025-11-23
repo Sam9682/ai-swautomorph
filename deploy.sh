@@ -19,6 +19,55 @@ USER_NAME=${4:-"user"}
 USER_EMAIL=${5:-"user@swautomorph.com"}
 DESCRIPTION=${6:-"Basic Information Display"}
 
+# Interactive menu for deployment mode selection using Python simple-term-menu
+show_deployment_menu() {
+    # Check if simple-term-menu is available
+    if ! python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+        echo "Installing simple-term-menu..."
+        pip3 install simple-term-menu >/dev/null 2>&1 || {
+            echo "Failed to install simple-term-menu. Using fallback menu."
+            echo "Select deployment mode:"
+            echo "1) Locally (no Docker)"
+            echo "2) Docker"
+            echo "3) Both"
+            read -p "Enter your choice (1-3): " choice
+            case $choice in
+                1) echo "locally" ;;
+                2) echo "docker" ;;
+                3) echo "both" ;;
+                *) echo "both" ;;
+            esac
+            return
+        }
+    fi
+    
+    # Use Python simple-term-menu for interactive selection
+    python3 << 'EOF'
+from simple_term_menu import TerminalMenu
+
+options = ["Locally (no Docker)", "Docker", "Both"]
+terminal_menu = TerminalMenu(
+    options,
+    title="🚀 Select deployment mode:",
+    menu_cursor="▶ ",
+    menu_cursor_style=("fg_cyan", "bold"),
+    menu_highlight_style=("bg_cyan", "fg_black"),
+    cycle_cursor=True
+)
+
+menu_entry_index = terminal_menu.show()
+
+if menu_entry_index == 0:
+    print("locally")
+elif menu_entry_index == 1:
+    print("docker")
+elif menu_entry_index == 2:
+    print("both")
+else:
+    print("both")
+EOF
+}
+
 # Configuration
 DOMAIN=${DOMAIN:-"www.swautomorph.com"}
 EMAIL=${EMAIL:-"user@swautomorph.com"}
@@ -103,12 +152,23 @@ check_docker_status() {
 # Stop services
 stop_services() {
     echo "🛑 Stopping $NAME_OF_APPLICATION services..."
-    stop_flask_service
-    remove_nginx_config
-    stop_nginx_service
-    remove_gitea
-    stop_docker_services
-    echo "✅ All services stopped"
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        stop_flask_service
+        remove_nginx_config
+        stop_nginx_service
+        remove_gitea
+    elif [ "$LOCAL_MODE" = "docker" ]; then
+        stop_docker_services
+    else
+        stop_flask_service
+        remove_nginx_config
+        stop_nginx_service
+        remove_gitea
+        stop_docker_services
+    fi
+    
+    echo "✅ Services stopped"
 }
 
 # Remove Gitea installation
@@ -213,10 +273,19 @@ show_docker_logs() {
 # Restart services
 restart_services() {
     echo "🔄 Restarting $NAME_OF_APPLICATION services..."
-    restart_flask_service
-    reload_nginx_config
-    restart_docker_services
-    echo "✅ All services restarted"
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        restart_flask_service
+        reload_nginx_config
+    elif [ "$LOCAL_MODE" = "docker" ]; then
+        restart_docker_services
+    else
+        restart_flask_service
+        reload_nginx_config
+        restart_docker_services
+    fi
+    
+    echo "✅ Services restarted"
 }
 
 restart_flask_service() {
@@ -246,8 +315,13 @@ restart_docker_services() {
 # Start services
 start_services() {
     echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
-    start_local_deployment
-    if [ "$LOCAL_MODE" != "locally" ]; then
+    
+    if [ "$LOCAL_MODE" = "locally" ]; then
+        start_local_deployment
+    elif [ "$LOCAL_MODE" = "docker" ]; then
+        start_docker_deployment
+    else
+        start_local_deployment
         start_docker_deployment
     fi
 }
@@ -657,6 +731,18 @@ show_usage() {
 main() {
     calculate_ports
     show_environment 
+
+    # Show interactive menu for start, stop, restart commands if no LOCAL_MODE specified
+    if [[ "$COMMAND" =~ ^(start|stop|restart)$ ]] && [ "$LOCAL_MODE" = "0" ]; then
+        SELECTED_MODE=$(show_deployment_menu)
+        if [ "$SELECTED_MODE" = "locally" ]; then
+            LOCAL_MODE="locally"
+        elif [ "$SELECTED_MODE" = "docker" ]; then
+            LOCAL_MODE="docker"
+        else
+            LOCAL_MODE="both"
+        fi
+    fi
 
     case $COMMAND in
         "ps")

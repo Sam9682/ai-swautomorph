@@ -3,3 +3,4 @@ Werkzeug==2.3.7
 click==8.1.7
 requests==2.31.0
 Flask-CORS==4.0.0
+simple-term-menu==1.6.4
