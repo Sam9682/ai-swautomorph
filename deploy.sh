@@ -247,7 +247,9 @@ restart_docker_services() {
 start_services() {
     echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
     start_local_deployment
-    start_docker_deployment
+    if [ "$LOCAL_MODE" != "locally" ]; then
+        start_docker_deployment
+    fi
 }
 
 start_local_deployment() {
