@@ -24,11 +24,17 @@
         <div class="app-card">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}')" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
                     🗑️
+                </button>
+            </div>
+            {% else %}
+            <div class="app-actions">
+                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="View Details">
+                    👁️
                 </button>
             </div>
             {% endif %}
@@ -114,12 +120,41 @@
                 <input type="url" id="editAppGitUrl">
             </div>
             <div class="form-group">
-                <label for="editAppGiteaUrl">Gitea URL (optional):</label>
+                <label for="editAppGiteaUrl">Gitea Local SwAutomorph URL (optional):</label>
                 <input type="url" id="editAppGiteaUrl">
             </div>
             <button type="submit" class="btn btn-secondary">Update Application</button>
             <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">Cancel</button>
         </form>
+    </div>
+    
+    <div id="viewAppForm" class="app-form" style="display: none;">
+        <h3>Application Details</h3>
+        <div class="form-group">
+            <label>APPLICATION IDENTITY:</label>
+            <div id="viewAppIdentity" class="readonly-field"></div>
+        </div>
+        <div class="form-group">
+            <label>{{ get_text('application_name') }}:</label>
+            <div id="viewAppName" class="readonly-field"></div>
+        </div>
+        <div class="form-group">
+            <label>{{ get_text('url') }}:</label>
+            <div id="viewAppUrl" class="readonly-field"></div>
+        </div>
+        <div class="form-group">
+            <label>{{ get_text('description') }}:</label>
+            <div id="viewAppDescription" class="readonly-field"></div>
+        </div>
+        <div class="form-group">
+            <label>Github Official Readonly Repository URL:</label>
+            <div id="viewAppGitUrl" class="readonly-field"></div>
+        </div>
+        <div class="form-group">
+            <label>Gitea Local SwAutomorph URL:</label>
+            <div id="viewAppGiteaUrl" class="readonly-field"></div>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
     </div>
     {% endif %}
     </div>
@@ -492,6 +527,20 @@ function editApp(id, name, url, description, gitUrl, giteaUrl) {
 function hideEditAppForm() {
     document.getElementById('editAppForm').style.display = 'none';
     document.getElementById('updateAppForm').reset();
+}
+
+function viewApp(id, name, url, description, gitUrl, giteaUrl) {
+    document.getElementById('viewAppIdentity').textContent = id;
+    document.getElementById('viewAppName').textContent = name;
+    document.getElementById('viewAppUrl').textContent = url;
+    document.getElementById('viewAppDescription').textContent = description || 'No description';
+    document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
+    document.getElementById('viewAppGiteaUrl').textContent = giteaUrl || 'Not specified';
+    document.getElementById('viewAppForm').style.display = 'block';
+}
+
+function hideViewAppForm() {
+    document.getElementById('viewAppForm').style.display = 'none';
 }
 
 function deleteApp(id, name) {

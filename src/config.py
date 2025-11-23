@@ -81,6 +81,7 @@ TRANSLATIONS = {
         'revolution_message': 'The software development industry as we know it is about to change forever. Get ready to get wet - the wave of agentic AI is here.',
         'all_rights_reserved': 'All rights reserved.',
         'developed_by': 'Developed by',
+        'with_help_of': 'with the help of',
         'and': 'and'
     },
     'fr': {
@@ -148,6 +149,7 @@ TRANSLATIONS = {
         'revolution_message': 'L\'industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.',
         'all_rights_reserved': 'Tous droits réservés.',
         'developed_by': 'Développé par',
+        'with_help_of': 'avec l\'aide de',
         'and': 'et'
     }
 }
