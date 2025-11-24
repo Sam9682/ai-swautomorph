@@ -157,23 +157,70 @@ stop_services() {
         stop_flask_service
         remove_nginx_config
         stop_nginx_service
-        remove_gitea
+        confirm_gitea_stop
     elif [ "$LOCAL_MODE" = "docker" ]; then
         stop_docker_services
     else
         stop_flask_service
         remove_nginx_config
         stop_nginx_service
-        remove_gitea
+        confirm_gitea_stop
         stop_docker_services
     fi
     
     echo "  ✅ Services stopped"
 }
 
+# Confirm Gitea stop with user menu
+confirm_gitea_stop() {
+    if systemctl is-active --quiet gitea 2>/dev/null; then
+        echo "⚠️ Gitea is currently running"
+        
+        # Check if simple-term-menu is available
+        if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+            # Use Python simple-term-menu for interactive selection
+            CHOICE=$(python3 << 'EOF'
+from simple_term_menu import TerminalMenu
+
+options = ["Yes, stop Gitea", "No, keep Gitea running"]
+terminal_menu = TerminalMenu(
+    options,
+    title="🔧 Do you want to stop Gitea service?",
+    menu_cursor="▶ ",
+    menu_cursor_style=("fg_red", "bold"),
+    menu_highlight_style=("bg_red", "fg_white"),
+    cycle_cursor=True
+)
+
+menu_entry_index = terminal_menu.show()
+print("yes" if menu_entry_index == 0 else "no")
+EOF
+)
+        else
+            # Fallback to simple prompt
+            echo "Do you want to stop Gitea service?"
+            echo "1) Yes, stop Gitea"
+            echo "2) No, keep Gitea running"
+            read -p "Enter your choice (1-2): " choice
+            case $choice in
+                1) CHOICE="yes" ;;
+                *) CHOICE="no" ;;
+            esac
+        fi
+        
+        if [ "$CHOICE" = "yes" ]; then
+            remove_gitea
+        else
+            echo "  ⏭️ Skipping Gitea stop - service will continue running"
+        fi
+    else
+        echo "  ℹ️ Gitea is not running - skipping"
+    fi
+}
+
 # Remove Gitea installation
 remove_gitea() {
-    echo "🗑️ Removing Gitea installation..."
+    echo "🗑️ Stopping and removing Gitea installation..."
     
     # Stop and disable Gitea service
     sudo systemctl stop gitea 2>/dev/null || true
@@ -195,7 +242,7 @@ remove_gitea() {
     sudo userdel git 2>/dev/null || true
     sudo groupdel git 2>/dev/null || true
     
-    echo "  ✅ Gitea removed successfully"
+    echo "  ✅ Gitea stopped and removed successfully"
 }
 
 stop_flask_service() {
@@ -342,18 +389,16 @@ setup_gitea() {
     
     # Check if Gitea is already running
     if systemctl is-active --quiet gitea 2>/dev/null; then
-        echo "  ✅ Gitea is already running"
+        echo "  ✅ Gitea is already running - skipping setup"
         return 0
     fi
     
     # Check if already configured
     if [ -f "/etc/gitea/app.ini" ]; then
-        echo "  ✅ Gitea is already configured"
+        echo "  ✅ Gitea is already configured - starting service"
         sudo systemctl start gitea 2>/dev/null || true
         if systemctl is-active --quiet gitea; then
             echo "  ✅ Gitea is running on http://localhost:3000"
-            # Try to reset admin password if user exists
-            create_gitea_admin_user
         fi
         return 0
     fi
