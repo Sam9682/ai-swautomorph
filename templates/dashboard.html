@@ -1146,18 +1146,33 @@ function updateApplicationButtonStatus(appName, logs) {
     if (!openBtn) return;
     
     // Check if application is not cloned/installed
-    const isNotCloned = logs.toLowerCase().includes('deploy.sh not found');
+    const isNotCloned = logs.toLowerCase().includes('Application not deployed. Clone first');
     
-    // Check if application is not running but cloned
-    const logLines = logs.toLowerCase().split('\n');
-    const hasUpStatus = logs.toLowerCase().includes(' up ');
-    const hasNotRunningWithAppName = logLines.some(line => 
-        line.includes('not running') && line.includes(appName.toLowerCase())
-    );
-    const isNotRunning = !isNotCloned && hasNotRunningWithAppName;
+    let isRunning = false;
+    let isNotRunning = false;
     
-    // Check if application is running
-    const isRunning = !isNotCloned && !isNotRunning && hasUpStatus;
+    if (!isNotCloned) {
+        try {
+            // Extract JSON from logs (from line after STDOUT: to end)
+            const lines = logs.split('\n');
+            const stdoutIndex = lines.findIndex(line => line.includes('STDOUT:'));
+            const jsonLines = stdoutIndex >= 0 ? lines.slice(stdoutIndex + 1) : lines;
+            const jsonString = jsonLines.join('\n');
+            
+            const statusData = JSON.parse(jsonString);
+            if (statusData.docker_compose_ps) {
+                isRunning = statusData.docker_compose_ps === 'IS_RUNNING';
+                isNotRunning = statusData.docker_compose_ps === 'NOT_RUNNING';
+            }
+        } catch (e) {
+            // Fallback to old text parsing
+            const logLines = logs.toLowerCase().split('\n');
+            const hasUpStatus = logs.toLowerCase().includes('IS_RUNNING');
+            const hasNotRunningWithAppName =  logs.toLowerCase().includes('IS_NOT_RUNNING');
+            isNotRunning = hasNotRunningWithAppName;
+            isRunning = !isNotRunning && hasUpStatus;
+        }
+    }
     
     if (isNotCloned) {
         // Application is not cloned - GRAY and only Clone enabled
