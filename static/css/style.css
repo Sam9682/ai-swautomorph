@@ -362,6 +362,71 @@ body {
     font-weight: bold;
 }
 
+.status-standby {
+    color: #f39c12;
+    font-weight: bold;
+}
+
+.server-active {
+    background-color: #d5f4e6 !important;
+}
+
+.servers-grid {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.servers-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.servers-table th,
+.servers-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.servers-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.servers-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.server-form {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin: 1rem 0;
+}
+
+.server-form input,
+.server-form select {
+    width: 100%;
+    padding: 0.5rem;
+    margin: 0.25rem 0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.server-form button {
+    margin: 0.5rem 0.5rem 0 0;
+}
+
+.btn-small:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 .app-actions {
     position: absolute;
     top: 0.5rem;

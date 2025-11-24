@@ -395,6 +395,7 @@ def api_deployments():
         action = data.get('action')
         app_name = data.get('application_name')
         git_url = data.get('git_url')
+        server_id = data.get('server_id')
         
         print(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
         
@@ -461,9 +462,9 @@ def api_deployments():
                 print(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
                 db_manager.execute_query('''
                     INSERT OR REPLACE INTO deployments 
-                    (user_id, application_name, status, deployment_path, git_url)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (session['user_id'], app_name, status, deployment_path, git_url))
+                    (user_id, application_name, status, deployment_path, git_url, server_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (session['user_id'], app_name, status, deployment_path, git_url, server_id))
                 print(f"[DEPLOYMENT API] CLONE - Database record created")
                 
                 if status == 'failed':
@@ -748,6 +749,161 @@ def api_database_table(table_name):
             return jsonify({'message': 'Record added successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/servers', methods=['GET', 'POST'])
+def api_servers():
+    """Server management endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'GET':
+        servers = db_manager.execute_query('''
+            SELECT id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, 
+                   SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
+            FROM servers ORDER BY id
+        ''', fetch_all=True)
+        
+        servers_list = [{
+            'id': row[0],
+            'SERVER_IP': row[1],
+            'SERVER_NAME': row[2],
+            'SERVER_CAPACITY_USER_MAX': row[3],
+            'SERVER_CAPACITY_APPLI_MAX': row[4],
+            'SERVER_STATUS': row[5],
+            'SERVER_TYPE': row[6],
+            'created_at': row[7]
+        } for row in servers]
+        
+        return jsonify(servers_list)
+    
+    elif request.method == 'POST':
+        data = request.get_json()
+        
+        try:
+            db_manager.execute_query('''
+                INSERT INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, 
+                                   SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
+            
+            return jsonify({'message': 'Server created successfully'}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/servers/<int:server_id>', methods=['PUT', 'DELETE'])
+def api_server_actions(server_id):
+    """Server update/delete endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'PUT':
+        data = request.get_json()
+        
+        try:
+            db_manager.execute_query('''
+                UPDATE servers SET SERVER_IP = ?, SERVER_NAME = ?, 
+                                 SERVER_CAPACITY_USER_MAX = ?, SERVER_CAPACITY_APPLI_MAX = ?,
+                                 SERVER_STATUS = ?, SERVER_TYPE = ?
+                WHERE id = ?
+            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE'], server_id))
+            
+            return jsonify({'message': 'Server updated successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        # Check if server is ACTIVE
+        server = db_manager.execute_query(
+            'SELECT SERVER_STATUS FROM servers WHERE id = ?', 
+            (server_id,), fetch_one=True
+        )
+        
+        if not server:
+            return jsonify({'error': 'Server not found'}), 404
+        
+        if server[0] == 'ACTIVE':
+            return jsonify({'error': 'Cannot delete ACTIVE server'}), 400
+        
+        try:
+            db_manager.execute_query('DELETE FROM servers WHERE id = ?', (server_id,))
+            return jsonify({'message': 'Server deleted successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/server/allocate', methods=['POST'])
+def api_server_allocate():
+    """Allocate server for deployment based on capacity constraints"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    data = request.get_json()
+    application_name = data.get('application_name')
+    
+    if not application_name:
+        return jsonify({'error': 'Application name required'}), 400
+    
+    try:
+        # Find available server based on capacity constraints
+        servers = db_manager.execute_query('''
+            SELECT id, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX 
+            FROM servers 
+            WHERE SERVER_STATUS = 'STAND_BY'
+            ORDER BY id ASC
+        ''', fetch_all=True)
+        
+        if not servers:
+            return jsonify({'error': 'No standby servers available'}), 503
+        
+        for server in servers:
+            server_id, user_max, appli_max = server
+            
+            # Check current usage for this server
+            user_count = db_manager.execute_query('''
+                SELECT COUNT(DISTINCT user_id) 
+                FROM deployments 
+                WHERE server_id = ?
+            ''', (server_id,), fetch_one=True)[0] or 0
+            
+            appli_count = db_manager.execute_query('''
+                SELECT COUNT(DISTINCT application_name) 
+                FROM deployments 
+                WHERE server_id = ?
+            ''', (server_id,), fetch_one=True)[0] or 0
+            
+            # Check if server has capacity
+            if user_count < user_max and appli_count < appli_max:
+                # Update server status to ACTIVE
+                db_manager.execute_query('''
+                    UPDATE servers SET SERVER_STATUS = 'ACTIVE' 
+                    WHERE id = ?
+                ''', (server_id,))
+                
+                return jsonify({'server_id': server_id})
+        
+        return jsonify({'error': 'All servers at capacity'}), 503
+        
+    except Exception as e:
+        return jsonify({'error': f'Server allocation failed: {str(e)}'}), 500
 
 @api_bp.route('/database/tables/<table_name>/<record_id>', methods=['PUT', 'DELETE'])
 def api_database_record(table_name, record_id):

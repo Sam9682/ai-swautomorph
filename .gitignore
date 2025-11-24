@@ -55,6 +55,8 @@ app_logs_*.log
 .idea/
 *.db
 *.swo
+*.db-shm
+*.db-wal
 
 # OS
 .DS_Store

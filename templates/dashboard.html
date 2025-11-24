@@ -8,6 +8,7 @@
     <div class="admin-menu">
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
         <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
+        <button id="serversTab" class="tab-btn" onclick="showTab('servers')">Servers</button>
         <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
         <button id="databaseTab" class="tab-btn" onclick="showTab('database')">Database</button>
     </div>
@@ -251,6 +252,53 @@
     </div>
     {% endif %}
     
+    <!-- Servers Section -->
+    {% if username == 'admin' %}
+    <div id="serversSection" class="tab-content" style="display: none;">
+        <h2>Server Management</h2>
+        <button class="btn btn-primary" onclick="showAddServerForm()">Add Server</button>
+        
+        <div id="addServerForm" class="server-form" style="display: none;">
+            <h3>Add New Server</h3>
+            <form id="newServerForm">
+                <input type="text" id="newServerIP" placeholder="Server IP" required>
+                <input type="text" id="newServerName" placeholder="Server Name" required>
+                <input type="number" id="newServerUserMax" placeholder="Max Users" required>
+                <input type="number" id="newServerAppliMax" placeholder="Max Applications" required>
+                <select id="newServerStatus" required>
+                    <option value="STAND_BY">STAND_BY</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                </select>
+                <input type="text" id="newServerType" placeholder="Server Type" required>
+                <button type="submit" class="btn btn-secondary">Create Server</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddServerForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="editServerForm" class="server-form" style="display: none;">
+            <h3>Edit Server</h3>
+            <form id="updateServerForm">
+                <input type="hidden" id="editServerId">
+                <input type="text" id="editServerIP" placeholder="Server IP" required>
+                <input type="text" id="editServerName" placeholder="Server Name" required>
+                <input type="number" id="editServerUserMax" placeholder="Max Users" required>
+                <input type="number" id="editServerAppliMax" placeholder="Max Applications" required>
+                <select id="editServerStatus" required>
+                    <option value="STAND_BY">STAND_BY</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                </select>
+                <input type="text" id="editServerType" placeholder="Server Type" required>
+                <button type="submit" class="btn btn-secondary">Update Server</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEditServerForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="serversGrid" class="servers-grid">
+            <div class="loading">Loading servers...</div>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Database Section -->
     {% if username == 'admin' %}
     <div id="databaseSection" class="tab-content" style="display: none;">
@@ -421,6 +469,11 @@ function showTab(tab) {
         usersSection.style.display = tab === 'users' ? 'block' : 'none';
     }
     
+    const serversSection = document.getElementById('serversSection');
+    if (serversSection) {
+        serversSection.style.display = tab === 'servers' ? 'block' : 'none';
+    }
+    
     const databaseSection = document.getElementById('databaseSection');
     if (databaseSection) {
         databaseSection.style.display = tab === 'database' ? 'block' : 'none';
@@ -434,6 +487,11 @@ function showTab(tab) {
         usersTab.classList.toggle('active', tab === 'users');
     }
     
+    const serversTab = document.getElementById('serversTab');
+    if (serversTab) {
+        serversTab.classList.toggle('active', tab === 'servers');
+    }
+    
     const databaseTab = document.getElementById('databaseTab');
     if (databaseTab) {
         databaseTab.classList.toggle('active', tab === 'database');
@@ -441,6 +499,8 @@ function showTab(tab) {
     
     if (tab === 'users') {
         loadUsers();
+    } else if (tab === 'servers') {
+        loadServers();
     } else if (tab === 'billing') {
         loadBillingData();
     } else if (tab === 'database') {
@@ -1263,16 +1323,42 @@ function sendVirtualDeveloperMessage() {
         addVirtualDeveloperMessage('system', `🏠 Gitea URL: ${giteaUrl}`);
     }
     
-    const payload = {
-        message: message,
-        auto_approve: autoYes,
-        application_name: selectedApp,
-        application_folder: appFolder,
-        github_url: githubUrl,
-        gitea_url: giteaUrl,
-        username: username,
-        userid: userId
-    };
+    // Get server_id before creating payload
+    getAvailableServerId(selectedApp).then(serverId => {
+        const payload = {
+            message: message,
+            auto_approve: autoYes,
+            application_name: selectedApp,
+            application_folder: appFolder,
+            github_url: githubUrl,
+            gitea_url: giteaUrl,
+            username: username,
+            userid: userId,
+            server_id: serverId
+        };
+        
+        sendQChatRequest(payload);
+    }).catch(error => {
+        addVirtualDeveloperMessage('error', `Server allocation error: ${error.message}`);
+    });
+}
+
+function getAvailableServerId(applicationName) {
+    return fetch('/api/server/allocate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({application_name: applicationName})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        return data.server_id;
+    });
+}
+
+function sendQChatRequest(payload) {
     
     addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');
     
@@ -1829,6 +1915,156 @@ function deleteRecord(tableName, recordId) {
     })
     .catch(error => {
         alert('Error deleting record');
+    });
+}
+
+// Server management functions
+function loadServers() {
+    fetch('/api/servers')
+        .then(response => response.json())
+        .then(servers => {
+            const grid = document.getElementById('serversGrid');
+            if (servers.length === 0) {
+                grid.innerHTML = '<p>No servers found.</p>';
+                return;
+            }
+            
+            let html = '<table class="servers-table"><thead><tr><th>ID</th><th>IP</th><th>Name</th><th>Max Users</th><th>Max Apps</th><th>Status</th><th>Type</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+            servers.forEach(server => {
+                const statusClass = server.SERVER_STATUS === 'ACTIVE' ? 'status-active' : 'status-standby';
+                const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
+                const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
+                html += `<tr class="${rowClass}">
+                    <td>${server.id}</td>
+                    <td>${server.SERVER_IP}</td>
+                    <td>${server.SERVER_NAME}</td>
+                    <td>${server.SERVER_CAPACITY_USER_MAX}</td>
+                    <td>${server.SERVER_CAPACITY_APPLI_MAX}</td>
+                    <td><span class="${statusClass}">${server.SERVER_STATUS}</span></td>
+                    <td>${server.SERVER_TYPE}</td>
+                    <td>${new Date(server.created_at).toLocaleDateString()}</td>
+                    <td class="actions">
+                        <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
+                        <button onclick="deleteServer(${server.id})" class="btn-small btn-danger" ${deleteDisabled}>Delete</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            grid.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('serversGrid').innerHTML = '<p>Error loading servers.</p>';
+        });
+}
+
+function showAddServerForm() {
+    document.getElementById('addServerForm').style.display = 'block';
+}
+
+function hideAddServerForm() {
+    document.getElementById('addServerForm').style.display = 'none';
+    document.getElementById('newServerForm').reset();
+}
+
+function showEditServerForm() {
+    document.getElementById('editServerForm').style.display = 'block';
+}
+
+function hideEditServerForm() {
+    document.getElementById('editServerForm').style.display = 'none';
+    document.getElementById('updateServerForm').reset();
+}
+
+function editServer(serverId) {
+    fetch('/api/servers')
+        .then(response => response.json())
+        .then(servers => {
+            const server = servers.find(s => s.id === serverId);
+            if (server) {
+                document.getElementById('editServerId').value = server.id;
+                document.getElementById('editServerIP').value = server.SERVER_IP;
+                document.getElementById('editServerName').value = server.SERVER_NAME;
+                document.getElementById('editServerUserMax').value = server.SERVER_CAPACITY_USER_MAX;
+                document.getElementById('editServerAppliMax').value = server.SERVER_CAPACITY_APPLI_MAX;
+                document.getElementById('editServerStatus').value = server.SERVER_STATUS;
+                document.getElementById('editServerType').value = server.SERVER_TYPE;
+                showEditServerForm();
+            }
+        });
+}
+
+function deleteServer(serverId) {
+    if (confirm('Are you sure you want to delete this server?')) {
+        fetch(`/api/servers/${serverId}`, {method: 'DELETE'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                loadServers();
+            }
+        });
+    }
+}
+
+const newServerForm = document.getElementById('newServerForm');
+if (newServerForm) {
+    newServerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = {
+            SERVER_IP: document.getElementById('newServerIP').value,
+            SERVER_NAME: document.getElementById('newServerName').value,
+            SERVER_CAPACITY_USER_MAX: parseInt(document.getElementById('newServerUserMax').value),
+            SERVER_CAPACITY_APPLI_MAX: parseInt(document.getElementById('newServerAppliMax').value),
+            SERVER_STATUS: document.getElementById('newServerStatus').value,
+            SERVER_TYPE: document.getElementById('newServerType').value
+        };
+        
+        fetch('/api/servers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                hideAddServerForm();
+                loadServers();
+            }
+        });
+    });
+}
+
+const updateServerForm = document.getElementById('updateServerForm');
+if (updateServerForm) {
+    updateServerForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const serverId = document.getElementById('editServerId').value;
+        const formData = {
+            SERVER_IP: document.getElementById('editServerIP').value,
+            SERVER_NAME: document.getElementById('editServerName').value,
+            SERVER_CAPACITY_USER_MAX: parseInt(document.getElementById('editServerUserMax').value),
+            SERVER_CAPACITY_APPLI_MAX: parseInt(document.getElementById('editServerAppliMax').value),
+            SERVER_STATUS: document.getElementById('editServerStatus').value,
+            SERVER_TYPE: document.getElementById('editServerType').value
+        };
+        
+        fetch(`/api/servers/${serverId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                hideEditServerForm();
+                loadServers();
+            }
+        });
     });
 }
 
