@@ -90,6 +90,35 @@ def init_db():
         )
     ''')
     
+    # Application costs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS application_costs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            application_id INTEGER NOT NULL,
+            cost_per_day REAL DEFAULT 1.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (application_id) REFERENCES applications (id)
+        )
+    ''')
+    
+    # Billing activities table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS billing_activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            application_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            started_at TIMESTAMP,
+            stopped_at TIMESTAMP,
+            duration_seconds INTEGER,
+            cost_amount REAL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (application_id) REFERENCES applications (id)
+        )
+    ''')
+    
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
@@ -104,6 +133,12 @@ def init_db():
             ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
         ]
         cursor.executemany('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)', default_apps)
+        
+        # Insert default costs for applications
+        cursor.execute('SELECT id FROM applications')
+        app_ids = cursor.fetchall()
+        for app_id in app_ids:
+            cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
     
     # Insert current server if none exists
     cursor.execute('SELECT COUNT(*) FROM servers')
@@ -151,6 +186,14 @@ def init_db():
             else:
                 url = f'https://www.swautomorph.com:{base_port}'
             cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
+        
+        # Ensure costs exist for all applications
+        cursor.execute('SELECT id FROM applications')
+        app_ids = cursor.fetchall()
+        for app_id in app_ids:
+            cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id[0],))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
     
     conn.commit()
     conn.close()

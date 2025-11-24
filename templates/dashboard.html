@@ -444,58 +444,64 @@ function deleteUser(userId) {
     }
 }
 
-document.getElementById('newUserForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = {
-        username: document.getElementById('newUsername').value,
-        email: document.getElementById('newEmail').value,
-        password: document.getElementById('newPassword').value,
-        first_name: document.getElementById('newFirstName').value,
-        last_name: document.getElementById('newLastName').value
-    };
-    
-    fetch('/api/users', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            hideAddUserForm();
-            loadUsers();
-        }
+const newUserForm = document.getElementById('newUserForm');
+if (newUserForm) {
+    newUserForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = {
+            username: document.getElementById('newUsername').value,
+            email: document.getElementById('newEmail').value,
+            password: document.getElementById('newPassword').value,
+            first_name: document.getElementById('newFirstName').value,
+            last_name: document.getElementById('newLastName').value
+        };
+        
+        fetch('/api/users', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                hideAddUserForm();
+                loadUsers();
+            }
+        });
     });
-});
+}
 
-document.getElementById('updateUserForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const userId = document.getElementById('editUserId').value;
-    const formData = {
-        action: 'update',
-        username: document.getElementById('editUsername').value,
-        email: document.getElementById('editEmail').value,
-        first_name: document.getElementById('editFirstName').value,
-        last_name: document.getElementById('editLastName').value
-    };
-    
-    fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            hideEditUserForm();
-            loadUsers();
-        }
+const updateUserForm = document.getElementById('updateUserForm');
+if (updateUserForm) {
+    updateUserForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const userId = document.getElementById('editUserId').value;
+        const formData = {
+            action: 'update',
+            username: document.getElementById('editUsername').value,
+            email: document.getElementById('editEmail').value,
+            first_name: document.getElementById('editFirstName').value,
+            last_name: document.getElementById('editLastName').value
+        };
+        
+        fetch(`/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                hideEditUserForm();
+                loadUsers();
+            }
+        });
     });
-});
+}
 
 // Application management functions
 function showAddAppForm() {
@@ -549,55 +555,61 @@ function deleteApp(id, name) {
     }
 }
 
-document.getElementById('addAppForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = {
-        name: document.getElementById('app_name').value,
-        url: document.getElementById('app_url').value,
-        description: document.getElementById('app_description').value,
-        git_url: document.getElementById('app_git_url').value
-    };
-    
-    fetch('/api/applications', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            hideAddAppForm();
-            location.reload();
-        }
+const addAppForm = document.getElementById('addAppForm');
+if (addAppForm) {
+    addAppForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = {
+            name: document.getElementById('app_name').value,
+            url: document.getElementById('app_url').value,
+            description: document.getElementById('app_description').value,
+            git_url: document.getElementById('app_git_url').value
+        };
+        
+        fetch('/api/applications', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                hideAddAppForm();
+                location.reload();
+            }
+        });
     });
-});
+}
 
-document.getElementById('updateAppForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const appId = document.getElementById('editAppId').value;
-    const formData = {
-        name: document.getElementById('editAppName').value,
-        url: document.getElementById('editAppUrl').value,
-        description: document.getElementById('editAppDescription').value,
-        git_url: document.getElementById('editAppGitUrl').value
-    };
-    
-    fetch(`/api/applications/${appId}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(formData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            alert(data.error);
-        } else {
-            location.reload();
-        }
+const updateAppForm = document.getElementById('updateAppForm');
+if (updateAppForm) {
+    updateAppForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const appId = document.getElementById('editAppId').value;
+        const formData = {
+            name: document.getElementById('editAppName').value,
+            url: document.getElementById('editAppUrl').value,
+            description: document.getElementById('editAppDescription').value,
+            git_url: document.getElementById('editAppGitUrl').value
+        };
+        
+        fetch(`/api/applications/${appId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                location.reload();
+            }
+        });
     });
-});
+}
 
 // User application management functions
 function manageUserApps(userId, username) {
@@ -1100,6 +1112,8 @@ function sendVirtualDeveloperMessage() {
     let appFolder = '';
     let githubUrl = '';
     let giteaUrl = '';
+    let username = '';
+    let userId = '';
     
     if (selectedApp) {
         addVirtualDeveloperMessage('system', `📱 Selected application: ${selectedApp}`);
@@ -1109,8 +1123,8 @@ function sendVirtualDeveloperMessage() {
             const appName = card.querySelector('h3').textContent;
             if (appName === selectedApp) {
                 // Get deployment path for this user and app
-                const username = '{{ username }}';
-                const userId = '{{ session.user_id }}';
+                username = '{{ username }}';
+                userId = '{{ session.user_id }}';
                 appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
                 
                 // Extract git URL from deployment buttons (if available)
@@ -1124,7 +1138,7 @@ function sendVirtualDeveloperMessage() {
                 }
                 
                 // Generate Gitea URL based on app name
-                giteaUrl = `http://gitadmin:password@localhost:3000/gitadmin/${username}-automorph-${app_name}-%DATETIME%.git`;
+                giteaUrl = `http://gitadmin:password@localhost:3000/gitadmin/${username}-automorph-${appName}-%DATETIME%.git`;
                 break;
             }
         }
@@ -1141,7 +1155,7 @@ function sendVirtualDeveloperMessage() {
         github_url: githubUrl,
         gitea_url: giteaUrl,
         username: username,
-        userid: userid
+        userid: userId
     };
     
     addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');

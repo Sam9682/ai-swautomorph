@@ -581,8 +581,8 @@ server {
     listen 443 ssl;
     server_name localhost www.swautomorph.com;
     
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/cert.pem;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/key.pem;
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/www_swautomorph_com.crt;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/privateKey_automorph_simple.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     
@@ -709,15 +709,6 @@ EOF
     fi
 }
 
-# Start env
-start() {
-    validate_user_id
-    check_requirements
-    setup_environment
-    start_services
-    echo "🎉 Deployment completed successfully!"
-}
-
 # Show usage information
 show_usage() {
     echo "Usage: $0 [start|stop|restart|ps|logs] [locally]"
@@ -729,6 +720,15 @@ show_usage() {
     echo "  restart locally - Restart local services (Flask + Nginx reload)"
     echo "  ps           - Show service status (Locally and Docker)"
     echo "  logs         - Show service logs  (Flask + Nginx Docker)" 
+}
+
+# Start env
+start() {
+    validate_user_id
+    check_requirements
+    setup_environment
+    start_services
+    echo "🎉 Deployment completed successfully!"
 }
 
 # Main function - orchestrates the deployment process

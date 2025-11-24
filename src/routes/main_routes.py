@@ -1,6 +1,7 @@
 """Main application routes"""
-from flask import Blueprint, render_template, session, redirect, url_for, request
+from flask import Blueprint, render_template, session, redirect, url_for, request, send_from_directory
 import sqlite3
+import os
 from ..config import DB_PATH
 
 main_bp = Blueprint('main', __name__)
@@ -57,3 +58,10 @@ def set_language(language):
     if language in ['en', 'fr']:
         session['language'] = language
     return redirect(request.referrer or url_for('main.index'))
+
+@main_bp.route('/.well-known/pki-validation/<filename>')
+def ssl_validation(filename):
+    """Serve SSL certificate validation files"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
+    validation_dir = os.path.join(static_dir, '.well-known', 'pki-validation')
+    return send_from_directory(validation_dir, filename)
