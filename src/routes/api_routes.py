@@ -371,7 +371,7 @@ def api_deployments():
     if request.method == 'GET':
         print(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
         deployments_data = db_manager.execute_query('''
-            SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at
+            SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
             FROM deployments WHERE user_id = ? ORDER BY updated_at DESC
         ''', (session['user_id'],), fetch_all=True)
         
@@ -382,7 +382,8 @@ def api_deployments():
             'deployment_path': row[3],
             'git_url': row[4],
             'created_at': row[5],
-            'updated_at': row[6]
+            'updated_at': row[6],
+            'server_id': row[7]
         } for row in deployments_data]
         
         print(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
@@ -419,34 +420,80 @@ def api_deployments():
                     print(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
                     return jsonify({'error': 'Git URL required for clone action'}), 400
                 
+                if not server_id:
+                    print(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
+                    return jsonify({'error': 'Server ID required for clone action'}), 400
+                
                 print(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
                 
-                # Remove existing directory if it exists
-                if os.path.exists(deployment_path):
-                    print(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
-                    import shutil
-                    shutil.rmtree(deployment_path)
+                # Get current server IP and target server IP
+                import socket
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    s.connect(("8.8.8.8", 80))
+                    current_server_ip = s.getsockname()[0]
+                    s.close()
+                except:
+                    current_server_ip = "127.0.0.1"
+                
+                # Get target server IP
+                target_server = db_manager.execute_query(
+                    'SELECT SERVER_IP FROM servers WHERE id = ?', 
+                    (server_id,), fetch_one=True
+                )
+                
+                if not target_server:
+                    print(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
+                    return jsonify({'error': f'Server {server_id} not found'}), 400
+                
+                target_server_ip = target_server[0]
+                is_local_server = (target_server_ip == current_server_ip or target_server_ip == "127.0.0.1" or target_server_ip == "localhost")
+                
+                print(f"[DEPLOYMENT API] CLONE - Current server: {current_server_ip}, Target server: {target_server_ip}, Local: {is_local_server}")
+                
+                if is_local_server:
+                    # Execute locally
+                    print(f"[DEPLOYMENT API] CLONE - Executing locally")
+                    
+                    # Remove existing directory if it exists
+                    if os.path.exists(deployment_path):
+                        print(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
+                        import shutil
+                        shutil.rmtree(deployment_path)
+                    
+                    # Create full directory path recursively
+                    print(f"[DEPLOYMENT API] CLONE - Creating directory structure: {deployment_path}")
+                    os.makedirs(deployment_path, exist_ok=True)
+                    
+                    # Clone repository with proper Git environment
+                    git_env = os.environ.copy()
+                    git_env.update({
+                        'GIT_CONFIG_NOSYSTEM': '1',
+                        'HOME': '/home/ubuntu',
+                        'USER': 'ubuntu'
+                    })
+                    result = subprocess.run(['git', 'clone', git_url, deployment_path], 
+                                          capture_output=True, text=True, timeout=600, env=git_env)
                 else:
-                    print(f"[DEPLOYMENT API] CLONE - Directory doesn't exist, creating new: {deployment_path}")
-                
-                # Create full directory path recursively
-                print(f"[DEPLOYMENT API] CLONE - Creating directory structure: {deployment_path}")
-                os.makedirs(deployment_path, exist_ok=True)
-                print(f"[DEPLOYMENT API] CLONE - Directory created successfully")
-                
-                # Clone repository with proper Git environment
-                print(f"[DEPLOYMENT API] CLONE - Executing git clone command")
-                git_env = os.environ.copy()
-                git_env.update({
-                    'GIT_CONFIG_NOSYSTEM': '1',
-                    'HOME': '/home/ubuntu',
-                    'USER': 'ubuntu'
-                })
-                result = subprocess.run(['git', 'clone', git_url, deployment_path], 
-                                      capture_output=True, text=True, timeout=600, env=git_env)
-                print(f"[DEPLOYMENT API] CLONE - Git clone completed with return code: {result.returncode}")
-                
-                command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                    # Execute on remote server via SSH
+                    print(f"[DEPLOYMENT API] CLONE - Executing on remote server {target_server_ip}")
+                    
+                    ssh_commands = [
+                        f"rm -rf {deployment_path}",
+                        f"mkdir -p {deployment_path}",
+                        f"cd {os.path.dirname(deployment_path)} && git clone {git_url} {os.path.basename(deployment_path)}"
+                    ]
+                    
+                    ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
+                    result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=600)
+
+                # Build command output only for non-empty content
+                output_parts = []
+                if result.stdout and result.stdout.strip():
+                    output_parts.append(f"STDOUT:\n{result.stdout}")
+                if result.stderr and result.stderr.strip():
+                    output_parts.append(f"STDERR:\n{result.stderr}")
+                command_output = "\n\n".join(output_parts) if output_parts else "No output"
                 
                 if result.returncode == 0:
                     status = 'cloned'
@@ -528,7 +575,13 @@ def api_deployments():
                                           cwd=deploy_path, capture_output=True, text=True, timeout=600)
                 print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                 
-                command_output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
+                # Build command output only for non-empty content
+                output_parts = []
+                if result.stdout and result.stdout.strip():
+                    output_parts.append(f"STDOUT:\n{result.stdout}")
+                if result.stderr and result.stderr.strip():
+                    output_parts.append(f"STDERR:\n{result.stderr}")
+                command_output = "\n\n".join(output_parts) if output_parts else "No output"
                 
                 status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
                 
@@ -883,8 +936,8 @@ def api_server_allocate():
         servers = db_manager.execute_query('''
             SELECT id, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX 
             FROM servers 
-            WHERE SERVER_STATUS = 'STAND_BY'
-            ORDER BY id ASC
+            WHERE SERVER_STATUS = 'STAND_BY' OR SERVER_STATUS = 'ACTIVE'
+            ORDER BY STATUS ASC
         ''', fetch_all=True)
         
         if not servers:
@@ -908,10 +961,10 @@ def api_server_allocate():
             
             # Check if server has capacity
             if user_count < user_max and appli_count < appli_max:
-                # Update server status to ACTIVE
+                # Update server status to ACTIVE only if currently STAND_BY
                 db_manager.execute_query('''
                     UPDATE servers SET SERVER_STATUS = 'ACTIVE' 
-                    WHERE id = ?
+                    WHERE id = ? AND SERVER_STATUS = 'STAND_BY'
                 ''', (server_id,))
                 
                 return jsonify({'server_id': server_id})

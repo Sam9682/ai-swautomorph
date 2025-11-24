@@ -847,15 +847,6 @@ function unassignApp(userId, appId) {
 
 // Deployment functions
 function deployApp(appName, gitUrl, action) {
-    const data = {
-        action: action,
-        application_name: appName
-    };
-    
-    if (action === 'clone' && gitUrl) {
-        data.git_url = gitUrl;
-    }
-    
     // Show logs section
     showLogs();
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -866,11 +857,23 @@ function deployApp(appName, gitUrl, action) {
         appendLog(`⏳ This may take several minutes for Docker builds...`);
     }
     
-    // Create AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
-    
-    fetch('/api/deployments', {
+    // Get server_id first, then proceed with deployment
+    getAvailableServerId(appName).then(serverId => {
+        const data = {
+            action: action,
+            application_name: appName,
+            server_id: serverId
+        };
+        
+        if (action === 'clone' && gitUrl) {
+            data.git_url = gitUrl;
+        }
+        
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+        
+        fetch('/api/deployments', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data),
@@ -927,6 +930,7 @@ function deployApp(appName, gitUrl, action) {
         setTimeout(() => {
             checkApplicationStatus(appName);
         }, 1000);
+    });
     });
 }
 
