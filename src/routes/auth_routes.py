@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, render_template, session, redirec
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
 from ..config import DB_PATH
+from ..database import db_manager
 from ..auth import generate_sso_token, invalidate_sso_token, validate_sso_token
 
 auth_bp = Blueprint('auth', __name__)
@@ -21,16 +22,12 @@ def register():
         if not all([username, email, password]):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
         try:
             password_hash = generate_password_hash(password)
-            cursor.execute('''
+            db_manager.execute_query('''
                 INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (username, email, password_hash, first_name, last_name, 1))
-            conn.commit()
             
             if request.is_json:
                 return jsonify({'message': 'User registered successfully'}), 201
@@ -38,8 +35,6 @@ def register():
             
         except sqlite3.IntegrityError:
             return jsonify({'error': 'Username or email already exists'}), 409
-        finally:
-            conn.close()
     
     return render_template('register.html')
 
@@ -52,11 +47,10 @@ def login():
     if not all([username, password]):
         return jsonify({'error': 'Missing credentials'}), 400
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, password_hash, suspended FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
+    user = db_manager.execute_query(
+        'SELECT id, password_hash, suspended FROM users WHERE username = ?', 
+        (username,), fetch_one=True
+    )
     
     if user and not user[2] and check_password_hash(user[1], password):
         session['user_id'] = user[0]

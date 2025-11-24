@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 import sqlite3
 import os
 from ..config import DB_PATH
+from ..database import db_manager
 
 main_bp = Blueprint('main', __name__)
 
@@ -17,36 +18,21 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('main.index'))
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Get username for admin check
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     username = user[0] if user else ''
     
     # Get applications based on user role
-    if username == 'admin':
-        # Admin sees all applications with URLs from user_applications
-        cursor.execute('''
-            SELECT a.id, a.name, ua.url, a.description, a.git_url 
-            FROM applications a
-            JOIN user_applications ua ON a.id = ua.application_id
-            WHERE ua.user_id = ?
-            ORDER BY a.name
-        ''', (session['user_id'],))
-    else:
-        # Regular users see only assigned applications
-        cursor.execute('''
-            SELECT a.id, a.name, ua.url, a.description, a.git_url 
-            FROM applications a
-            JOIN user_applications ua ON a.id = ua.application_id
-            WHERE ua.user_id = ?
-            ORDER BY a.name
-        ''', (session['user_id'],))
-    
-    applications = cursor.fetchall()
-    conn.close()
+    applications = db_manager.execute_query('''
+        SELECT a.id, a.name, ua.url, a.description, a.git_url 
+        FROM applications a
+        JOIN user_applications ua ON a.id = ua.application_id
+        WHERE ua.user_id = ?
+        ORDER BY a.name
+    ''', (session['user_id'],), fetch_all=True)
     
     # Get SSO token for the user
     sso_token = session.get('sso_token', '')

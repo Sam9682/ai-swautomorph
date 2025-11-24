@@ -188,7 +188,7 @@ terminal_menu = TerminalMenu(
     title="🔧 Do you want to stop Gitea service?",
     menu_cursor="▶ ",
     menu_cursor_style=("fg_red", "bold"),
-    menu_highlight_style=("bg_red", "fg_white"),
+    menu_highlight_style=("bg_red", "fg_yellow"),
     cycle_cursor=True
 )
 

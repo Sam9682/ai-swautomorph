@@ -106,9 +106,38 @@ def validate_token(token):
 @cli.command()
 def init_db():
     """Initialize the database"""
-    from app import init_db as app_init_db
+    from src.database import init_db as app_init_db
     app_init_db()
     click.echo('Database initialized successfully!')
+
+@cli.command()
+def db_health():
+    """Check database health"""
+    try:
+        from src.db_health import check_database_health, get_database_stats
+        health = check_database_health()
+        stats = get_database_stats()
+        
+        click.echo('\nDatabase Health Status:')
+        click.echo(f"Status: {health['status']}")
+        if health['status'] == 'healthy':
+            click.echo(f"Tables: {health['tables_count']}")
+            click.echo(f"Journal Mode: {health['journal_mode']}")
+        else:
+            click.echo(f"Error: {health.get('error', 'Unknown error')}")
+        
+        if 'error' not in stats:
+            click.echo('\nDatabase Statistics:')
+            for key, value in stats.items():
+                if key.endswith('_count'):
+                    table_name = key.replace('_count', '')
+                    click.echo(f"{table_name.title()}: {value} records")
+                elif key == 'database_size_bytes':
+                    size_mb = value / (1024 * 1024)
+                    click.echo(f"Database Size: {size_mb:.2f} MB")
+        
+    except Exception as e:
+        click.echo(f'Error checking database health: {str(e)}')
 
 if __name__ == '__main__':
     cli()

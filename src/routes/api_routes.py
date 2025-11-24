@@ -6,6 +6,8 @@ import os
 import shutil
 import requests
 from ..config import DB_PATH
+from ..database import db_manager
+from ..db_health import check_database_health, get_database_stats
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -74,15 +76,38 @@ def auth_status():
         'sso_token': session.get('sso_token', '')
     })
 
+@api_bp.route('/health/database')
+def database_health():
+    """Database health check endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    health_status = check_database_health()
+    db_stats = get_database_stats()
+    
+    return jsonify({
+        'health': health_status,
+        'statistics': db_stats
+    })
+
 @api_bp.route('/applications', methods=['GET', 'POST'])
 def api_applications():
     if request.method == 'GET':
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, name, description, git_url FROM applications ORDER BY name')
+        apps_data = db_manager.execute_query(
+            'SELECT id, name, description, git_url FROM applications ORDER BY name',
+            fetch_all=True
+        )
         apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3]} 
-                for row in cursor.fetchall()]
-        conn.close()
+                for row in apps_data]
         return jsonify(apps)
     
     elif request.method == 'POST':
@@ -90,10 +115,10 @@ def api_applications():
             return jsonify({'error': 'Authentication required'}), 401
         
         # Check if user is admin
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = ?', 
+            (session['user_id'],), fetch_one=True
+        )
         
         if not user or user[0] != 'admin':
             return jsonify({'error': 'Admin access required'}), 403
@@ -106,16 +131,14 @@ def api_applications():
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
-        cursor.execute('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
-                      (name, description, git_url))
-        app_id = cursor.lastrowid
+        app_id = db_manager.execute_query(
+            'INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
+            (name, description, git_url)
+        )
         
         # Assign new application to all existing users with URLs
         from ..database import assign_app_to_all_users
         assign_app_to_all_users(app_id, name)
-        
-        conn.commit()
-        conn.close()
         
         return jsonify({'message': 'Application added successfully'}), 201
 
@@ -347,12 +370,11 @@ def api_deployments():
     
     if request.method == 'GET':
         print(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('''
+        deployments_data = db_manager.execute_query('''
             SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at
             FROM deployments WHERE user_id = ? ORDER BY updated_at DESC
-        ''', (session['user_id'],))
+        ''', (session['user_id'],), fetch_all=True)
+        
         deployments = [{
             'id': row[0],
             'application_name': row[1],
@@ -361,8 +383,8 @@ def api_deployments():
             'git_url': row[4],
             'created_at': row[5],
             'updated_at': row[6]
-        } for row in cursor.fetchall()]
-        conn.close()
+        } for row in deployments_data]
+        
         print(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
         return jsonify(deployments)
     
@@ -380,12 +402,11 @@ def api_deployments():
             print(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
             return jsonify({'error': 'Action and application name required'}), 400
         
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
         # Get username for deployment path
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = ?', 
+            (session['user_id'],), fetch_one=True
+        )
         username = user[0] if user else f'user_{session["user_id"]}'
         
         deployment_path = f'/home/ubuntu/deployments/{username}/{app_name.lower().replace(" ", "-")}'
@@ -438,7 +459,7 @@ def api_deployments():
                 
                 # Record deployment
                 print(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
-                cursor.execute('''
+                db_manager.execute_query('''
                     INSERT OR REPLACE INTO deployments 
                     (user_id, application_name, status, deployment_path, git_url)
                     VALUES (?, ?, ?, ?, ?)
@@ -446,20 +467,17 @@ def api_deployments():
                 print(f"[DEPLOYMENT API] CLONE - Database record created")
                 
                 if status == 'failed':
-                    conn.commit()
-                    conn.close()
                     return jsonify({'error': error_msg, 'logs': command_output}), 400
                 
             elif action in ['start', 'stop', 'restart', 'ps', 'logs']:
                 # Check if deployment exists
                 print(f"[DEPLOYMENT API] {action.upper()} - Looking for existing deployment for app '{app_name}'")
-                cursor.execute('''
+                deployment = db_manager.execute_query('''
                     SELECT deployment_path FROM deployments 
                     WHERE user_id = ? AND application_name = ? AND status != 'failed'
                     ORDER BY updated_at DESC LIMIT 1
-                ''', (session['user_id'], app_name))
+                ''', (session['user_id'], app_name), fetch_one=True)
                 
-                deployment = cursor.fetchone()
                 if not deployment:
                     print(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
                     return jsonify({'error': 'Application not deployed. Clone first.'}), 400
@@ -479,8 +497,10 @@ def api_deployments():
                     return jsonify({'error': f'deploy.sh not found in {deploy_script}'}), 400
                 
                 # Get user details for deploy.sh
-                cursor.execute('SELECT username, email, first_name, last_name FROM users WHERE id = ?', (session['user_id'],))
-                user_details = cursor.fetchone()
+                user_details = db_manager.execute_query(
+                    'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+                    (session['user_id'],), fetch_one=True
+                )
                 user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
                 user_email = user_details[1] if user_details else 'user@example.com'
                 
@@ -496,7 +516,7 @@ def api_deployments():
                 status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
                 
                 # Update deployment status
-                cursor.execute('''
+                db_manager.execute_query('''
                     UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
                     WHERE user_id = ? AND application_name = ?
                 ''', (status, session['user_id'], app_name))
@@ -508,9 +528,6 @@ def api_deployments():
                     record_billing_activity(session['user_id'], app_name, action)
                     print(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
             
-            conn.commit()
-            conn.close()
-            
             print(f"[DEPLOYMENT API] POST - SUCCESS - Action '{action}' completed for app '{app_name}' by user {user_id}")
             return jsonify({
                 'message': f'{action.capitalize()} completed for {app_name}',
@@ -520,11 +537,9 @@ def api_deployments():
             
         except subprocess.TimeoutExpired:
             print(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
-            conn.close()
             return jsonify({'error': 'Operation timed out'}), 408
         except Exception as e:
             print(f"[DEPLOYMENT API] POST - ERROR - Action '{action}' failed for app '{app_name}' by user {user_id}: {str(e)}")
-            conn.close()
             return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/deployments/<int:deployment_id>/logs')
@@ -539,15 +554,10 @@ def api_deployment_logs(deployment_id):
         print(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('''
+    deployment = db_manager.execute_query('''
         SELECT deployment_path FROM deployments 
         WHERE id = ? AND user_id = ?
-    ''', (deployment_id, session['user_id']))
-    
-    deployment = cursor.fetchone()
-    conn.close()
+    ''', (deployment_id, session['user_id']), fetch_one=True)
     
     if not deployment:
         print(f"[DEPLOYMENT LOGS] FAILED - Deployment {deployment_id} not found for user {user_id}")

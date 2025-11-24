@@ -1,12 +1,112 @@
 """Database initialization and management"""
 import sqlite3
+import threading
+import time
+from contextlib import contextmanager
 from werkzeug.security import generate_password_hash
 from .config import DB_PATH
 
+class DatabaseManager:
+    """Thread-safe database manager with connection pooling"""
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if not self._initialized:
+            self._local = threading.local()
+            self._initialized = True
+    
+    def _get_connection(self):
+        """Get thread-local database connection"""
+        if not hasattr(self._local, 'connection'):
+            self._local.connection = sqlite3.connect(
+                DB_PATH, 
+                timeout=30.0,  # 30 second timeout
+                check_same_thread=False
+            )
+            # Enable WAL mode for better concurrency
+            self._local.connection.execute('PRAGMA journal_mode=WAL')
+            # Set busy timeout
+            self._local.connection.execute('PRAGMA busy_timeout=30000')
+            # Enable foreign keys
+            self._local.connection.execute('PRAGMA foreign_keys=ON')
+        return self._local.connection
+    
+    @contextmanager
+    def get_db_connection(self):
+        """Context manager for database connections"""
+        conn = self._get_connection()
+        try:
+            yield conn
+        except Exception as e:
+            conn.rollback()
+            raise
+        finally:
+            # Don't close the connection, keep it for reuse
+            pass
+    
+    def execute_query(self, query, params=None, fetch_one=False, fetch_all=False):
+        """Execute a query with automatic retry on database lock"""
+        max_retries = 3
+        retry_delay = 0.1
+        
+        for attempt in range(max_retries):
+            try:
+                with self.get_db_connection() as conn:
+                    cursor = conn.cursor()
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    
+                    if fetch_one:
+                        result = cursor.fetchone()
+                    elif fetch_all:
+                        result = cursor.fetchall()
+                    else:
+                        result = cursor.lastrowid
+                    
+                    conn.commit()
+                    return result
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e) and attempt < max_retries - 1:
+                    time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
+                    continue
+                raise
+    
+    def execute_many(self, query, params_list):
+        """Execute multiple queries in a single transaction"""
+        max_retries = 3
+        retry_delay = 0.1
+        
+        for attempt in range(max_retries):
+            try:
+                with self.get_db_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.executemany(query, params_list)
+                    conn.commit()
+                    return cursor.rowcount
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e) and attempt < max_retries - 1:
+                    time.sleep(retry_delay * (2 ** attempt))
+                    continue
+                raise
+
+# Global database manager instance
+db_manager = DatabaseManager()
+
 def init_db():
     """Initialize database with required tables"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    with db_manager.get_db_connection() as conn:
+        cursor = conn.cursor()
     
     # Users table
     cursor.execute('''
@@ -195,13 +295,12 @@ def init_db():
             if cursor.fetchone()[0] == 0:
                 cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
     
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 def assign_default_apps_to_user(user_id):
     """Assign default applications to a new user"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    with db_manager.get_db_connection() as conn:
+        cursor = conn.cursor()
     
     # Get all applications
     cursor.execute('SELECT id, name FROM applications')
@@ -227,13 +326,12 @@ def assign_default_apps_to_user(user_id):
             VALUES (?, ?, ?)
         ''', (user_id, app_id, url))
     
-    conn.commit()
-    conn.close()
+        conn.commit()
 
 def assign_app_to_all_users(app_id, app_name):
     """Assign a new application to all existing users"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    with db_manager.get_db_connection() as conn:
+        cursor = conn.cursor()
     
     # Get all user IDs
     cursor.execute('SELECT id FROM users')
@@ -259,5 +357,4 @@ def assign_app_to_all_users(app_id, app_name):
             VALUES (?, ?, ?)
         ''', (uid, app_id, url))
     
-    conn.commit()
-    conn.close()
+        conn.commit()

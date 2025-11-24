@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify, session
 import sqlite3
 from datetime import datetime, timedelta
 from ..config import DB_PATH
+from ..database import db_manager
 
 billing_bp = Blueprint('billing', __name__)
 
@@ -12,27 +13,26 @@ def get_billing_activities():
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Check if user is admin
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     is_admin = user and user[0] == 'admin'
     
     if is_admin:
         # Admin sees all activities
-        cursor.execute('''
+        activities = db_manager.execute_query('''
             SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
             JOIN applications a ON ba.application_id = a.id
             ORDER BY ba.created_at DESC
-        ''')
+        ''', fetch_all=True)
     else:
         # Regular user sees only their activities
-        cursor.execute('''
+        activities = db_manager.execute_query('''
             SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
@@ -40,10 +40,7 @@ def get_billing_activities():
             JOIN applications a ON ba.application_id = a.id
             WHERE ba.user_id = ?
             ORDER BY ba.created_at DESC
-        ''', (session['user_id'],))
-    
-    activities = cursor.fetchall()
-    conn.close()
+        ''', (session['user_id'],), fetch_all=True)
     
     return jsonify([{
         'id': row[0],
@@ -187,34 +184,31 @@ def update_application_cost(app_id):
 
 def record_billing_activity(user_id, application_name, action):
     """Record billing activity for application start/stop"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Get application ID
-    cursor.execute('SELECT id FROM applications WHERE name = ?', (application_name,))
-    app_result = cursor.fetchone()
+    app_result = db_manager.execute_query(
+        'SELECT id FROM applications WHERE name = ?', 
+        (application_name,), fetch_one=True
+    )
     if not app_result:
-        conn.close()
         return
     
     application_id = app_result[0]
     
     if action == 'start':
         # Record start activity
-        cursor.execute('''
+        db_manager.execute_query('''
             INSERT INTO billing_activities (user_id, application_id, action, started_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         ''', (user_id, application_id, action))
     
     elif action == 'stop':
         # Find the most recent start activity for this user and app
-        cursor.execute('''
+        start_activity = db_manager.execute_query('''
             SELECT id, started_at FROM billing_activities
             WHERE user_id = ? AND application_id = ? AND action = 'start' AND stopped_at IS NULL
             ORDER BY created_at DESC LIMIT 1
-        ''', (user_id, application_id))
+        ''', (user_id, application_id), fetch_one=True)
         
-        start_activity = cursor.fetchone()
         if start_activity:
             start_id, started_at = start_activity
             
@@ -224,25 +218,24 @@ def record_billing_activity(user_id, application_name, action):
             duration_seconds = int((stop_time - start_time).total_seconds())
             
             # Get cost per day for this application
-            cursor.execute('SELECT cost_per_day FROM application_costs WHERE application_id = ?', (application_id,))
-            cost_result = cursor.fetchone()
+            cost_result = db_manager.execute_query(
+                'SELECT cost_per_day FROM application_costs WHERE application_id = ?', 
+                (application_id,), fetch_one=True
+            )
             cost_per_day = cost_result[0] if cost_result else 1.0
             
             # Calculate cost (cost per day / 86400 seconds * duration)
             cost_amount = (cost_per_day / 86400) * duration_seconds
             
             # Update the start activity with stop information
-            cursor.execute('''
+            db_manager.execute_query('''
                 UPDATE billing_activities 
                 SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = ?, cost_amount = ?
                 WHERE id = ?
             ''', (duration_seconds, cost_amount, start_id))
         
         # Also record the stop activity
-        cursor.execute('''
+        db_manager.execute_query('''
             INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         ''', (user_id, application_id, action))
-    
-    conn.commit()
-    conn.close()
