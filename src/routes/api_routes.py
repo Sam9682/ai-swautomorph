@@ -460,12 +460,28 @@ def api_deployments():
                 
                 # Record deployment
                 print(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
-                db_manager.execute_query('''
-                    INSERT OR REPLACE INTO deployments 
-                    (user_id, application_name, status, deployment_path, git_url, server_id)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (session['user_id'], app_name, status, deployment_path, git_url, server_id))
-                print(f"[DEPLOYMENT API] CLONE - Database record created")
+                
+                # Check if record exists for this user, app, and server
+                existing_record = db_manager.execute_query('''
+                    SELECT id FROM deployments 
+                    WHERE user_id = ? AND application_name = ? AND server_id = ?
+                ''', (session['user_id'], app_name, server_id), fetch_one=True)
+                
+                if existing_record:
+                    # Update existing record
+                    db_manager.execute_query('''
+                        UPDATE deployments SET status = ?, deployment_path = ?, git_url = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ? AND application_name = ? AND server_id = ?
+                    ''', (status, deployment_path, git_url, session['user_id'], app_name, server_id))
+                    print(f"[DEPLOYMENT API] CLONE - Database record updated")
+                else:
+                    # Insert new record
+                    db_manager.execute_query('''
+                        INSERT INTO deployments 
+                        (user_id, application_name, status, deployment_path, git_url, server_id)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (session['user_id'], app_name, status, deployment_path, git_url, server_id))
+    
                 
                 if status == 'failed':
                     return jsonify({'error': error_msg, 'logs': command_output}), 400
