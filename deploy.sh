@@ -29,13 +29,11 @@ show_deployment_menu() {
             echo "Select deployment mode:"
             echo "1) Locally (no Docker)"
             echo "2) Docker"
-            echo "3) Both"
-            read -p "Enter your choice (1-3): " choice
+            read -p "Enter your choice (1-2): " choice
             case $choice in
                 1) echo "locally" ;;
                 2) echo "docker" ;;
-                3) echo "both" ;;
-                *) echo "both" ;;
+                *) echo "locally" ;;
             esac
             return
         }
@@ -45,7 +43,7 @@ show_deployment_menu() {
     python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
-options = ["Locally (no Docker)", "Docker", "Both"]
+options = ["Locally (no Docker)", "Docker"]
 terminal_menu = TerminalMenu(
     options,
     title="🚀 Select deployment mode:",
@@ -61,10 +59,8 @@ if menu_entry_index == 0:
     print("locally")
 elif menu_entry_index == 1:
     print("docker")
-elif menu_entry_index == 2:
-    print("both")
 else:
-    print("both")
+    print("locally")
 EOF
 }
 
@@ -182,7 +178,7 @@ confirm_gitea_stop() {
             CHOICE=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
-options = ["Yes, stop Gitea", "No, keep Gitea running"]
+options = ["Yes, stop and remove Gitea configuration", "No, keep Gitea configuration (but nginx is stopped)"]
 terminal_menu = TerminalMenu(
     options,
     title="🔧 Do you want to stop Gitea service?",
@@ -198,9 +194,9 @@ EOF
 )
         else
             # Fallback to simple prompt
-            echo "Do you want to stop Gitea service?"
-            echo "1) Yes, stop Gitea"
-            echo "2) No, keep Gitea running"
+            echo "Do you want to stop and remove Gitea configuration?"
+            echo "1) Yes, stop and remove Gitea configuration"
+            echo "2) No, keep Gitea configuration (but nginx is stopped)"
             read -p "Enter your choice (1-2): " choice
             case $choice in
                 1) CHOICE="yes" ;;
@@ -367,20 +363,23 @@ start_services() {
         start_local_deployment
     elif [ "$LOCAL_MODE" = "docker" ]; then
         start_docker_deployment
-    else
-        start_local_deployment
-        start_docker_deployment
     fi
 }
 
 start_local_deployment() {
     echo "💻 Starting local deployment..."
     install_python_dependencies
+    
+    # Setup Gitea (will skip if already configured)
     setup_gitea
-    create_gitea_admin_user
+    
+    # Always start Flask and Nginx regardless of Gitea status
+    echo "🚀 Starting core services..."
     start_flask_application
     configure_nginx
     configure_firewall
+    
+    echo "✅ Local deployment completed successfully!"
 }
 
 # Setup Gitea for local development
@@ -449,6 +448,8 @@ EOF
         echo "  ✅ Gitea installed successfully"
         configure_gitea
     fi
+
+    create_gitea_admin_user
     
     # Start Gitea service
     echo "🚀 Starting Gitea service..."
@@ -590,21 +591,22 @@ start_docker_deployment() {
 install_python_dependencies() {
     if [ -f "requirements.txt" ]; then
         echo "  📦 Installing Python dependencies..."
-        pip3 install -r requirements.txt
+        pip3 install -r requirements.txt --break-system-packages
     fi
 }
 
 start_flask_application() {
     echo "  🚀 Starting Flask application..."
-    # Stop any existing Flask processes on port 5000
+    # Stop any existing Flask processes
     pkill -f "python3 app.py" || true
     sleep 2
     # Create logs directory if it doesn't exist
     mkdir -p logs
-    # Start Flask on port 5001 to avoid conflicts with date-based log file
+    # Start Flask on port 5001 with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > app.pid
+    echo "  ✅ Flask application started (PID: $(cat app.pid))"
 }
 
 configure_nginx() {
@@ -657,11 +659,14 @@ enable_nginx_site() {
 
 test_and_reload_nginx() {
     if systemctl is-active --quiet nginx; then
+        echo "  ✅ Nginx is running - reloading configuration"
         sudo nginx -t && sudo systemctl reload nginx
     else
+        echo "  🚀 Starting Nginx service"
         sudo systemctl start nginx
         sudo nginx -t
     fi
+    echo "  ✅ Nginx configured successfully"
 }
 
 configure_firewall() {
@@ -788,8 +793,6 @@ main() {
             LOCAL_MODE="locally"
         elif [ "$SELECTED_MODE" = "docker" ]; then
             LOCAL_MODE="docker"
-        else
-            LOCAL_MODE="both"
         fi
     fi
 

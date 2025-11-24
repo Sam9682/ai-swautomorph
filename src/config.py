@@ -82,7 +82,9 @@ TRANSLATIONS = {
         'all_rights_reserved': 'All rights reserved.',
         'developed_by': 'Developed by',
         'with_help_of': 'with the help of',
-        'and': 'and'
+        'and': 'and',
+        'virtual_advisor_toggle': 'My Virtual Advisor : ask him a question',
+        'virtual_developer_toggle': 'My Virtual Developer: ask him to modify the application'
     },
     'fr': {
         'login': 'Connexion',
@@ -150,6 +152,8 @@ TRANSLATIONS = {
         'all_rights_reserved': 'Tous droits réservés.',
         'developed_by': 'Développé par',
         'with_help_of': 'avec l\'aide de',
-        'and': 'et'
+        'and': 'et',
+        'virtual_advisor_toggle': 'Mon Conseiller Virtuel : posez-lui une question',
+        'virtual_developer_toggle': 'Mon Développeur Virtuel : demandez-lui de modifier l\'application'
     }
 }

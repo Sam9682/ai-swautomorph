@@ -687,3 +687,121 @@ def api_qchat_question():
         import traceback
         print(f"[VIRTUAL ADVISOR API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
         return jsonify({'error': f'Virtual Advisor error: {str(e)}'}), 500
+
+@api_bp.route('/database/tables/<table_name>', methods=['GET', 'POST'])
+def api_database_table(table_name):
+    """Database table management endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Validate table name to prevent SQL injection
+    allowed_tables = [
+        'users', 'applications', 'auth_tokens', 'user_applications', 
+        'deployments', 'servers', 'application_costs', 'billing_activities'
+    ]
+    
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table name'}), 400
+    
+    if request.method == 'GET':
+        try:
+            # Get table structure
+            columns_data = db_manager.execute_query(
+                f'PRAGMA table_info({table_name})', fetch_all=True
+            )
+            columns = [col[1] for col in columns_data]  # col[1] is the column name
+            
+            # Get table data
+            rows = db_manager.execute_query(
+                f'SELECT * FROM {table_name} ORDER BY id DESC LIMIT 100', fetch_all=True
+            )
+            
+            return jsonify({
+                'columns': columns,
+                'rows': rows
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+            
+            # Build INSERT query dynamically
+            columns = list(data.keys())
+            placeholders = ', '.join(['?' for _ in columns])
+            column_names = ', '.join(columns)
+            values = [data[col] for col in columns]
+            
+            query = f'INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})'
+            db_manager.execute_query(query, values)
+            
+            return jsonify({'message': 'Record added successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/database/tables/<table_name>/<record_id>', methods=['PUT', 'DELETE'])
+def api_database_record(table_name, record_id):
+    """Database record management endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    # Validate table name
+    allowed_tables = [
+        'users', 'applications', 'auth_tokens', 'user_applications', 
+        'deployments', 'servers', 'application_costs', 'billing_activities'
+    ]
+    
+    if table_name not in allowed_tables:
+        return jsonify({'error': 'Invalid table name'}), 400
+    
+    if request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            # Build UPDATE query dynamically
+            set_clauses = []
+            values = []
+            
+            for column, value in data.items():
+                if column.lower() != 'id':  # Don't update ID
+                    set_clauses.append(f'{column} = ?')
+                    values.append(value)
+            
+            if not set_clauses:
+                return jsonify({'error': 'No fields to update'}), 400
+            
+            values.append(record_id)  # Add ID for WHERE clause
+            set_clause = ', '.join(set_clauses)
+            query = f'UPDATE {table_name} SET {set_clause} WHERE id = ?'
+            
+            db_manager.execute_query(query, values)
+            
+            return jsonify({'message': 'Record updated successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        try:
+            db_manager.execute_query(f'DELETE FROM {table_name} WHERE id = ?', (record_id,))
+            return jsonify({'message': 'Record deleted successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500

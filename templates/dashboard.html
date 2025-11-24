@@ -9,6 +9,7 @@
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
         <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
         <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
+        <button id="databaseTab" class="tab-btn" onclick="showTab('database')">Database</button>
     </div>
     {% else %}
     <div class="user-menu">
@@ -249,6 +250,50 @@
         </div>
     </div>
     {% endif %}
+    
+    <!-- Database Section -->
+    {% if username == 'admin' %}
+    <div id="databaseSection" class="tab-content" style="display: none;">
+        <h2>Database Management</h2>
+        
+        <div class="database-controls">
+            <label for="tableSelect">Select Table:</label>
+            <select id="tableSelect" onchange="loadTableData()">
+                <option value="">-- Select Table --</option>
+                <option value="users">Users</option>
+                <option value="applications">Applications</option>
+                <option value="auth_tokens">Auth Tokens</option>
+                <option value="user_applications">User Applications</option>
+                <option value="deployments">Deployments</option>
+                <option value="servers">Servers</option>
+                <option value="application_costs">Application Costs</option>
+                <option value="billing_activities">Billing Activities</option>
+            </select>
+            <button class="btn btn-primary" onclick="refreshTable()">Refresh</button>
+            <button class="btn btn-secondary" onclick="showAddRecordForm()">Add Record</button>
+        </div>
+        
+        <div id="tableDataContainer" class="table-container">
+            <p>Select a table to view data</p>
+        </div>
+        
+        <!-- Add Record Form -->
+        <div id="addRecordForm" class="record-form" style="display: none;">
+            <h3>Add New Record</h3>
+            <div id="addRecordFields"></div>
+            <button type="button" class="btn btn-primary" onclick="saveNewRecord()">Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddRecordForm()">Cancel</button>
+        </div>
+        
+        <!-- Edit Record Form -->
+        <div id="editRecordForm" class="record-form" style="display: none;">
+            <h3>Edit Record</h3>
+            <div id="editRecordFields"></div>
+            <button type="button" class="btn btn-primary" onclick="saveEditRecord()">Update</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditRecordForm()">Cancel</button>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Deployment Logs Section -->
@@ -358,12 +403,12 @@
 
 <!-- Virtual Developer Toggle Button -->
 <div id="virtualDeveloperToggle" class="chat-toggle" onclick="showVirtualDeveloperModal()">
-    🤖 My Virtual Developer: ask him to modify the application
+    🤖 {{ get_text('virtual_developer_toggle') }}
 </div>
 
 <!-- Virtual Advisor Toggle Button -->
 <div id="virtualAdvisorToggle" class="chat-toggle" onclick="showVirtualAdvisorModal()" style="bottom: 120px;">
-    💡 My Virtual Advisor : ask him a question
+    💡 {{ get_text('virtual_advisor_toggle') }}
 </div>
 
 <script>
@@ -376,6 +421,11 @@ function showTab(tab) {
         usersSection.style.display = tab === 'users' ? 'block' : 'none';
     }
     
+    const databaseSection = document.getElementById('databaseSection');
+    if (databaseSection) {
+        databaseSection.style.display = tab === 'database' ? 'block' : 'none';
+    }
+    
     document.getElementById('appsTab').classList.toggle('active', tab === 'apps');
     document.getElementById('billingTab').classList.toggle('active', tab === 'billing');
     
@@ -384,10 +434,19 @@ function showTab(tab) {
         usersTab.classList.toggle('active', tab === 'users');
     }
     
+    const databaseTab = document.getElementById('databaseTab');
+    if (databaseTab) {
+        databaseTab.classList.toggle('active', tab === 'database');
+    }
+    
     if (tab === 'users') {
         loadUsers();
     } else if (tab === 'billing') {
         loadBillingData();
+    } else if (tab === 'database') {
+        // Reset table selection when switching to database tab
+        document.getElementById('tableSelect').value = '';
+        document.getElementById('tableDataContainer').innerHTML = '<p>Select a table to view data</p>';
     }
 }
 
@@ -1566,6 +1625,210 @@ function updateCost(appId) {
     })
     .catch(error => {
         alert('Error updating cost.');
+    });
+}
+
+// Database management functions
+function loadTableData() {
+    const tableName = document.getElementById('tableSelect').value;
+    if (!tableName) {
+        document.getElementById('tableDataContainer').innerHTML = '<p>Select a table to view data</p>';
+        return;
+    }
+    
+    fetch(`/api/database/tables/${tableName}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById('tableDataContainer').innerHTML = `<p>Error: ${data.error}</p>`;
+                return;
+            }
+            
+            displayTableData(tableName, data.columns, data.rows);
+        })
+        .catch(error => {
+            document.getElementById('tableDataContainer').innerHTML = '<p>Error loading table data</p>';
+        });
+}
+
+function displayTableData(tableName, columns, rows) {
+    let html = `<h3>${tableName} Table</h3>`;
+    
+    if (rows.length === 0) {
+        html += '<p>No data found in this table</p>';
+    } else {
+        html += '<table class="database-table"><thead><tr>';
+        columns.forEach(col => {
+            html += `<th>${col}</th>`;
+        });
+        html += '<th>Actions</th></tr></thead><tbody>';
+        
+        rows.forEach((row, index) => {
+            html += '<tr>';
+            row.forEach(cell => {
+                html += `<td>${cell || ''}</td>`;
+            });
+            html += `<td class="actions">
+                <button onclick="editRecord('${tableName}', ${index})" class="btn-small">Edit</button>
+                <button onclick="deleteRecord('${tableName}', '${row[0]}')" class="btn-small btn-danger">Delete</button>
+            </td></tr>`;
+        });
+        
+        html += '</tbody></table>';
+    }
+    
+    document.getElementById('tableDataContainer').innerHTML = html;
+    
+    // Store current table data for editing
+    window.currentTableData = { tableName, columns, rows };
+}
+
+function refreshTable() {
+    loadTableData();
+}
+
+function showAddRecordForm() {
+    const tableName = document.getElementById('tableSelect').value;
+    if (!tableName) {
+        alert('Please select a table first');
+        return;
+    }
+    
+    if (!window.currentTableData) {
+        alert('Please load table data first');
+        return;
+    }
+    
+    const columns = window.currentTableData.columns;
+    let html = '';
+    
+    columns.forEach(col => {
+        if (col.toLowerCase() !== 'id') { // Skip ID field for new records
+            html += `<div class="form-group">
+                <label for="add_${col}">${col}:</label>
+                <input type="text" id="add_${col}" name="${col}">
+            </div>`;
+        }
+    });
+    
+    document.getElementById('addRecordFields').innerHTML = html;
+    document.getElementById('addRecordForm').style.display = 'block';
+}
+
+function hideAddRecordForm() {
+    document.getElementById('addRecordForm').style.display = 'none';
+}
+
+function saveNewRecord() {
+    const tableName = document.getElementById('tableSelect').value;
+    const formData = {};
+    
+    // Collect form data
+    const inputs = document.querySelectorAll('#addRecordFields input');
+    inputs.forEach(input => {
+        formData[input.name] = input.value;
+    });
+    
+    fetch(`/api/database/tables/${tableName}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(`Error: ${data.error}`);
+        } else {
+            alert('Record added successfully');
+            hideAddRecordForm();
+            loadTableData();
+        }
+    })
+    .catch(error => {
+        alert('Error saving record');
+    });
+}
+
+function editRecord(tableName, rowIndex) {
+    if (!window.currentTableData) {
+        alert('Table data not loaded');
+        return;
+    }
+    
+    const columns = window.currentTableData.columns;
+    const row = window.currentTableData.rows[rowIndex];
+    
+    let html = '';
+    columns.forEach((col, index) => {
+        const value = row[index] || '';
+        const isId = col.toLowerCase() === 'id';
+        html += `<div class="form-group">
+            <label for="edit_${col}">${col}:</label>
+            <input type="text" id="edit_${col}" name="${col}" value="${value}" ${isId ? 'readonly' : ''}>
+        </div>`;
+    });
+    
+    document.getElementById('editRecordFields').innerHTML = html;
+    document.getElementById('editRecordForm').style.display = 'block';
+    
+    // Store the record ID for updating
+    window.editingRecordId = row[0];
+}
+
+function hideEditRecordForm() {
+    document.getElementById('editRecordForm').style.display = 'none';
+}
+
+function saveEditRecord() {
+    const tableName = document.getElementById('tableSelect').value;
+    const recordId = window.editingRecordId;
+    const formData = {};
+    
+    // Collect form data
+    const inputs = document.querySelectorAll('#editRecordFields input');
+    inputs.forEach(input => {
+        formData[input.name] = input.value;
+    });
+    
+    fetch(`/api/database/tables/${tableName}/${recordId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(`Error: ${data.error}`);
+        } else {
+            alert('Record updated successfully');
+            hideEditRecordForm();
+            loadTableData();
+        }
+    })
+    .catch(error => {
+        alert('Error updating record');
+    });
+}
+
+function deleteRecord(tableName, recordId) {
+    if (!confirm('Are you sure you want to delete this record? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch(`/api/database/tables/${tableName}/${recordId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(`Error: ${data.error}`);
+        } else {
+            alert('Record deleted successfully');
+            loadTableData();
+        }
+    })
+    .catch(error => {
+        alert('Error deleting record');
     });
 }
 
