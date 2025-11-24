@@ -1146,7 +1146,7 @@ function updateApplicationButtonStatus(appName, logs) {
     if (!openBtn) return;
     
     // Check if application is not cloned/installed
-    const isNotCloned = logs.toLowerCase().includes('Application not deployed. Clone first');
+    const isNotCloned = logs.toLowerCase().includes('application not deployed. clone first');
     
     let isRunning = false;
     let isNotRunning = false;
@@ -1162,15 +1162,13 @@ function updateApplicationButtonStatus(appName, logs) {
             const statusData = JSON.parse(jsonString);
             if (statusData.docker_compose_ps) {
                 isRunning = statusData.docker_compose_ps === 'IS_RUNNING';
-                isNotRunning = statusData.docker_compose_ps === 'NOT_RUNNING';
+                isNotRunning = statusData.docker_compose_ps === 'IS_NOT_RUNNING';
             }
         } catch (e) {
             // Fallback to old text parsing
             const logLines = logs.toLowerCase().split('\n');
-            const hasUpStatus = logs.toLowerCase().includes('IS_RUNNING');
-            const hasNotRunningWithAppName =  logs.toLowerCase().includes('IS_NOT_RUNNING');
-            isNotRunning = hasNotRunningWithAppName;
-            isRunning = !isNotRunning && hasUpStatus;
+            const isRunning = logs.includes('IS_RUNNING');
+            const isNotRunning =  logs.includes('IS_NOT_RUNNING');
         }
     }
     
