@@ -1,0 +1,248 @@
+"""Billing management routes"""
+from flask import Blueprint, request, jsonify, session
+import sqlite3
+from datetime import datetime, timedelta
+from ..config import DB_PATH
+
+billing_bp = Blueprint('billing', __name__)
+
+@billing_bp.route('/api/billing/activities')
+def get_billing_activities():
+    """Get billing activities based on user role"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user is admin
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    is_admin = user and user[0] == 'admin'
+    
+    if is_admin:
+        # Admin sees all activities
+        cursor.execute('''
+            SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                   ba.duration_seconds, ba.cost_amount, ba.created_at
+            FROM billing_activities ba
+            JOIN users u ON ba.user_id = u.id
+            JOIN applications a ON ba.application_id = a.id
+            ORDER BY ba.created_at DESC
+        ''')
+    else:
+        # Regular user sees only their activities
+        cursor.execute('''
+            SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                   ba.duration_seconds, ba.cost_amount, ba.created_at
+            FROM billing_activities ba
+            JOIN users u ON ba.user_id = u.id
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ?
+            ORDER BY ba.created_at DESC
+        ''', (session['user_id'],))
+    
+    activities = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([{
+        'id': row[0],
+        'username': row[1],
+        'application': row[2],
+        'action': row[3],
+        'started_at': row[4],
+        'stopped_at': row[5],
+        'duration_seconds': row[6],
+        'cost_amount': row[7],
+        'created_at': row[8]
+    } for row in activities])
+
+@billing_bp.route('/api/billing/summary')
+def get_billing_summary():
+    """Get billing summary by period"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    period = request.args.get('period', 'month')  # day, week, month
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user is admin
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    is_admin = user and user[0] == 'admin'
+    
+    # Calculate date range
+    now = datetime.now()
+    if period == 'day':
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'week':
+        start_date = now - timedelta(days=now.weekday())
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:  # month
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
+    if is_admin:
+        # Admin sees all users' summary
+        cursor.execute('''
+            SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+            FROM billing_activities ba
+            JOIN users u ON ba.user_id = u.id
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.created_at >= ?
+            GROUP BY u.username, a.name
+            ORDER BY u.username, a.name
+        ''', (start_date.isoformat(),))
+    else:
+        # Regular user sees only their summary
+        cursor.execute('''
+            SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+            FROM billing_activities ba
+            JOIN users u ON ba.user_id = u.id
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ? AND ba.created_at >= ?
+            GROUP BY u.username, a.name
+            ORDER BY a.name
+        ''', (session['user_id'], start_date.isoformat()))
+    
+    summary = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([{
+        'username': row[0],
+        'application': row[1],
+        'total_duration_seconds': row[2] or 0,
+        'total_cost': row[3] or 0.0
+    } for row in summary])
+
+@billing_bp.route('/api/billing/costs')
+def get_application_costs():
+    """Get application costs (admin only)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user is admin
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    cursor.execute('''
+        SELECT a.id, a.name, ac.cost_per_day, ac.updated_at
+        FROM applications a
+        LEFT JOIN application_costs ac ON a.id = ac.application_id
+        ORDER BY a.name
+    ''')
+    
+    costs = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([{
+        'application_id': row[0],
+        'application_name': row[1],
+        'cost_per_day': row[2] or 1.0,
+        'updated_at': row[3]
+    } for row in costs])
+
+@billing_bp.route('/api/billing/costs/<int:app_id>', methods=['PUT'])
+def update_application_cost(app_id):
+    """Update application cost (admin only)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user is admin
+    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+    user = cursor.fetchone()
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    cost_per_day = data.get('cost_per_day', 1.0)
+    
+    # Update or insert cost
+    cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id,))
+    if cursor.fetchone()[0] > 0:
+        cursor.execute('''
+            UPDATE application_costs 
+            SET cost_per_day = ?, updated_at = CURRENT_TIMESTAMP 
+            WHERE application_id = ?
+        ''', (cost_per_day, app_id))
+    else:
+        cursor.execute('''
+            INSERT INTO application_costs (application_id, cost_per_day) 
+            VALUES (?, ?)
+        ''', (app_id, cost_per_day))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'message': 'Cost updated successfully'})
+
+def record_billing_activity(user_id, application_name, action):
+    """Record billing activity for application start/stop"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Get application ID
+    cursor.execute('SELECT id FROM applications WHERE name = ?', (application_name,))
+    app_result = cursor.fetchone()
+    if not app_result:
+        conn.close()
+        return
+    
+    application_id = app_result[0]
+    
+    if action == 'start':
+        # Record start activity
+        cursor.execute('''
+            INSERT INTO billing_activities (user_id, application_id, action, started_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (user_id, application_id, action))
+    
+    elif action == 'stop':
+        # Find the most recent start activity for this user and app
+        cursor.execute('''
+            SELECT id, started_at FROM billing_activities
+            WHERE user_id = ? AND application_id = ? AND action = 'start' AND stopped_at IS NULL
+            ORDER BY created_at DESC LIMIT 1
+        ''', (user_id, application_id))
+        
+        start_activity = cursor.fetchone()
+        if start_activity:
+            start_id, started_at = start_activity
+            
+            # Calculate duration and cost
+            start_time = datetime.fromisoformat(started_at)
+            stop_time = datetime.now()
+            duration_seconds = int((stop_time - start_time).total_seconds())
+            
+            # Get cost per day for this application
+            cursor.execute('SELECT cost_per_day FROM application_costs WHERE application_id = ?', (application_id,))
+            cost_result = cursor.fetchone()
+            cost_per_day = cost_result[0] if cost_result else 1.0
+            
+            # Calculate cost (cost per day / 86400 seconds * duration)
+            cost_amount = (cost_per_day / 86400) * duration_seconds
+            
+            # Update the start activity with stop information
+            cursor.execute('''
+                UPDATE billing_activities 
+                SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = ?, cost_amount = ?
+                WHERE id = ?
+            ''', (duration_seconds, cost_amount, start_id))
+        
+        # Also record the stop activity
+        cursor.execute('''
+            INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ''', (user_id, application_id, action))
+    
+    conn.commit()
+    conn.close()

@@ -8,6 +8,12 @@
     <div class="admin-menu">
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
         <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
+        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
+    </div>
+    {% else %}
+    <div class="user-menu">
+        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
+        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
     </div>
     {% endif %}
     
@@ -151,6 +157,45 @@
 
         <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
     </div>
+    </div>
+    
+    <!-- Billing Section -->
+    <div id="billingSection" class="tab-content" style="display: none;">
+        <h2>Billing Management</h2>
+        
+        {% if username == 'admin' %}
+        <!-- Admin Billing Controls -->
+        <div class="billing-controls">
+            <div class="period-selector">
+                <label>Period:</label>
+                <select id="billingPeriod" onchange="loadBillingSummary()">
+                    <option value="day">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month" selected>This Month</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="showCostManagement()">Manage Costs</button>
+        </div>
+        
+        <!-- Cost Management Form -->
+        <div id="costManagementForm" class="cost-form" style="display: none;">
+            <h3>Application Costs</h3>
+            <div id="costsList"></div>
+            <button type="button" class="btn btn-secondary" onclick="hideCostManagement()">Close</button>
+        </div>
+        {% endif %}
+        
+        <!-- Billing Summary -->
+        <div class="billing-summary">
+            <h3>Usage Summary</h3>
+            <div id="billingSummaryContent">Loading...</div>
+        </div>
+        
+        <!-- Billing Activities -->
+        <div class="billing-activities">
+            <h3>Activity Log</h3>
+            <div id="billingActivitiesContent">Loading...</div>
+        </div>
     </div>
     
     {% if username == 'admin' %}
@@ -324,13 +369,25 @@
 <script>
 function showTab(tab) {
     document.getElementById('appsSection').style.display = tab === 'apps' ? 'block' : 'none';
-    document.getElementById('usersSection').style.display = tab === 'users' ? 'block' : 'none';
+    document.getElementById('billingSection').style.display = tab === 'billing' ? 'block' : 'none';
+    
+    const usersSection = document.getElementById('usersSection');
+    if (usersSection) {
+        usersSection.style.display = tab === 'users' ? 'block' : 'none';
+    }
     
     document.getElementById('appsTab').classList.toggle('active', tab === 'apps');
-    document.getElementById('usersTab').classList.toggle('active', tab === 'users');
+    document.getElementById('billingTab').classList.toggle('active', tab === 'billing');
+    
+    const usersTab = document.getElementById('usersTab');
+    if (usersTab) {
+        usersTab.classList.toggle('active', tab === 'users');
+    }
     
     if (tab === 'users') {
         loadUsers();
+    } else if (tab === 'billing') {
+        loadBillingData();
     }
 }
 
@@ -1371,6 +1428,145 @@ function addVirtualAdvisorMessage(type, content) {
     
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
+}
+
+// Billing functions
+function loadBillingData() {
+    loadBillingSummary();
+    loadBillingActivities();
+}
+
+function loadBillingSummary() {
+    const period = document.getElementById('billingPeriod')?.value || 'month';
+    fetch(`/api/billing/summary?period=${period}`)
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('billingSummaryContent');
+            if (data.length === 0) {
+                content.innerHTML = '<p>No usage data for this period.</p>';
+                return;
+            }
+            
+            let html = '<table class="billing-table"><thead><tr><th>User</th><th>Application</th><th>Duration</th><th>Cost</th></tr></thead><tbody>';
+            let totalCost = 0;
+            
+            data.forEach(item => {
+                const hours = Math.floor(item.total_duration_seconds / 3600);
+                const minutes = Math.floor((item.total_duration_seconds % 3600) / 60);
+                const duration = `${hours}h ${minutes}m`;
+                const cost = parseFloat(item.total_cost || 0).toFixed(4);
+                totalCost += parseFloat(cost);
+                
+                html += `<tr>
+                    <td>${item.username}</td>
+                    <td>${item.application}</td>
+                    <td>${duration}</td>
+                    <td>$${cost}</td>
+                </tr>`;
+            });
+            
+            html += `</tbody><tfoot><tr><th colspan="3">Total</th><th>$${totalCost.toFixed(2)}</th></tr></tfoot></table>`;
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('billingSummaryContent').innerHTML = '<p>Error loading billing summary.</p>';
+        });
+}
+
+function loadBillingActivities() {
+    fetch('/api/billing/activities')
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('billingActivitiesContent');
+            if (data.length === 0) {
+                content.innerHTML = '<p>No billing activities found.</p>';
+                return;
+            }
+            
+            let html = '<table class="billing-table"><thead><tr><th>User</th><th>Application</th><th>Action</th><th>Started</th><th>Stopped</th><th>Duration</th><th>Cost</th></tr></thead><tbody>';
+            
+            data.forEach(activity => {
+                const startTime = activity.started_at ? new Date(activity.started_at).toLocaleString() : '-';
+                const stopTime = activity.stopped_at ? new Date(activity.stopped_at).toLocaleString() : '-';
+                const duration = activity.duration_seconds ? `${Math.floor(activity.duration_seconds / 60)}m` : '-';
+                const cost = activity.cost_amount ? `$${parseFloat(activity.cost_amount).toFixed(4)}` : '-';
+                
+                html += `<tr>
+                    <td>${activity.username}</td>
+                    <td>${activity.application}</td>
+                    <td><span class="action-${activity.action}">${activity.action}</span></td>
+                    <td>${startTime}</td>
+                    <td>${stopTime}</td>
+                    <td>${duration}</td>
+                    <td>${cost}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('billingActivitiesContent').innerHTML = '<p>Error loading billing activities.</p>';
+        });
+}
+
+function showCostManagement() {
+    document.getElementById('costManagementForm').style.display = 'block';
+    loadApplicationCosts();
+}
+
+function hideCostManagement() {
+    document.getElementById('costManagementForm').style.display = 'none';
+}
+
+function loadApplicationCosts() {
+    fetch('/api/billing/costs')
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('costsList');
+            let html = '<table class="costs-table"><thead><tr><th>Application</th><th>Cost per Day ($)</th><th>Actions</th></tr></thead><tbody>';
+            
+            data.forEach(app => {
+                html += `<tr>
+                    <td>${app.application_name}</td>
+                    <td><input type="number" step="0.01" value="${app.cost_per_day}" id="cost-${app.application_id}" class="cost-input"></td>
+                    <td><button onclick="updateCost(${app.application_id})" class="btn btn-small">Update</button></td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('costsList').innerHTML = '<p>Error loading application costs.</p>';
+        });
+}
+
+function updateCost(appId) {
+    const costInput = document.getElementById(`cost-${appId}`);
+    const newCost = parseFloat(costInput.value);
+    
+    if (isNaN(newCost) || newCost < 0) {
+        alert('Please enter a valid cost amount.');
+        return;
+    }
+    
+    fetch(`/api/billing/costs/${appId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cost_per_day: newCost})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert('Cost updated successfully!');
+        }
+    })
+    .catch(error => {
+        alert('Error updating cost.');
+    });
 }
 
 // Close modal when clicking outside

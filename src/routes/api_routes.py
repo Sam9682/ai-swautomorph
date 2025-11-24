@@ -501,6 +501,12 @@ def api_deployments():
                     WHERE user_id = ? AND application_name = ?
                 ''', (status, session['user_id'], app_name))
                 print(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
+                
+                # Record billing activity for start/stop actions
+                if action in ['start', 'stop'] and result.returncode == 0:
+                    from .billing_routes import record_billing_activity
+                    record_billing_activity(session['user_id'], app_name, action)
+                    print(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
             
             conn.commit()
             conn.close()

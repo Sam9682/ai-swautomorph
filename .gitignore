@@ -69,3 +69,5 @@ nohup.out
 .venv/
 venv/
 env/
+
+./src/ssl/privateKey_automorph_simple.privateKey_automorph_simple
