@@ -937,7 +937,7 @@ def api_server_allocate():
             SELECT id, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX 
             FROM servers 
             WHERE SERVER_STATUS = 'STAND_BY' OR SERVER_STATUS = 'ACTIVE'
-            ORDER BY STATUS ASC
+            ORDER BY SERVER_STATUS ASC
         ''', fetch_all=True)
         
         if not servers:
