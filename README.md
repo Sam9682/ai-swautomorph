@@ -41,7 +41,7 @@ cd ai-swautomorph
 pip install -r requirements.txt
 
 # 2. Initialize database
-python3 cli.py init-db
+python3 ./scripts/cli.py init-db
 
 # 3. Start application
 python3 app.py
@@ -65,16 +65,16 @@ export FLASK_ENV="production"
 ### Database Initialization
 ```bash
 # Initialize database schema
-python3 cli.py init-db
+python3 ./scripts/cli.py init-db
 ```
 
 ### SSL Certificate Setup
 ```bash
 # Auto-generate self-signed certificate
-./generate_ssl.sh
+./scripts/generate_ssl.sh
 
 # Or use Let's Encrypt for production
-sudo ./setup_letsencrypt.sh
+sudo ./scripts/setup_letsencrypt.sh
 ```
 
 ## API Access for GenAI Agents
@@ -105,13 +105,13 @@ curl -X POST https://localhost:5000/api/deploy \
 ### CLI Interface
 ```bash
 # Register user
-python3 cli.py register --username agent --email agent@example.com --password secure_pass
+python3 ./scripts/cli.py register --username agent --email agent@example.com --password secure_pass
 
 # List applications
-python3 cli.py list-apps
+python3 ./scripts/cli.py list-apps
 
 # Deploy application
-python3 cli.py deploy --name MyApp --action start
+python3 ./scripts/cli.py deploy --name MyApp --action start
 ```
 
 ### MCP Protocol
@@ -158,7 +158,7 @@ sudo netstat -tulpn | grep :5000
 sudo chown -R $USER:$USER /home/ubuntu/deployments/
 
 # Database issues
-rm users.db && python3 cli.py init-db
+rm users.db && python3 ./scripts/cli.py init-db
 ```
 
 ### Reset Installation

@@ -33,16 +33,16 @@
     
     <div class="code">
 # Register a new user<br>
-python3 cli.py register --username myuser --email user@example.com<br><br>
+python3 ./scripts/cli.py register --username myuser --email user@example.com<br><br>
 
 # List available applications<br>
-python3 cli.py list-apps<br><br>
+python3 ./scripts/cli.py list-apps<br><br>
 
 # Add a new application<br>
-python3 cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"<br><br>
+python3 ./scripts/cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"<br><br>
 
 # Initialize database<br>
-python3 cli.py init-db
+python3 ./scripts/cli.py init-db
     </div>
     
     <h3>3. REST API</h3>
@@ -154,7 +154,7 @@ docker-compose down
     
     <h3>Common Issues</h3>
     <ul>
-        <li><strong>Database not found:</strong> Run <code class="code">python3 cli.py init-db</code></li>
+        <li><strong>Database not found:</strong> Run <code class="code">python3 ./scripts/cli.py init-db</code></li>
         <li><strong>Permission denied:</strong> Check file permissions and Docker access</li>
         <li><strong>Port conflicts:</strong> Ensure ports 80 and 443 are available</li>
         <li><strong>Service not starting:</strong> Check logs with <code class="code">docker-compose logs</code></li>

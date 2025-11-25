@@ -104,8 +104,8 @@ check_status() {
 }
 
 check_flask_status() {
-    if [ -f "app.pid" ]; then
-        PID=$(cat app.pid)
+    if [ -f "./conf/app.pid" ]; then
+        PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
             echo "  ✅ Flask application: Running (PID: $PID)"
         else
@@ -243,16 +243,16 @@ remove_gitea() {
 
 stop_flask_service() {
     if [ -f "app.pid" ]; then
-        PID=$(cat app.pid)
+        PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
             kill "$PID"
             echo "  ✅ Flask application stopped (PID: $PID)"
         else
             echo "  ⚠️ Flask process not running (PID: $PID)"
         fi
-        rm -f app.pid
+        rm -f ./conf/app.pid
     else
-        echo "  ⚠️ No app.pid file found"
+        echo "  ⚠️ No ./conf/app.pid file found"
     fi
 }
 
@@ -339,7 +339,7 @@ restart_flask_service() {
     # Start Flask with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     nohup python3 app.py > "$LOG_FILE" 2>&1 &
-    echo $! > app.pid
+    echo $! > ./conf/app.pid
 }
 
 reload_nginx_config() {
@@ -605,8 +605,8 @@ start_flask_application() {
     # Start Flask on port 5001 with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
-    echo $! > app.pid
-    echo "  ✅ Flask application started (PID: $(cat app.pid))"
+    echo $! > ./conf/app.pid
+    echo "  ✅ Flask application started (PID: $(cat ./conf/app.pid))"
 }
 
 configure_nginx() {
@@ -741,7 +741,7 @@ create_directories() {
 setup_ssl_certificates() {
     if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
         echo "🔐 Generating SSL certificates..."
-        ./generate_ssl.sh
+        ./scripts/generate_ssl.sh
     else
         echo "  ✅ SSL certificates already exist"
     fi

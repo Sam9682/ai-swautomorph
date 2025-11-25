@@ -53,7 +53,7 @@ services:
   nginx:                  # Reverse proxy & SSL termination
     image: nginx:alpine
     ports: ["80:80", "443:443"]
-    volumes: ["./nginx.conf:/etc/nginx/nginx.conf"]
+    volumes: ["./conf/nginx.conf:/etc/nginx/nginx.conf"]
     
   db:                     # Database (optional - can use SQLite)
     image: postgres:13

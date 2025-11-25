@@ -30,7 +30,7 @@ Updated the database mechanism to prevent "database is locked" errors by impleme
 - **Optimization utilities**: VACUUM and ANALYZE operations
 
 ### 4. CLI Enhancements (`cli.py`)
-- **Health check command**: `python3 cli.py db-health`
+- **Health check command**: `python3 ./scripts/cli.py db-health`
 - **Database initialization**: Fixed import paths
 
 ## Technical Improvements
@@ -65,7 +65,7 @@ with db_manager.get_db_connection() as conn:
 ### Check Database Health
 ```bash
 # Via CLI
-python3 cli.py db-health
+python3 ./scripts/cli.py db-health
 
 # Via API (admin only)
 curl -X GET https://www.swautomorph.com/api/health/database
