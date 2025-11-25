@@ -55,12 +55,12 @@
                 <a href="{{ app[2] }}?sso_token={{ sso_token }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deployApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 {{ get_text('status') }}</button>
-                    <button onclick="deployApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 {{ get_text('logs') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 {{ get_text('status') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 {{ get_text('logs') }}</button>
                 </div>
                 {% endif %}
             </div>
@@ -460,6 +460,9 @@
 </div>
 
 <script>
+// Constants for easier maintenance
+const APP_NOT_DEPLOYED_MESSAGE = 'Application not deployed. Clone first';
+
 function showTab(tab) {
     document.getElementById('appsSection').style.display = tab === 'apps' ? 'block' : 'none';
     document.getElementById('billingSection').style.display = tab === 'billing' ? 'block' : 'none';
@@ -846,7 +849,7 @@ function unassignApp(userId, appId) {
 }
 
 // Deployment functions
-function deployApp(appName, gitUrl, action) {
+function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
     // Show logs section
     showLogs();
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -854,7 +857,7 @@ function deployApp(appName, gitUrl, action) {
     
     // Add loading indicator for long operations
     if (['start', 'clone', 'restart'].includes(action)) {
-        appendLog(`⏳ This may take several minutes for Docker builds...`);
+        appendLog(`⏳ This may take several minutes, like for Docker builds...`);
     }
     
     // Get server_id first, then proceed with deployment
@@ -871,7 +874,7 @@ function deployApp(appName, gitUrl, action) {
         
         // Create AbortController for timeout
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 minutes
+        const timeoutId = setTimeout(() => controller.abort(), 20 * 60 * 1000); // 20 minutes
         
         fetch('/api/deployments', {
         method: 'POST',
@@ -1146,7 +1149,7 @@ function updateApplicationButtonStatus(appName, logs) {
     if (!openBtn) return;
     
     // Check if application is not cloned/installed
-    const isNotCloned = logs.toLowerCase().includes('application not deployed. clone first');
+    const isNotCloned = logs.toLowerCase().includes(APP_NOT_DEPLOYED_MESSAGE.toLowerCase());
     
     let isRunning = false;
     let isNotRunning = false;
@@ -1324,7 +1327,7 @@ function sendVirtualDeveloperMessage() {
                 const cloneBtn = card.querySelector('[onclick*="clone"]');
                 if (cloneBtn) {
                     const onclickAttr = cloneBtn.getAttribute('onclick');
-                    const match = onclickAttr.match(/deployApp\('([^']+)',\s*'([^']*)',\s*'clone'\)/);
+                    const match = onclickAttr.match(/deploy_sh_executionCmdInApp\('([^']+)',\s*'([^']*)',\s*'clone'\)/);
                     if (match && match[2]) {
                         githubUrl = match[2];
                     }
