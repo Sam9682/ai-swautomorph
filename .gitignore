@@ -72,3 +72,5 @@ nohup.out
 .venv/
 venv/
 env/
+db/ai_swautomorph.db-wal
+db/ai_swautomorph.db-shm
