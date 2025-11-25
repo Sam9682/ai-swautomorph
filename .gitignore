@@ -1,9 +1,9 @@
 # Database files
-db/
-db/*.db-shm
-db/*.db-wal
+*.db
 *.sqlite
 *.sqlite3
+db/
+data/
 
 # Environment files
 .env
@@ -32,45 +32,44 @@ wheels/
 .installed.cfg
 *.egg
 
-# Docker
-.dockerignore
-
-# Data directories
-data/
-ssl/
-
-# Deployment directories
-deployments/
-
-# Application logs and PID files
-app.log
-app.pid
-*.log
-*.pid
-logs/
-app_logs_*.log
-
-# IDE
-.vscode/
-.idea/
-*.db
-*.swo
-
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-nohup.out
-# Gitea admin token
-/tmp/gitea_admin_token
-
 # Virtual environments
 .venv/
 venv/
 env/
-db/ai_swautomorph.db-wal
-db/ai_swautomorph.db-shm
+
+# SSL certificates and keys
+ssl/
+*.pem
+*.key
+*.crt
+
+# Configuration and runtime files
+conf/
+*.pid
+
+# Logs
+logs/
+*.log
+app_logs_*.log
+nohup.out
+
+# Deployment directories
+deployments/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+cookies.txt
+
+# Gitea admin token
+/tmp/gitea_admin_token
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
