@@ -1,6 +1,10 @@
 # AI-SwAutoMorph
 
-A centralized application management platform with user authentication and multi-access support (Web, CLI, API, MCP).
+## Objective
+
+AI-SwAutoMorph is a centralized application deployment and management platform designed for GenAI agents. It provides automated deployment, lifecycle management, and SSO authentication for web applications through multiple interfaces (Web, CLI, API, MCP).
+
+**Core Purpose**: Enable GenAI agents to autonomously deploy, manage, and access web applications without human intervention.
 
 ## Features
 
@@ -15,214 +19,152 @@ A centralized application management platform with user authentication and multi
 - 🤖 MCP (Model Context Protocol) support
 - 📖 Comprehensive user guide
 
-## Quick Start
+## Automated Installation
 
-### 1. Production Deployment
+### Prerequisites Check
 ```bash
+# Verify system requirements
+which python3 && which pip && which docker && which docker-compose
+```
+
+### One-Command Installation
+```bash
+# Clone and deploy (fully automated)
+git clone https://github.com/your-repo/ai-swautomorph.git
+cd ai-swautomorph
 ./deploy.sh
 ```
 
-### 2. Manual Setup
+### Manual Installation Steps
 ```bash
-# Install dependencies
+# 1. Install Python dependencies
 pip install -r requirements.txt
 
-# Initialize database
+# 2. Initialize database
 python3 cli.py init-db
 
-# Start application
+# 3. Start application
 python3 app.py
 ```
 
-### 3. Docker Development
+### Docker Installation
 ```bash
+# Single command deployment
 docker-compose up -d
 ```
 
-## Access Methods
+## Configuration
 
-### Web Interface
-- URL: `https://www.swautomorph.com` (HTTPS secured)
-- HTTP redirect: `http://www.swautomorph.com` (automatically redirects to HTTPS)
-- Features: Registration, login, dashboard, application management, **deployment controls**
+### Environment Variables
+```bash
+# Required for production
+export SECRET_KEY="your-secret-key-here"
+export FLASK_ENV="production"
+```
 
-### CLI Tool
+### Database Initialization
+```bash
+# Initialize database schema
+python3 cli.py init-db
+```
+
+### SSL Certificate Setup
+```bash
+# Auto-generate self-signed certificate
+./generate_ssl.sh
+
+# Or use Let's Encrypt for production
+sudo ./setup_letsencrypt.sh
+```
+
+## API Access for GenAI Agents
+
+### User Registration
+```bash
+curl -X POST https://localhost:5000/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"agent","email":"agent@example.com","password":"secure_pass"}'
+```
+
+### Application Management
+```bash
+# List applications
+curl https://localhost:5000/api/applications
+
+# Add application
+curl -X POST https://localhost:5000/api/applications \
+  -H "Content-Type: application/json" \
+  -d '{"name":"MyApp","url":"http://myapp.com","git_url":"https://github.com/user/myapp.git"}'
+
+# Deploy application
+curl -X POST https://localhost:5000/api/deploy \
+  -H "Content-Type: application/json" \
+  -d '{"application_name":"MyApp","action":"start"}'
+```
+
+### CLI Interface
 ```bash
 # Register user
-python3 cli.py register
+python3 cli.py register --username agent --email agent@example.com --password secure_pass
 
 # List applications
 python3 cli.py list-apps
 
-# Add application
-python3 cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"
-```
-
-### REST API
-```bash
-# Register user
-curl -X POST https://www.swautomorph.com/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"user","email":"user@example.com","password":"pass"}'
-
-# List applications
-curl https://www.swautomorph.com/api/applications
-
-# Validate SSO token
-curl -X POST https://www.swautomorph.com/sso/validate \
-  -H "Content-Type: application/json" \
-  -d '{"token":"your_sso_token_here"}'
-```
-
-### SSO Integration
-```bash
-# Validate token via CLI
-python3 cli.py validate-token --token "your_token_here"
-
-# Access application with SSO
-# Users click application links in dashboard, automatically redirected with token
-# Example: http://ai-haccp.swautomorph.com:3000?sso_token=abc123...
+# Deploy application
+python3 cli.py deploy --name MyApp --action start
 ```
 
 ### MCP Protocol
 ```bash
-# Start MCP server
+# Start MCP server for agent communication
 python3 mcp_server.py
 ```
 
-## Project Structure
+## Verification
 
-```
-ai-swautomorph/
-├── src/                   # Source code (modular architecture)
-│   ├── __init__.py
-│   ├── config.py          # Configuration & translations
-│   ├── database.py        # Database initialization
-│   ├── auth.py           # Authentication & SSO logic
-│   ├── app.py            # Flask application factory
-│   ├── main.py           # Application entry point
-│   └── routes/           # Route handlers
-│       ├── __init__.py
-│       ├── main_routes.py    # Main pages (/, /dashboard)
-│       ├── auth_routes.py    # Authentication routes
-│       ├── sso_routes.py     # SSO functionality
-│       └── api_routes.py     # API endpoints
-├── app.py                # Modular application entry point
-├── cli.py                # Command-line interface
-├── mcp_server.py         # MCP protocol server
-├── deploy.sh             # Production deployment script
-├── requirements.txt      # Python dependencies
-├── Dockerfile            # Docker configuration
-├── docker-compose.yml    # Docker Compose setup
-├── nginx.conf            # Nginx reverse proxy config
-├── templates/            # HTML templates
-│   ├── base.html
-│   ├── login.html
-│   ├── register.html
-│   ├── dashboard.html
-│   └── sso_login.html
-└── static/               # Static assets
-    ├── css/style.css
-    ├── js/app.js
-    └── userguide.html
-```
-
-## Default Applications
-
-The system comes with two default applications:
-- **AI FoodFlow**: `https://ai-foodflow.swautomorph.com:3001`
-- **AI HACCP**: `https://ai-haccp.swautomorph.com:3000`
-
-### Deployment Features
-- **Clone**: Download application source code to user directories
-- **Start/Stop**: Control application lifecycle using deploy.sh scripts  
-- **Status**: Monitor deployment status and view logs
-- **Isolated**: Each user gets their own deployment directory under `/home/ubuntu/deployments/{username}/`
-
-## Source Code Architecture
-
-### Modular Design
-The application follows a modular architecture for better maintainability:
-
-- **src/config.py**: Configuration settings and translations
-- **src/database.py**: Database initialization and schema
-- **src/auth.py**: Authentication and SSO token management
-- **src/app.py**: Flask application factory with blueprints
-- **src/routes/**: Organized route handlers by functionality
-  - **main_routes.py**: Dashboard and main pages
-  - **auth_routes.py**: Login, register, logout
-  - **sso_routes.py**: SSO validation and redirects
-  - **api_routes.py**: REST API endpoints
-
-### Benefits
-- ✅ **Readable**: Single responsibility per module
-- ✅ **Maintainable**: Easy to locate and modify features
-- ✅ **Scalable**: Simple to add new functionality
-- ✅ **Testable**: Individual modules can be tested separately
-
-## Environment Variables
-
-- `SECRET_KEY`: Flask secret key (change in production)
-- `FLASK_ENV`: Environment mode (development/production)
-
-## Database Schema
-
-### Users Table
-- id, username, email, password_hash, first_name, last_name, created_at
-
-### Applications Table
-- id, name, url, description, git_url, created_at
-
-### Deployments Table
-- id, user_id, application_name, status, deployment_path, git_url, created_at, updated_at
-
-### Auth Tokens Table (SSO)
-- id, user_id, token_hash, expires_at, created_at
-
-## Security Notes
-
-- Change default SECRET_KEY in production
-- Use HTTPS for production deployments
-- Implement proper firewall rules
-- Regular database backups recommended
-- SSO tokens expire after 1 week automatically
-- Tokens are hashed in database for security
-- Only one active token per user (new login invalidates previous token)
-
-## SSL/HTTPS Security
-
-### Development (Self-Signed Certificate)
+### Health Check
 ```bash
-# Generate self-signed certificate (automatic during deployment)
-./generate_ssl.sh
+# Verify installation
+curl https://localhost:5000/health
+
+# Expected response: {"status":"healthy"}
 ```
 
-### Production (Let's Encrypt)
+### Service Status
 ```bash
-# Setup Let's Encrypt certificate
-sudo ./setup_letsencrypt.sh
+# Check all services
+docker-compose ps
 
-# Auto-renewal (add to crontab)
-0 12 * * * /usr/bin/certbot renew --quiet && docker-compose restart nginx
+# Check application logs
+docker-compose logs app
 ```
 
-### Security Features
-- 🔒 TLS 1.2/1.3 encryption
-- 🔄 HTTP to HTTPS redirect
-- 🛡️ Security headers (HSTS, X-Frame-Options, etc.)
-- 📜 SSL certificate validation
+## Default Configuration
 
-## Documentation
+- **Web Interface**: https://localhost:5000
+- **API Endpoint**: https://localhost:5000/api
+- **MCP Server**: localhost:8080
+- **Database**: SQLite (users.db)
+- **Deployment Directory**: /home/ubuntu/deployments/
 
-Complete user guide available at: `https://www.swautomorph.com/static/userguide.html`
+## Troubleshooting
 
-### Deployment Guide
-Detailed deployment documentation: [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-- Application deployment workflow
-- API endpoints for deployment
-- Troubleshooting guide
-- Security considerations
+### Common Issues
+```bash
+# Port conflicts
+sudo netstat -tulpn | grep :5000
 
-## License
+# Permission issues
+sudo chown -R $USER:$USER /home/ubuntu/deployments/
 
-MIT License - See LICENSE file for details
+# Database issues
+rm users.db && python3 cli.py init-db
+```
+
+### Reset Installation
+```bash
+# Complete reset
+docker-compose down -v
+rm users.db
+./deploy.sh
+```
