@@ -73,3 +73,5 @@ cookies.txt
 # OS
 .DS_Store
 Thumbs.db
+db/ai_swautomorph.db-shm
+db/ai_swautomorph.db-wal
