@@ -552,15 +552,15 @@ def api_deployments():
                     deploy_path = deployment[0]
                 else:
                     deploy_path = deployment_path
-                deploy_script = os.path.join(deploy_path, 'deploy.sh')
+                deploy_script = os.path.join(deploy_path, 'deployApp.sh')
                 print(f"[DEPLOYMENT API] {action.upper()} - Found deployment at: {deploy_path}")
                 print(f"[DEPLOYMENT API] {action.upper()} - Looking for deploy script: {deploy_script}")
                 
                 if not os.path.exists(deploy_script):
-                    print(f"[DEPLOYMENT API] {action.upper()} - FAILED - deploy.sh not found at {deploy_script}")
-                    return jsonify({'error': f'deploy.sh not found in {deploy_script}'}), 400
+                    print(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
+                    return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 400
                 
-                # Get user details for deploy.sh
+                # Get user details for deployApp.sh
                 user_details = db_manager.execute_query(
                     'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
                     (session['user_id'],), fetch_one=True
@@ -568,7 +568,7 @@ def api_deployments():
                 user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
                 user_email = user_details[1] if user_details else 'user@example.com'
                 
-                # Execute deploy.sh with action and user environment variables
+                # Execute deployApp.sh with action and user environment variables
                 print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
                 print(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
                 result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 

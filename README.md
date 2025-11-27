@@ -32,7 +32,7 @@ which python3 && which pip && which docker && which docker-compose
 # Clone and deploy (fully automated)
 git clone https://github.com/your-repo/ai-swautomorph.git
 cd ai-swautomorph
-./deploy.sh
+./deployApp.sh
 ```
 
 ### Manual Installation Steps
@@ -166,5 +166,5 @@ rm users.db && python3 ./scripts/cli.py init-db
 # Complete reset
 docker-compose down -v
 rm users.db
-./deploy.sh
+./deployApp.sh
 ```

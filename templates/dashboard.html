@@ -1122,7 +1122,7 @@ function checkApplicationStatus(appName, openBtn) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.error && data.error.includes('deploy.sh not found')) {
+        if (data.error && data.error.includes('deployApp.sh not found')) {
             // Application is not cloned
             updateApplicationButtonStatus(appName, data.error);
         } else if (data.logs) {
@@ -1136,7 +1136,7 @@ function checkApplicationStatus(appName, openBtn) {
     .catch(error => {
         console.log('Status check failed for', appName, error.message);
         // On network error, assume not cloned to be safe
-        updateApplicationButtonStatus(appName, 'deploy.sh not found');
+        updateApplicationButtonStatus(appName, 'deployApp.sh not found');
     });
 }
 

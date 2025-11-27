@@ -100,8 +100,8 @@ Follow these steps EXACTLY:
     set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
 
 11. Rebuild and redeploy the running application by executing:
-      deploy.sh stop
-      deploy.sh start {user_id} {user_name}
+      deployApp.sh stop
+      deployApp.sh start {user_id} {user_name}
     from the repository root ({repo_dir}).
 
 12. At the end, print a short summary including:

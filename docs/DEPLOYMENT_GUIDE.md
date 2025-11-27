@@ -8,7 +8,7 @@ The AI-SwAutoMorph platform now supports deploying applications directly from th
 
 ### For All Users
 - **Clone Applications**: Clone git repositories to your personal deployment directory
-- **Start/Stop Applications**: Control application lifecycle using deploy.sh scripts
+- **Start/Stop Applications**: Control application lifecycle using deployApp.sh scripts
 - **Status Monitoring**: Check deployment status and view logs
 - **Isolated Deployments**: Each user gets their own deployment directory
 
@@ -23,21 +23,21 @@ The AI-SwAutoMorph platform now supports deploying applications directly from th
 /home/ubuntu/deployments/
 ├── username1/
 │   ├── ai-haccp/
-│   │   ├── deploy.sh
+│   │   ├── deployApp.sh
 │   │   └── [application files]
 │   └── ai-foodflow/
-│       ├── deploy.sh
+│       ├── deployApp.sh
 │       └── [application files]
 └── username2/
     └── ai-haccp/
-        ├── deploy.sh
+        ├── deployApp.sh
         └── [application files]
 ```
 
 ### Deployment Process
 
 1. **Clone**: Downloads the git repository to `/home/ubuntu/deployments/{username}/{app-name}/`
-2. **Deploy Commands**: Runs `deploy.sh` with the specified command (start/stop/status/restart)
+2. **Deploy Commands**: Runs `deployApp.sh` with the specified command (start/stop/status/restart)
 3. **Monitoring**: Tracks deployment status and provides logs
 
 ## Usage
@@ -51,16 +51,16 @@ The AI-SwAutoMorph platform now supports deploying applications directly from th
 
 2. **Start Application**:
    - Click the "▶️ Start" button
-   - Runs `./deploy.sh start` in the application directory
+   - Runs `./deployApp.sh start` in the application directory
    - Status updates to show progress
 
 3. **Stop Application**:
    - Click the "⏹️ Stop" button
-   - Runs `./deploy.sh stop` in the application directory
+   - Runs `./deployApp.sh stop` in the application directory
 
 4. **Check Status**:
    - Click the "📊 Status" button
-   - Runs `./deploy.sh status` and shows current state
+   - Runs `./deployApp.sh status` and shows current state
 
 5. **View Logs**:
    - Click the "📋 Logs" button
@@ -93,11 +93,11 @@ GET /api/deployments/{deployment_id}/logs
 ## Requirements
 
 ### Application Requirements
-Applications must include a `deploy.sh` script that supports:
-- `./deploy.sh start` - Start the application
-- `./deploy.sh stop` - Stop the application  
-- `./deploy.sh status` - Show application status
-- `./deploy.sh restart` - Restart the application
+Applications must include a `deployApp.sh` script that supports:
+- `./deployApp.sh start` - Start the application
+- `./deployApp.sh stop` - Stop the application  
+- `./deployApp.sh status` - Show application status
+- `./deployApp.sh restart` - Restart the application
 
 ### System Requirements
 - Git installed on the system
@@ -122,7 +122,7 @@ Applications must include a `deploy.sh` script that supports:
    - Ensure sufficient disk space
 
 2. **Deploy Commands Fail**:
-   - Verify `deploy.sh` exists and is executable
+   - Verify `deployApp.sh` exists and is executable
    - Check application dependencies are installed
    - Review deployment logs for specific errors
 
@@ -186,7 +186,7 @@ Applications must include a `deploy.sh` script that supports:
 
 ## Best Practices
 
-1. **Test Locally**: Test deploy.sh scripts before adding to platform
+1. **Test Locally**: Test deployApp.sh scripts before adding to platform
 2. **Resource Management**: Monitor disk space and memory usage
 3. **Regular Cleanup**: Remove old/unused deployments
 4. **Backup Important Data**: Keep backups of critical application data

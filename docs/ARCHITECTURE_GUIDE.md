@@ -23,7 +23,7 @@ ai-swautomorph/
 ├── app.py                        # Application entry point
 ├── cli.py                        # Command-line interface
 ├── mcp_server.py                 # Model Context Protocol server
-└── deploy.sh                     # Universal deployment script
+└── deployApp.sh                     # Universal deployment script
 ```
 
 ### 2. Database Schema
@@ -78,7 +78,7 @@ All applications follow the same deployment pattern:
 # Universal workflow for any application
 1. Clone repository → User-specific directory
 2. Read deploy.ini → Application configuration
-3. Execute deploy.sh → Start/stop/status operations
+3. Execute deployApp.sh → Start/stop/status operations
 4. Monitor status → Health checks & logging
 ```
 
@@ -105,9 +105,9 @@ post_start_commands = npm run migrate
 restart_policy = unless-stopped
 ```
 
-### 3. Universal Deploy Script (deploy.sh)
+### 3. Universal Deploy Script (deployApp.sh)
 
-The same `deploy.sh` script works for all applications:
+The same `deployApp.sh` script works for all applications:
 
 ```bash
 #!/bin/bash
@@ -197,7 +197,7 @@ graph TD
    - Maintains application structure
 
 4. **Deployment Testing**
-   - Uses same `deploy.sh` script
+   - Uses same `deployApp.sh` script
    - Validates deployment success
    - Performs health checks
 
@@ -333,6 +333,6 @@ def health_check():
 
 ## Conclusion
 
-The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management. By standardizing the deployment process through `deploy.ini` configuration and universal `deploy.sh` scripts, combined with Docker Compose containerization and GenAI integration, the platform enables rapid application development and evolution while maintaining security and isolation.
+The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management. By standardizing the deployment process through `deploy.ini` configuration and universal `deployApp.sh` scripts, combined with Docker Compose containerization and GenAI integration, the platform enables rapid application development and evolution while maintaining security and isolation.
 
 The modular design ensures maintainability and extensibility, while the automation features reduce manual intervention and improve reliability. This architecture serves as a foundation for building and managing modern containerized applications with AI-assisted evolution capabilities.
