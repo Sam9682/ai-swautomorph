@@ -230,7 +230,9 @@ def init_db():
             ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
             ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
             ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
-            ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git')
+            ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git'),
+            ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git'),
+            ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git')
         ]
         cursor.executemany('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)', default_apps)
         
