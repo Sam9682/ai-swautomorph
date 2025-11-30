@@ -472,7 +472,7 @@ def api_deployments():
                         'HOME': '/home/ubuntu',
                         'USER': 'ubuntu'
                     })
-                    result = subprocess.run(['git', 'clone', git_url, deployment_path], 
+                    result = subprocess.run(['git', 'clone --recurse-submodules', git_url, deployment_path], 
                                           capture_output=True, text=True, timeout=600, env=git_env)
                 else:
                     # Execute on remote server via SSH
@@ -481,7 +481,7 @@ def api_deployments():
                     ssh_commands = [
                         f"rm -rf {deployment_path}",
                         f"mkdir -p {deployment_path}",
-                        f"cd {os.path.dirname(deployment_path)} && git clone {git_url} {os.path.basename(deployment_path)}"
+                        f"cd {os.path.dirname(deployment_path)} && git clone --recurse-submodules {git_url} {os.path.basename(deployment_path)}"
                     ]
                     
                     ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
