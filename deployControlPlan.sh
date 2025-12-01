@@ -30,9 +30,9 @@ RANGE_RESERVED=100
 COMMAND=${1:-help}
 LOCAL_MODE=${2:-0}
 USER_ID=${3:-0}
-USER_NAME=${4:-"user"}
-USER_EMAIL=${5:-"user@swautomorph.com"}
-DESCRIPTION=${6:-"Basic Information Display"}
+USER_NAME=${4:-"admin"}
+USER_EMAIL=${5:-"admin@swautomorph.com"}
+DESCRIPTION=${6:-"Basic Admin user for Control Plan"}
 
 # Interactive menu for deployment mode selection using Python simple-term-menu
 show_deployment_menu() {
@@ -81,7 +81,7 @@ EOF
 
 # Configuration
 DOMAIN=${DOMAIN:-"www.swautomorph.com"}
-EMAIL=${EMAIL:-"user@swautomorph.com"}
+EMAIL=${EMAIL:-"admin@swautomorph.com"}
 ENV_FILE=".env.prod"
 
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
@@ -839,10 +839,10 @@ help() {
     echo "  USER_ID      - Alphanumeric user identifier (default: 0)"
     echo "                 Used for port calculation and user isolation"
     echo ""
-    echo "  USER_NAME    - Display name for the user (default: 'user')"
+    echo "  USER_NAME    - Display name for the user (default: 'admin')"
     echo "                 Used in configuration and logging"
     echo ""
-    echo "  USER_EMAIL   - User email address (default: 'user@swautomorph.com')"
+    echo "  USER_EMAIL   - User email address (default: 'admin@swautomorph.com')"
     echo "                 Used for SSL certificates and notifications"
     echo ""
     echo "  DESCRIPTION  - Deployment description (default: 'Basic Information Display')"
