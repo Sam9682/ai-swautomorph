@@ -154,7 +154,7 @@ check_gitea_status() {
 
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
-        HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose ps
+        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose ps
     else
         echo "  ❌ Docker Compose not installed"
     fi
@@ -292,7 +292,7 @@ stop_nginx_service() {
 }
 
 stop_docker_services() {
-    HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose down
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down
 }
 
 # Show logs
@@ -325,7 +325,7 @@ show_nginx_logs() {
 }
 
 show_docker_logs() {
-    HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose logs -f
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose logs -f
 }
 
 # Restart services
@@ -367,7 +367,7 @@ reload_nginx_config() {
 }
 
 restart_docker_services() {
-    HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose restart
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose restart
 }
 
 # Start services
@@ -599,7 +599,7 @@ setup_api_token() {
 start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
-    HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose up -d --build
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose up -d --build
     echo "  ✅ Docker services started"
 }
 
@@ -694,7 +694,7 @@ configure_firewall() {
 
 cleanup_docker() {
     echo "🧹 Cleaning up..."
-    HTTP_PORT=$(HTTP_PORT) HTTPS_PORT=$(HTTPS_PORT + 363) USER_ID=$USER_ID docker-compose down --remove-orphans
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
 }
 
 # Validate user input
