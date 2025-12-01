@@ -277,7 +277,7 @@ def init_db():
             app_id, app_name = app[0], app[1]
             # Calculate URL based on admin user_id (1) and app
             base_port = 6000 + (admin_id * 10)
-            url = f'https://www.swautomorph.com:{base_port + app_id}'
+            url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
             cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
         
         # Ensure costs exist for all applications
@@ -304,7 +304,7 @@ def assign_default_apps_to_user(user_id):
         app_id, app_name = app[0], app[1]
         # Calculate URL based on user_id and app
         base_port = 6000 + (user_id * 10)
-        url = f'https://www.swautomorph.com:{base_port + app_id}'
+        url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
@@ -326,7 +326,7 @@ def assign_app_to_all_users(app_id, app_name):
         uid = user_id[0]
         # Calculate URL based on user_id and app
         base_port = 6000 + (uid * 10)
-        url = f'https://www.swautomorph.com:{base_port + app_id}'
+        url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
