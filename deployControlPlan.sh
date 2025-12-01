@@ -854,6 +854,7 @@ help() {
     echo "  $0 start docker             # Deploy using Docker containers"
     echo "  $0 start locally 123 john   # Deploy locally for user 'john' with ID '123'"
     echo "  $0 stop                     # Stop all services (interactive Gitea removal)"
+    echo "  $0 stop locally             # Stop local services without Docker"
     echo "  $0 restart locally          # Restart local services"
     echo "  $0 ps                       # Check status of all services"
     echo "  $0 logs                     # View logs from all services"
