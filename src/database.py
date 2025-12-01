@@ -277,16 +277,7 @@ def init_db():
             app_id, app_name = app[0], app[1]
             # Calculate URL based on admin user_id (1) and app
             base_port = 6000 + (admin_id * 10)
-            if app_name == 'ai-haccp':
-                url = f'https://www.swautomorph.com:{base_port + 201}'
-            elif app_name == 'ai-foodflow':
-                url = f'https://www.swautomorph.com:{base_port + 101}'
-            elif app_name == 'ai-checkinatwork':
-                url = f'https://www.swautomorph.com:{base_port + 301}'
-            elif app_name == 'ai-staticwebsite':
-                url = f'https://www.swautomorph.com:{base_port + 401}'
-            else:
-                url = f'https://www.swautomorph.com:{base_port}'
+            url = f'https://www.swautomorph.com:{base_port + app_id}'
             cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
         
         # Ensure costs exist for all applications
