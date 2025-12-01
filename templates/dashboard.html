@@ -52,7 +52,7 @@
                 <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
             </div>
             <div class="app-buttons">
-                <a href="{{ app[2] }}?sso_token={{ sso_token }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
+                <a href="#" onclick="openApplication('{{ app[1] }}', '{{ app[2] }}', '{{ sso_token }}')" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
@@ -860,6 +860,20 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
         appendLog(`⏳ This may take several minutes, like for Docker builds...`);
     }
     
+    // Start progress indicator with rotating messages
+    let progressCounter = 0;
+    const progressMessages = [
+        '⏳ Processing request...',
+        '🔄 Executing command...',
+        '📦 Building containers...',
+        '🚀 Starting services...',
+        '⚙️ Configuring application...'
+    ];
+    let progressInterval = setInterval(() => {
+        appendProgressStatus(progressMessages[progressCounter % progressMessages.length]);
+        progressCounter++;
+    }, 2000);
+    
     // Get server_id first, then proceed with deployment
     getAvailableServerId(appName).then(serverId => {
         const data = {
@@ -884,6 +898,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
     })
     .then(response => {
         clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        stopDotAnimation(); // Stop dot animation when response received
         appendLog(`Server response status: ${response.status} ${response.statusText}`);
         if (!response.ok) {
             return response.text().then(text => {
@@ -921,6 +937,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
     })
     .catch(error => {
         clearTimeout(timeoutId);
+        clearInterval(progressInterval);
+        stopDotAnimation(); // Stop dot animation on error
         console.error('Deployment error:', error);
         if (error.name === 'AbortError') {
             appendLog(`TIMEOUT ERROR: Operation exceeded 10 minutes`);
@@ -1059,6 +1077,73 @@ function appendLog(message) {
     
     // Auto-scroll to bottom
     logsContent.scrollTop = logsContent.scrollHeight;
+}
+
+// Global variable to track dot animation
+let dotAnimationInterval = null;
+let baseDotMessage = '';
+
+function appendProgressStatus(message) {
+    const logsContent = document.getElementById('deploymentLogsContent');
+    const lines = logsContent.textContent.split('\n');
+    
+    // Remove previous progress message if it exists
+    if (lines[lines.length - 1].startsWith('⏳') || lines[lines.length - 1].startsWith('🔄') || 
+        lines[lines.length - 1].startsWith('📦') || lines[lines.length - 1].startsWith('🚀') || 
+        lines[lines.length - 1].startsWith('⚙️')) {
+        lines.pop();
+    }
+    
+    // Add new progress message
+    lines.push(message);
+    logsContent.textContent = lines.join('\n');
+    
+    // Start dot animation for this message
+    startDotAnimation(message);
+    
+    // Auto-scroll to bottom
+    logsContent.scrollTop = logsContent.scrollHeight;
+}
+
+function startDotAnimation(message) {
+    // Clear any existing dot animation
+    if (dotAnimationInterval) {
+        clearInterval(dotAnimationInterval);
+    }
+    
+    // Store the base message without dots
+    baseDotMessage = message.replace(/\.+$/, '');
+    let dotCount = 0;
+    
+    dotAnimationInterval = setInterval(() => {
+        const logsContent = document.getElementById('deploymentLogsContent');
+        const lines = logsContent.textContent.split('\n');
+        
+        // Find and update the last progress line
+        for (let i = lines.length - 1; i >= 0; i--) {
+            if (lines[i].startsWith('⏳') || lines[i].startsWith('🔄') || 
+                lines[i].startsWith('📦') || lines[i].startsWith('🚀') || 
+                lines[i].startsWith('⚙️')) {
+                
+                // Add dots (cycle through 1, 2, 3 dots)
+                dotCount = (dotCount % 3) + 1;
+                const dots = '.'.repeat(dotCount);
+                lines[i] = baseDotMessage + dots;
+                
+                logsContent.textContent = lines.join('\n');
+                logsContent.scrollTop = logsContent.scrollHeight;
+                break;
+            }
+        }
+    }, 1000); // Add dot every second
+}
+
+function stopDotAnimation() {
+    if (dotAnimationInterval) {
+        clearInterval(dotAnimationInterval);
+        dotAnimationInterval = null;
+        baseDotMessage = '';
+    }
 }
 
 // Check application status on page load and every 10 seconds
@@ -1382,6 +1467,19 @@ function sendQChatRequest(payload) {
     
     addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');
     
+    // Start progress indicator for Virtual Developer
+    let progressCounter = 0;
+    const progressMessages = [
+        '📤 Sending request to AI...',
+        '🤖 AI is analyzing code...',
+        '📝 AI is writing solution...',
+        '⚙️ AI is preparing response...'
+    ];
+    let progressInterval = setInterval(() => {
+        updateVirtualDeveloperProgress(progressMessages[progressCounter % progressMessages.length]);
+        progressCounter++;
+    }, 2000);
+    
     fetch('/api/qchat', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1396,6 +1494,7 @@ function sendQChatRequest(payload) {
         return Promise.race([response, timeoutPromise]);
     })
     .then(response => {
+        clearInterval(progressInterval);
         addVirtualDeveloperMessage('system', `📥 Received response (${response.status} ${response.statusText})`);
         
         if (!response.ok) {
@@ -1444,6 +1543,7 @@ function sendQChatRequest(payload) {
         }
     })
     .catch(error => {
+        clearInterval(progressInterval);
         // Remove typing indicators
         const messages = document.getElementById('virtualDeveloperMessages');
         const systemMessages = messages.querySelectorAll('.chat-system');
@@ -1490,6 +1590,21 @@ function addVirtualDeveloperMessage(type, content) {
     messages.scrollTop = messages.scrollHeight;
 }
 
+function updateVirtualDeveloperProgress(message) {
+    const messages = document.getElementById('virtualDeveloperMessages');
+    const lastMessage = messages.lastElementChild;
+    
+    if (lastMessage && lastMessage.classList.contains('chat-system')) {
+        const messageContent = lastMessage.querySelector('.message-content');
+        if (messageContent && (messageContent.textContent.includes('Sending request') || 
+            messageContent.textContent.includes('AI is') || messageContent.textContent.includes('analyzing') ||
+            messageContent.textContent.includes('writing') || messageContent.textContent.includes('preparing'))) {
+            messageContent.textContent = message;
+            messages.scrollTop = messages.scrollHeight;
+        }
+    }
+}
+
 // Handle Enter key in Virtual Developer and Virtual Advisor inputs
 document.addEventListener('keydown', function(e) {
     if (e.target.id === 'virtualDeveloperInput' && e.key === 'Enter' && !e.shiftKey) {
@@ -1525,6 +1640,19 @@ function sendVirtualAdvisorMessage() {
     // Show typing indicator
     addVirtualAdvisorMessage('system', 'Virtual Advisor is thinking...');
     
+    // Start progress indicator for Virtual Advisor
+    let progressCounter = 0;
+    const progressMessages = [
+        '💡 Virtual Advisor is thinking...',
+        '📚 Searching knowledge base...',
+        '🧠 Analyzing your question...',
+        '✍️ Preparing answer...'
+    ];
+    let progressInterval = setInterval(() => {
+        updateVirtualAdvisorProgress(progressMessages[progressCounter % progressMessages.length]);
+        progressCounter++;
+    }, 2000);
+    
     // Send to Virtual Advisor API
     fetch('/api/qchat_question', {
         method: 'POST',
@@ -1538,6 +1666,7 @@ function sendVirtualAdvisorMessage() {
         return response.json();
     })
     .then(data => {
+        clearInterval(progressInterval);
         // Remove typing indicator
         const messages = document.getElementById('virtualAdvisorMessages');
         const systemMessages = messages.querySelectorAll('.chat-system');
@@ -1555,6 +1684,7 @@ function sendVirtualAdvisorMessage() {
         }
     })
     .catch(error => {
+        clearInterval(progressInterval);
         // Remove typing indicator
         const messages = document.getElementById('virtualAdvisorMessages');
         const systemMessages = messages.querySelectorAll('.chat-system');
@@ -1593,6 +1723,21 @@ function addVirtualAdvisorMessage(type, content) {
     
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
+}
+
+function updateVirtualAdvisorProgress(message) {
+    const messages = document.getElementById('virtualAdvisorMessages');
+    const lastMessage = messages.lastElementChild;
+    
+    if (lastMessage && lastMessage.classList.contains('chat-system')) {
+        const messageContent = lastMessage.querySelector('.message-content');
+        if (messageContent && (messageContent.textContent.includes('thinking') || 
+            messageContent.textContent.includes('Searching') || messageContent.textContent.includes('Analyzing') ||
+            messageContent.textContent.includes('Preparing'))) {
+            messageContent.textContent = message;
+            messages.scrollTop = messages.scrollHeight;
+        }
+    }
 }
 
 // Billing functions

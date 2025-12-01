@@ -304,7 +304,7 @@ def assign_default_apps_to_user(user_id):
         app_id, app_name = app[0], app[1]
         # Calculate URL based on user_id and app
         base_port = 6000 + (user_id * 10)
-        url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
+        url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
