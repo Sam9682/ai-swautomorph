@@ -257,17 +257,33 @@ remove_gitea() {
 }
 
 stop_flask_service() {
-    if [ -f "app.pid" ]; then
+    # First try to stop using PID file
+    if [ -f "./conf/app.pid" ]; then
         PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
-            kill "$PID"
-            echo "  ✅ Flask application stopped (PID: $PID)"
+            kill "$PID" 2>/dev/null
+            sleep 2
+            # Force kill if still running
+            if kill -0 "$PID" 2>/dev/null; then
+                kill -9 "$PID" 2>/dev/null
+                echo "  ✅ Flask application force stopped (PID: $PID)"
+            else
+                echo "  ✅ Flask application stopped (PID: $PID)"
+            fi
         else
-            echo "  ⚠️ Flask process not running (PID: $PID)"
+            echo "  ⚠️ Flask process not running (stale PID: $PID)"
         fi
         rm -f ./conf/app.pid
     else
         echo "  ⚠️ No ./conf/app.pid file found"
+    fi
+    
+    # Force kill any remaining Flask processes
+    FLASK_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    if [ -n "$FLASK_PIDS" ]; then
+        echo "  🔥 Force stopping remaining Flask processes: $FLASK_PIDS"
+        pkill -9 -f "python3 app.py" 2>/dev/null || true
+        echo "  ✅ All Flask processes terminated"
     fi
 }
 
@@ -349,11 +365,11 @@ restart_services() {
 restart_flask_service() {
     stop_flask_service
     echo "  🚀 Starting Flask application..."
-    # Create logs directory if it doesn't exist
-    mkdir -p logs
+    # Create required directories
+    mkdir -p logs conf
     # Start Flask with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    nohup python3 app.py > "$LOG_FILE" 2>&1 &
+    FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > ./conf/app.pid
 }
 
@@ -385,8 +401,8 @@ start_local_deployment() {
     echo "💻 Starting local deployment..."
     install_python_dependencies
     
-    # Setup Gitea (will skip if already configured)
-    setup_gitea
+    # Setup Gitea (will skip if already configured) - non-blocking
+    setup_gitea || echo "  ⚠️ Gitea setup failed - continuing with core services"
     
     # Always start Flask and Nginx regardless of Gitea status
     echo "🚀 Starting core services..."
@@ -464,7 +480,10 @@ EOF
         configure_gitea
     fi
 
-    create_gitea_admin_user
+    # Only create admin user if Gitea started successfully
+    if systemctl is-active --quiet gitea; then
+        create_gitea_admin_user
+    fi
     
     # Start Gitea service
     echo "🚀 Starting Gitea service..."
@@ -472,15 +491,21 @@ EOF
     sudo systemctl enable gitea
     sudo systemctl start gitea
     
-    # Wait for Gitea to start
-    sleep 5
+    # Wait for Gitea to start with timeout
+    echo "  ⏳ Waiting for Gitea to start..."
+    for i in {1..20}; do
+        if systemctl is-active --quiet gitea; then
+            echo "  ✅ Gitea service is active"
+            break
+        fi
+        sleep 1
+    done
     
     if systemctl is-active --quiet gitea; then
         echo "  ✅ Gitea is running on http://localhost:3000"
-        echo "  📝 Complete initial setup at http://localhost:3000/install"
-        echo "  📝 Recommended admin credentials: admin/password"
     else
-        echo "  ❌ Failed to start Gitea"
+        echo "  ❌ Failed to start Gitea - continuing without it"
+        return 1
     fi
 }
 
@@ -544,17 +569,24 @@ EOF
 create_gitea_admin_user() {
     echo "👤 Setting up Gitea admin access..."
     
-    # Wait for Gitea to be fully ready
-    sleep 15
+    # Wait for Gitea to be ready with timeout
+    echo "  ⏳ Waiting for Gitea to be ready..."
+    for i in {1..30}; do
+        if curl -s http://localhost:3000 >/dev/null 2>&1; then
+            echo "  ✅ Gitea is responding"
+            break
+        fi
+        sleep 1
+    done
     
     # Set environment variables for Gitea CLI
     export GITEA_WORK_DIR=/var/lib/gitea
     export USER=git
     export HOME=/home/git
     
-    # Create gitadmin user
+    # Create gitadmin user with timeout
     echo "👤 Creating gitadmin user..."
-    sudo -u git -E /usr/local/bin/gitea admin user create \
+    timeout 10 sudo -u git -E /usr/local/bin/gitea admin user create \
         --username gitadmin \
         --password password \
         --email admin@swautomorph.com \
@@ -567,7 +599,7 @@ create_gitea_admin_user() {
     echo "      Password: password"
     echo "      URL: http://www.swautomorph.com/gitea"
     
-    # Try to generate API token
+    # Try to generate API token with timeout
     setup_api_token
 }
 
@@ -575,24 +607,24 @@ create_gitea_admin_user() {
 setup_api_token() {
     echo "  🔑 Setting up API token..."
     
-    # Try to generate API token for admin user with all required scopes
-    TOKEN=$(sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
+    # Try to generate API token with timeout
+    timeout 10 sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
         --username gitadmin \
         --token-name "api-access" \
         --scopes "write:admin,write:user,write:repository" \
         --config /etc/gitea/app.ini \
-        --work-path /var/lib/gitea 2>/dev/null | grep -o '[a-f0-9]\{40\}')
+        --work-path /var/lib/gitea 2>/dev/null | grep -o '[a-f0-9]\{40\}' > /tmp/gitea_token_temp 2>/dev/null || true
     
-    if [ -n "$TOKEN" ]; then
+    if [ -f "/tmp/gitea_token_temp" ] && [ -s "/tmp/gitea_token_temp" ]; then
+        TOKEN=$(cat /tmp/gitea_token_temp)
         echo "$TOKEN" > /tmp/gitea_admin_token
         chmod 600 /tmp/gitea_admin_token
-        echo "✅ API token created and saved to /tmp/gitea_admin_token"
+        rm -f /tmp/gitea_token_temp
+        echo "  ✅ API token created and saved to /tmp/gitea_admin_token"
     else
-        echo "      ⚠️ Could not generate API token automatically"
-        echo "      📝 Manual steps to create API token:"
-        echo "          1. Login to Gitea at http://localhost:3000"
-        echo "          2. Go to Settings > Applications > Generate New Token"
-        echo "          3. Save the token to /tmp/gitea_admin_token"
+        rm -f /tmp/gitea_token_temp
+        echo "  ⚠️ Could not generate API token automatically (timeout or error)"
+        echo "  📝 Manual token creation: Login to http://localhost:3000 > Settings > Applications"
     fi
 }
 
@@ -615,8 +647,8 @@ start_flask_application() {
     # Stop any existing Flask processes
     pkill -f "python3 app.py" || true
     sleep 2
-    # Create logs directory if it doesn't exist
-    mkdir -p logs
+    # Create required directories
+    mkdir -p logs conf
     # Start Flask on port 5001 with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
