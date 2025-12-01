@@ -2,9 +2,52 @@
 import sqlite3
 import threading
 import time
+import os
+import configparser
 from contextlib import contextmanager
 from werkzeug.security import generate_password_hash
 from .config import DB_PATH
+
+# Load deploy.ini configuration
+def load_deploy_config():
+    """Load configuration from deploy.ini file"""
+    config = configparser.ConfigParser()
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'conf', 'deploy.ini')
+    
+    # Default values
+    NAME_OF_APPLICATION = "ai-swautomorph"
+    APPLICATION_IDENTITY_NUMBER = 0
+    RANGE_START = 6000
+    RANGE_RESERVED = 10
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r') as f:
+                content = f.read()
+            
+            # Parse key=value pairs
+            for line in content.split('\n'):
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip().strip('"')
+                    
+                    if key == 'NAME_OF_APPLICATION':
+                        NAME_OF_APPLICATION = value
+                    elif key == 'APPLICATION_IDENTITY_NUMBER':
+                        APPLICATION_IDENTITY_NUMBER = int(value)
+                    elif key == 'RANGE_START':
+                        RANGE_START = int(value)
+                    elif key == 'RANGE_RESERVED':
+                        RANGE_RESERVED = int(value)
+        except Exception as e:
+            print(f"Warning: Could not load deploy.ini: {e}")
+    
+    return NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED
+
+# Load configuration values
+NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED = load_deploy_config()
 
 class DatabaseManager:
     """Thread-safe database manager with connection pooling"""
@@ -223,8 +266,6 @@ def init_db():
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
         # Port calculation constants
-        PORT_RANGE_BEGIN = 6000
-        RANGE_RESERVED = 100
         
         default_apps = [
             ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
@@ -276,8 +317,8 @@ def init_db():
         for app in apps:
             app_id, app_name = app[0], app[1]
             # Calculate URL based on admin user_id (1) and app
-            base_port = 6000 + (admin_id * 10)
-            url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
+            base_port = RANGE_START + (admin_id * 10)
+            url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
             cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
         
         # Ensure costs exist for all applications
@@ -303,7 +344,7 @@ def assign_default_apps_to_user(user_id):
     for app in apps:
         app_id, app_name = app[0], app[1]
         # Calculate URL based on user_id and app
-        base_port = 6000 + (user_id * 10)
+        base_port = RANGE_START + (user_id * 10)
         url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
@@ -325,8 +366,8 @@ def assign_app_to_all_users(app_id, app_name):
     for user_id in user_ids:
         uid = user_id[0]
         # Calculate URL based on user_id and app
-        base_port = 6000 + (uid * 10)
-        url = f'https://www.swautomorph.com:{base_port + (app_id * 2)}'
+        base_port = RANGE_START + (uid * 10)
+        url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
