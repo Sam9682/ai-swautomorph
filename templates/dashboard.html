@@ -52,7 +52,7 @@
                 <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
             </div>
             <div class="app-buttons">
-                <a href="#" onclick="openApplication('{{ app[1] }}', '{{ app[2] }}', '{{ sso_token }}')" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
+                <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
