@@ -5,6 +5,21 @@
 
 set -e
 
+# Color definitions
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Status symbols with colors
+OK="${GREEN}[OK]${NC}"
+ERROR="${RED}[ERROR]${NC}"
+WARN="${YELLOW}[WARN]${NC}"
+INFO="${BLUE}[INFO]${NC}"
+
 # Global Variables
 NAME_OF_APPLICATION="ai-swautomorph"
 APPLICATION_IDENTITY_NUMBER=0
@@ -31,8 +46,8 @@ show_deployment_menu() {
             echo "2) Docker"
             read -p "Enter your choice (1-2): " choice
             case $choice in
-                1) echo "locally" ;;
-                2) echo "docker" ;;
+                1) echo -e " $YELLOW locally" ;;
+                2) echo -e " $YELLOW docker" ;;
                 *) echo "locally" ;;
             esac
             return
@@ -80,7 +95,7 @@ calculate_ports() {
 show_environment() {
     local operation=$1
     echo "🔍 Starting $operation operation..."
-    echo "Environment Variables:"
+    echo -e "${CYAN}[STATUS]${NC} Environment Variables:"
     echo "  LOCAL_MODE=${LOCAL_MODE}"
     echo "  USER_ID=${USER_ID}"
     echo "  USER_NAME=${USER_NAME}"
@@ -94,12 +109,12 @@ show_environment() {
 check_status() {
     # print 80 '-' to seperate a new line
     echo "--------------------------------------------------------------------------------"
-    echo "📊 Locally Service Status:"
+    echo -e "${CYAN}[STATUS]${NC} Locally Service Status:"
     check_flask_status
     check_nginx_status
     check_gitea_status
     echo "--------------------------------------------------------------------------------"
-    echo "📊 Docker Compose Status:"
+    echo -e "${CYAN}[STATUS]${NC} Docker Compose Status:"
     check_docker_status
 }
 
@@ -107,33 +122,33 @@ check_flask_status() {
     if [ -f "./conf/app.pid" ]; then
         PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
-            echo "  ✅ Flask application: Running (PID: $PID)"
+            echo -e "  $OK Flask application: Running (PID: $PID)"
         else
-            echo "  ❌ Flask application: Not running (stale PID: $PID)"
+            echo -e "  $ERROR Flask application: Not running (stale PID: $PID)"
         fi
     else
-        echo "  ❌ Flask application: Not running (no PID file)"
+        echo -e "  $ERROR Flask application: Not running (no PID file)"
     fi
 }
 
 check_nginx_status() {
     if systemctl is-active --quiet nginx; then
-        echo "  ✅ Nginx: Running"
+        echo -e "  $OK Nginx: Running"
         if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-            echo "  ✅ $NAME_OF_APPLICATION site: Configured"
+            echo -e "  $OK $NAME_OF_APPLICATION site: Configured"
         else
-            echo "  ⚠️ $NAME_OF_APPLICATION site: Not configured"
+            echo -e "  $WARN $NAME_OF_APPLICATION site: Not configured"
         fi
     else
-        echo "  ❌ Nginx: Not running"
+        echo -e "  $ERROR Nginx: Not running"
     fi
 }
 
 check_gitea_status() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
-        echo "  ✅ Gitea: Running on http://localhost:3000"
+        echo -e "  $OK Gitea: Running on http://localhost:3000"
     else
-        echo "  ❌ Gitea: Not running"
+        echo -e "  $ERROR Gitea: Not running"
     fi
 }
 
@@ -164,7 +179,7 @@ stop_services() {
         stop_docker_services
     fi
     
-    echo "  ✅ Services stopped"
+    echo -e "  $OK Services stopped"
 }
 
 # Confirm Gitea stop with user menu
@@ -760,7 +775,7 @@ EOF
 }
 
 # Show usage information
-show_usage() {
+help() {
     echo "🚀 AI-SwAutoMorph Deployment Script"
     echo "Usage: $0 [COMMAND] [MODE] [USER_ID] [USER_NAME] [USER_EMAIL] [DESCRIPTION]"
     echo ""
@@ -772,26 +787,38 @@ show_usage() {
     echo "              • Creates deployment directories and logs"
     echo ""
     echo "  stop      - Stop all running services and clean up"
+    echo "  -o        - Stop all running services and clean up (alias for stop)"
+    echo "  --stop    - Stop all running services and clean up (alias for stop)"
     echo "              • Stops Flask application and removes PID file"
     echo "              • Removes Nginx site configuration"
     echo "              • Optionally stops and removes Gitea (interactive)"
     echo "              • Stops Docker containers if running"
     echo ""
     echo "  restart   - Restart all services without full redeployment"
+    echo "  -r        - Restart all services without full redeployment (alias for restart)"
+    echo "  --restart - Restart all services without full redeployment (alias for restart)"
     echo "              • Restarts Flask application with new PID"
     echo "              • Reloads Nginx configuration"
     echo "              • Restarts Docker containers if in Docker mode"
     echo ""
     echo "  ps        - Show status of all services"
+    echo "  -p        - Show status of all services (alias for ps)"
+    echo "  --ps      - Show status of all services (alias for ps)"
     echo "              • Flask application status and PID"
     echo "              • Nginx service status and site configuration"
     echo "              • Gitea service status"
     echo "              • Docker Compose container status"
     echo ""
     echo "  logs      - Display logs from all services"
+    echo "  -l        - Display logs from all services (alias for logs)"
+    echo "  --logs    - Display logs from all services (alias for logs)"
     echo "              • Flask application logs (current day)"
     echo "              • Nginx error logs (last 20 lines)"
     echo "              • Docker Compose logs (if running)"
+    echo ""
+    echo "  help      - Show this help menu"
+    echo "  --help    - Show this help menu (alias for help)"
+    echo "  -h        - Show this help menu (short alias for help)"
     echo ""
     echo "MODES:"
     echo "  locally   - Deploy without Docker (direct system installation)"
@@ -830,6 +857,9 @@ show_usage() {
     echo "  $0 restart locally          # Restart local services"
     echo "  $0 ps                       # Check status of all services"
     echo "  $0 logs                     # View logs from all services"
+    echo "  $0 help                     # Show this help menu"
+    echo "  $0 --help                   # Show this help menu"
+    echo "  $0 -h                       # Show this help menu"
     echo ""
     echo "PORTS:"
     echo "  HTTP:  Calculated as 80 + (USER_ID * 10)"
@@ -864,7 +894,7 @@ main() {
     show_environment 
 
     # Show interactive menu for start, stop, restart commands if no LOCAL_MODE specified
-    if [[ "$COMMAND" =~ ^(start|stop|restart)$ ]] && [ "$LOCAL_MODE" = "0" ]; then
+    if [[ "$COMMAND" =~ ^(start|stop|-o|--stop|restart|-r|--restart)$ ]] && [ "$LOCAL_MODE" = "0" ]; then
         SELECTED_MODE=$(show_deployment_menu)
         if [ "$SELECTED_MODE" = "locally" ]; then
             LOCAL_MODE="locally"
@@ -874,34 +904,34 @@ main() {
     fi
 
     case $COMMAND in
-        "ps")
+        "ps"|"-p"|"--ps")
             check_status
             exit 0
             ;;
-        "stop")
+        "stop"|"-k"|"--stop")
             stop_services
             exit 0
             ;;
-        "logs")
+        "logs"|"-l"|"--logs")
             show_logs
             exit 0
             ;;
-        "restart")
+        "restart"|"-r"|"--restart")
             restart_services
             exit 0
             ;;
-        "start")
+        "start"|"-s"|"--start")
             start
             exit 0
             ;;
         "help"|"--help"|"-h")
-            show_usage
+            help
             exit 0
             ;;
         *)
             echo "❌ Unknown command: $COMMAND"
             echo ""
-            show_usage
+            help
             exit 1
             ;;
     esac
