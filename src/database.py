@@ -335,16 +335,7 @@ def assign_app_to_all_users(app_id, app_name):
         uid = user_id[0]
         # Calculate URL based on user_id and app
         base_port = 6000 + (uid * 10)
-        if app_name == 'ai-haccp':
-            url = f'https://www.swautomorph.com:{base_port + 201}'
-        elif app_name == 'ai-foodflow':
-            url = f'https://www.swautomorph.com:{base_port + 101}'
-        elif app_name == 'ai-checkinatwork':
-            url = f'https://www.swautomorph.com:{base_port + 301}'
-        elif app_name == 'ai-staticwebsite':
-            url = f'https://www.swautomorph.com:{base_port + 401}'
-        else:
-            url = f'https://www.swautomorph.com:{base_port}'
+        url = f'https://www.swautomorph.com:{base_port + app_id}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
