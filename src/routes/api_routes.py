@@ -392,6 +392,7 @@ def api_deployments():
     elif request.method == 'POST':
         import subprocess
         import os
+        import shutil
         data = request.get_json()
         action = data.get('action')
         app_name = data.get('application_name')
@@ -458,7 +459,6 @@ def api_deployments():
                     # Remove existing directory if it exists
                     if os.path.exists(deployment_path):
                         print(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
-                        import shutil
                         shutil.rmtree(deployment_path)
                     
                     # Create full directory path recursively
@@ -512,8 +512,8 @@ def api_deployments():
                             
                             # Copy specific SSL files
                             ssl_files = [
-                                'WILDCARD_swautomorph_com.crt',
-                                'privateKey_WILDCARD_automorph.key'
+                                'STAR_swautomorph_com.crt',
+                                'privateKey_STAR_swautomorph_com.key'
                             ]
                             
                             for ssl_file in ssl_files:
@@ -530,7 +530,7 @@ def api_deployments():
                             subprocess.run(ssh_mkdir, shell=True, capture_output=True, text=True, timeout=60)
                             
                             # Rsync SSL certificates
-                            rsync_cmd = f"rsync -avz -e 'ssh -o StrictHostKeyChecking=no' {ssl_source_dir}WILDCARD_swautomorph_com.crt {ssl_source_dir}privateKey_WILDCARD_automorph.key ubuntu@{target_server_ip}:{ssl_dest_dir}/"
+                            rsync_cmd = f"rsync -avz -e 'ssh -o StrictHostKeyChecking=no' {ssl_source_dir}STAR_swautomorph_com.crt {ssl_source_dir}privateKey_STAR_swautomorph_com.key ubuntu@{target_server_ip}:{ssl_dest_dir}/"
                             rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=120)
                             
                             if rsync_result.returncode == 0:
