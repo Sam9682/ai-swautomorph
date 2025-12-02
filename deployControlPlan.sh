@@ -675,8 +675,8 @@ server {
     listen 443 ssl;
     server_name localhost www.swautomorph.com;
     
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/www_swautomorph_com.crt;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/privateKey_automorph_simple.key;
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/WILDCARD_swautomorph_com.crt;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/privateKey_WILDCARD_automorph.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     
