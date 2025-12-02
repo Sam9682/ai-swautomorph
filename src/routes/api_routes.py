@@ -499,6 +499,49 @@ def api_deployments():
                     status = 'cloned'
                     error_msg = None
                     print(f"[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to {deployment_path}")
+                    
+                    # Copy SSL certificates to cloned application
+                    try:
+                        ssl_source_dir = '/home/ubuntu/ai-swautomorph/ssl/'
+                        ssl_dest_dir = os.path.join(deployment_path, 'ssl')
+                        
+                        if is_local_server:
+                            # Local server - direct copy
+                            print(f"[DEPLOYMENT API] CLONE - Copying SSL certificates locally to {ssl_dest_dir}")
+                            os.makedirs(ssl_dest_dir, exist_ok=True)
+                            
+                            # Copy specific SSL files
+                            ssl_files = [
+                                'WILDCARD_swautomorph_com.crt',
+                                'privateKey_WILDCARD_automorph.key'
+                            ]
+                            
+                            for ssl_file in ssl_files:
+                                src_file = os.path.join(ssl_source_dir, ssl_file)
+                                if os.path.exists(src_file):
+                                    shutil.copy2(src_file, ssl_dest_dir)
+                                    print(f"[DEPLOYMENT API] CLONE - Copied {ssl_file} to {ssl_dest_dir}")
+                        else:
+                            # Remote server - rsync via SSH
+                            print(f"[DEPLOYMENT API] CLONE - Copying SSL certificates to remote server {target_server_ip}")
+                            
+                            # Create ssl directory on remote server
+                            ssh_mkdir = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {ssl_dest_dir}'"
+                            subprocess.run(ssh_mkdir, shell=True, capture_output=True, text=True, timeout=60)
+                            
+                            # Rsync SSL certificates
+                            rsync_cmd = f"rsync -avz -e 'ssh -o StrictHostKeyChecking=no' {ssl_source_dir}WILDCARD_swautomorph_com.crt {ssl_source_dir}privateKey_WILDCARD_automorph.key ubuntu@{target_server_ip}:{ssl_dest_dir}/"
+                            rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=120)
+                            
+                            if rsync_result.returncode == 0:
+                                print(f"[DEPLOYMENT API] CLONE - SSL certificates copied successfully to {target_server_ip}:{ssl_dest_dir}")
+                            else:
+                                print(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {rsync_result.stderr}")
+                                
+                    except Exception as ssl_error:
+                        print(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {str(ssl_error)}")
+                        # Don't fail the entire clone operation for SSL copy issues
+                        
                 else:
                     status = 'failed'
                     error_msg = f'Git clone failed: {result.stderr}'
