@@ -5,6 +5,32 @@
 
 set -e
 
+# Load configuration from deploy.ini
+load_config() {
+    local config_file="./conf/deploy.ini"
+    if [ -f "$config_file" ]; then
+        echo "📋 Loading configuration from $config_file"
+        # Source the config file, ignoring comments and empty lines
+        while IFS='=' read -r key value; do
+            # Skip comments and empty lines
+            [[ $key =~ ^[[:space:]]*# ]] && continue
+            [[ -z $key ]] && continue
+            # Remove leading/trailing whitespace and export
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
+            if [[ -n $key && -n $value ]]; then
+                export "$key"="$value"
+            fi
+        done < "$config_file"
+        echo "  ✅ Configuration loaded successfully"
+    else
+        echo "  ⚠️ Configuration file $config_file not found, using defaults"
+    fi
+}
+
+# Load configuration first
+load_config
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -20,19 +46,19 @@ ERROR="${RED}[ERROR]${NC}"
 WARN="${YELLOW}[WARN]${NC}"
 INFO="${BLUE}[INFO]${NC}"
 
-# Global Variables
-NAME_OF_APPLICATION="ai-swautomorph"
-APPLICATION_IDENTITY_NUMBER=0
-RANGE_START=80
-RANGE_RESERVED=100
+# Global Variables (with fallback defaults)
+NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"ai-swautomorph"}
+APPLICATION_IDENTITY_NUMBER=${APPLICATION_IDENTITY_NUMBER:-0}
+RANGE_START=${RANGE_START:-80}
+RANGE_RESERVED=${RANGE_RESERVED:-100}
 
-# Global Parameters
+# Global Parameters (command line args override config)
 COMMAND=${1:-help}
 LOCAL_MODE=${2:-0}
-USER_ID=${3:-0}
-USER_NAME=${4:-"admin"}
-USER_EMAIL=${5:-"admin@swautomorph.com"}
-DESCRIPTION=${6:-"Basic Admin user for Control Plan"}
+USER_ID=${3:-${DEFAULT_USER_ID:-0}}
+USER_NAME=${4:-${DEFAULT_USER_NAME:-"admin"}}
+USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@swautomorph.com"}}
+DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 
 # Interactive menu for deployment mode selection using Python simple-term-menu
 show_deployment_menu() {
@@ -79,10 +105,16 @@ else:
 EOF
 }
 
-# Configuration
+# Configuration (loaded from deploy.ini with fallback defaults)
 DOMAIN=${DOMAIN:-"www.swautomorph.com"}
 EMAIL=${EMAIL:-"admin@swautomorph.com"}
-ENV_FILE=".env.prod"
+ENV_FILE=${ENV_FILE:-".env.prod"}
+SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt"}
+SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key"}
+GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
+GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
+GITEA_ADMIN_PASSWORD=${GITEA_ADMIN_PASSWORD:-"password"}
+GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
 
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
 calculate_ports() {
@@ -119,8 +151,8 @@ check_status() {
 }
 
 check_flask_status() {
-    if [ -f "./conf/app.pid" ]; then
-        PID=$(cat ./conf/app.pid)
+    if [ -f "${PID_FILE:-./conf/app.pid}" ]; then
+        PID=$(cat "${PID_FILE:-./conf/app.pid}")
         if kill -0 "$PID" 2>/dev/null; then
             echo -e "  $OK Flask application: Running (PID: $PID)"
         else
@@ -134,7 +166,7 @@ check_flask_status() {
 check_nginx_status() {
     if systemctl is-active --quiet nginx; then
         echo -e "  $OK Nginx: Running"
-        if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
+        if [ -f "${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}/${NGINX_SITE_NAME:-ai-swautomorph}" ]; then
             echo -e "  $OK $NAME_OF_APPLICATION site: Configured"
         else
             echo -e "  $WARN $NAME_OF_APPLICATION site: Not configured"
@@ -146,7 +178,7 @@ check_nginx_status() {
 
 check_gitea_status() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
-        echo -e "  $OK Gitea: Running on http://localhost:3000"
+        echo -e "  $OK Gitea: Running on http://localhost:${GITEA_PORT:-3000}"
     else
         echo -e "  $ERROR Gitea: Not running"
     fi
@@ -154,7 +186,7 @@ check_gitea_status() {
 
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
-        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose ps
+        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + ${DOCKER_PORT_OFFSET:-363})) USER_ID=$USER_ID docker-compose ps
     else
         echo "  ❌ Docker Compose not installed"
     fi
@@ -369,7 +401,7 @@ restart_flask_service() {
     mkdir -p logs conf
     # Start Flask with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
+    FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > ./conf/app.pid
 }
 
@@ -649,9 +681,9 @@ start_flask_application() {
     sleep 2
     # Create required directories
     mkdir -p logs conf
-    # Start Flask on port 5001 with date-based log file
+    # Start Flask on port 5000 with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    FLASK_RUN_PORT=5001 nohup python3 app.py > "$LOG_FILE" 2>&1 &
+    FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 &
     echo $! > ./conf/app.pid
     echo "  ✅ Flask application started (PID: $(cat ./conf/app.pid))"
 }
@@ -663,37 +695,47 @@ configure_nginx() {
     test_and_reload_nginx
 }
 
+setup_modsecurity_config() {
+    source ./setup_modsecurity_config.sh
+}
+
 create_nginx_config() {
-    cat > /tmp/ai-swautomorph-site << 'EOF'
+    cat > /tmp/ai-swautomorph-site << EOF
+load_module modules/ngx_http_modsecurity_module.so;
+
 server {
     listen 80;
     server_name localhost www.swautomorph.com;
-    return 301 https://$server_name$request_uri;
+    return 301 https://\$server_name\$request_uri;
 }
 
 server {
     listen 443 ssl;
     server_name localhost *.swautomorph.com;
     
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key;
+    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt};
+    ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     
+    # WAF Protection
+    modsecurity on;
+    modsecurity_rules_file ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}/main.conf;
+    
     location / {
-        proxy_pass http://127.0.0.1:5001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://127.0.0.1:${FLASK_PORT:-5000};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
     location /gitea/ {
-        proxy_pass http://127.0.0.1:3000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 EOF
@@ -753,11 +795,30 @@ check_local_requirements() {
     fi
     
     if ! command -v nginx &> /dev/null; then
-        echo "📦 Installing Nginx..."
-        sudo apt update && sudo apt install -y nginx wget
-        sudo systemctl enable nginx
-        echo "✅ Nginx installed successfully"
+        echo "📦 Installing Nginx with ModSecurity..."
+        install_nginx_with_modsecurity
+        echo "✅ Nginx with ModSecurity installed successfully"
     fi
+}
+
+install_nginx_with_modsecurity() {
+    sudo apt update
+    sudo apt install -y nginx nginx-module-security libmodsecurity3 modsecurity-crs wget git
+    
+    # Create ModSecurity directories
+    sudo mkdir -p ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}
+    
+    # Download OWASP CRS rules
+    if [ ! -d "${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}" ]; then
+        sudo git clone https://github.com/coreruleset/coreruleset.git ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
+        cd ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
+        sudo git checkout ${OWASP_CRS_VERSION:-v3.3.5}
+    fi
+    
+    # Configure ModSecurity
+    setup_modsecurity_config
+    
+    sudo systemctl enable nginx
 }
 
 check_docker_requirements() {
@@ -898,7 +959,7 @@ help() {
     echo "  HTTP:  Calculated as 80 + (USER_ID * 100)"
     echo "  HTTPS: HTTP + 1"
     echo "  Gitea: 3000 (fixed)"
-    echo "  Flask: 5001 (fixed for local mode)"
+    echo "  Flask: 5000 (fixed for local mode)"
     echo ""
     echo "SERVICES:"
     echo "  • Flask Web Application (Python)"
