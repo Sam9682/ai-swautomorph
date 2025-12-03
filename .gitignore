@@ -75,3 +75,6 @@ cookies.txt
 Thumbs.db
 db/ai_swautomorph.db-shm
 db/ai_swautomorph.db-wal
+amazon-q.deb
+amazon-q.deb.*
+get-docker.sh
