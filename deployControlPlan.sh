@@ -699,10 +699,28 @@ setup_modsecurity_config() {
     source ./setup_modsecurity_config.sh
 }
 
-create_nginx_config() {
-    cat > /tmp/ai-swautomorph-site << EOF
-load_module modules/ngx_http_modsecurity_module.so;
+check_and_enable_modsecurity() {
+    # Check if ModSecurity module exists
+    if [ -f "/usr/lib/nginx/modules/ngx_http_modsecurity_module.so" ] || [ -f "/etc/nginx/modules/ngx_http_modsecurity_module.so" ]; then
+        enable_modsecurity_module
+        MODSECURITY_AVAILABLE=true
+    else
+        echo "  ⚠️ ModSecurity module not found, using basic reverse proxy configuration"
+        MODSECURITY_AVAILABLE=false
+    fi
+}
 
+enable_modsecurity_module() {
+    # Add load_module directive to main nginx.conf if not already present
+    if ! grep -q "load_module modules/ngx_http_modsecurity_module.so" /etc/nginx/nginx.conf; then
+        sudo sed -i '1i load_module modules/ngx_http_modsecurity_module.so;' /etc/nginx/nginx.conf
+        echo "  ✅ ModSecurity module enabled in nginx.conf"
+    fi
+}
+
+create_nginx_config() {
+    # Create base configuration
+    cat > /tmp/ai-swautomorph-site << EOF
 server {
     listen 80;
     server_name localhost www.swautomorph.com;
@@ -717,10 +735,23 @@ server {
     ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
+EOF
+
+    # Add ModSecurity configuration only if available
+    if [ "${MODSECURITY_AVAILABLE:-false}" = "true" ]; then
+        cat >> /tmp/ai-swautomorph-site << EOF
     
     # WAF Protection
     modsecurity on;
     modsecurity_rules_file ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}/main.conf;
+EOF
+        echo "  ✅ ModSecurity WAF protection enabled"
+    else
+        echo "  ⚠️ Using basic reverse proxy without WAF protection"
+    fi
+
+    # Add location blocks
+    cat >> /tmp/ai-swautomorph-site << EOF
     
     location / {
         proxy_pass http://127.0.0.1:${FLASK_PORT:-5000};
@@ -803,12 +834,20 @@ check_local_requirements() {
 
 install_nginx_with_modsecurity() {
     sudo apt update
-    sudo apt install -y nginx nginx-module-security libmodsecurity3 modsecurity-crs wget git
+    
+    # Install nginx and ModSecurity components
+    sudo apt install -y nginx libmodsecurity3 wget git
+    
+    # Try to install nginx-module-security (may not be available on all systems)
+    sudo apt install -y libnginx-mod-security 2>/dev/null || {
+        echo "  ⚠️ nginx-module-security not available, installing alternative packages"
+        sudo apt install -y libmodsecurity-dev modsecurity-crs 2>/dev/null || true
+    }
     
     # Create ModSecurity directories
     sudo mkdir -p ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}
     
-    # Download OWASP CRS rules
+    # Download OWASP CRS rules if not available via package
     if [ ! -d "${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}" ]; then
         sudo git clone https://github.com/coreruleset/coreruleset.git ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
         cd ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
@@ -817,6 +856,9 @@ install_nginx_with_modsecurity() {
     
     # Configure ModSecurity
     setup_modsecurity_config
+    
+    # Check if ModSecurity module is available before enabling
+    check_and_enable_modsecurity
     
     sudo systemctl enable nginx
 }

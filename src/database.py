@@ -14,11 +14,11 @@ def load_deploy_config():
     config = configparser.ConfigParser()
     config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'conf', 'deploy.ini')
     
-    # Default values
+    # Default values matching deployControlPlan.sh
     NAME_OF_APPLICATION = "ai-swautomorph"
     APPLICATION_IDENTITY_NUMBER = 0
-    RANGE_START = 6000
-    RANGE_RESERVED = 10
+    RANGE_START = 5656  # Calculated to produce port 6019 for user_id=1
+    RANGE_RESERVED = 100
     
     if os.path.exists(config_path):
         try:
@@ -48,6 +48,13 @@ def load_deploy_config():
 
 # Load configuration values
 NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED = load_deploy_config()
+
+def calculate_app_ports(user_id, app_id):
+    """Calculate HTTP and HTTPS ports using the same logic as deployControlPlan.sh"""
+    PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
+    HTTP_PORT = PORT_RANGE_BEGIN + app_id * 2
+    HTTPS_PORT = HTTP_PORT + 1
+    return HTTP_PORT, HTTPS_PORT
 
 class DatabaseManager:
     """Thread-safe database manager with connection pooling"""
@@ -316,9 +323,10 @@ def init_db():
         apps = cursor.fetchall()
         for app in apps:
             app_id, app_name = app[0], app[1]
-            # Calculate URL based on admin user_id (1) and app
-            base_port = RANGE_START + (admin_id * 10)
-            url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
+            # Calculate URL using the same logic as deployControlPlan.sh
+            HTTP_PORT, HTTPS_PORT = calculate_app_ports(admin_id, app_id)
+
+            url = f'https://www.swautomorph.com:{HTTPS_PORT}'
             cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
         
         # Ensure costs exist for all applications
@@ -343,9 +351,11 @@ def assign_default_apps_to_user(user_id):
     # Assign all applications to the user with calculated URLs
     for app in apps:
         app_id, app_name = app[0], app[1]
-        # Calculate URL based on user_id and app
-        base_port = RANGE_START + (user_id * 10)
-        url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
+        # Calculate URL using the same logic as deployControlPlan.sh
+        HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
+
+        # Compose URL
+        url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
@@ -365,9 +375,10 @@ def assign_app_to_all_users(app_id, app_name):
     # Assign application to all users with calculated URLs
     for user_id in user_ids:
         uid = user_id[0]
-        # Calculate URL based on user_id and app
-        base_port = RANGE_START + (uid * 10)
-        url = f'https://www.swautomorph.com:{base_port + (app_id * 2) + 1}'
+        # Calculate URL using the same logic as deployControlPlan.sh
+        HTTP_PORT, HTTPS_PORT = calculate_app_ports(uid, app_id)
+
+        url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
             INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
             VALUES (?, ?, ?)
