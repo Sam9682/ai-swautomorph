@@ -17,8 +17,6 @@ def load_deploy_config():
     # Default values matching deployControlPlan.sh
     NAME_OF_APPLICATION = "ai-swautomorph"
     APPLICATION_IDENTITY_NUMBER = 0
-    RANGE_START = 5656  # Calculated to produce port 6019 for user_id=1
-    RANGE_RESERVED = 100
     
     if os.path.exists(config_path):
         try:
@@ -41,13 +39,17 @@ def load_deploy_config():
                         RANGE_START = int(value)
                     elif key == 'RANGE_RESERVED':
                         RANGE_RESERVED = int(value)
+                    elif key == 'RANGE_START_CONTROLPLAN':
+                        RANGE_START_CONTROLPLAN = int(value)
+                    elif key == 'RANGE_RESERVED_CONTROLPLAN':
+                        RANGE_RESERVED_CONTROLPLAN = int(value)
         except Exception as e:
             print(f"Warning: Could not load deploy.ini: {e}")
     
-    return NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED
+    return NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN
 
 # Load configuration values
-NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED = load_deploy_config()
+NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN = load_deploy_config()
 
 def calculate_app_ports(user_id, app_id):
     """Calculate HTTP and HTTPS ports using the same logic as deployControlPlan.sh"""

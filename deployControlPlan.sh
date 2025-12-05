@@ -49,8 +49,8 @@ INFO="${BLUE}[INFO]${NC}"
 # Global Variables (with fallback defaults)
 NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"ai-swautomorph"}
 APPLICATION_IDENTITY_NUMBER=${APPLICATION_IDENTITY_NUMBER:-0}
-RANGE_START=${RANGE_START:-80}
-RANGE_RESERVED=${RANGE_RESERVED:-100}
+RANGE_START_CONTROLPLAN=${RANGE_START_CONTROLPLAN:-80}
+RANGE_RESERVED_CONTROLPLAN=${RANGE_RESERVED_CONTROLPLAN:-0}
 
 # Global Parameters (command line args override config)
 COMMAND=${1:-help}
@@ -118,8 +118,7 @@ GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
 
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
 calculate_ports() {
-    PORT_RANGE_BEGIN=$((APPLICATION_IDENTITY_NUMBER * 100 + RANGE_START))
-    HTTP_PORT=$((PORT_RANGE_BEGIN + USER_ID * RANGE_RESERVED))
+    HTTP_PORT=${RANGE_START_CONTROLPLAN}
     HTTPS_PORT=$((HTTP_PORT + 1))
 }
 
@@ -724,12 +723,12 @@ create_nginx_config() {
 server {
     listen 80;
     server_name localhost www.swautomorph.com;
-    return 301 https://\$server_name\$request_uri;
+    return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name localhost *.swautomorph.com;
+    server_name localhost www.swautomorph.com;
     
     ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt};
     ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key};
@@ -836,11 +835,11 @@ install_nginx_with_modsecurity() {
     sudo apt update
     
     # Install nginx and ModSecurity components
-    sudo apt install -y nginx libmodsecurity3 wget git
+    sudo apt install -y nginx wget git
     
     # Try to install nginx-module-security (may not be available on all systems)
-    sudo apt install -y libnginx-mod-security 2>/dev/null || {
-        echo "  ⚠️ nginx-module-security not available, installing alternative packages"
+    sudo apt install -y libmodsecurity3 2>/dev/null || {
+        echo "  ⚠️ libmodsecurity3 not available, installing alternative packages"
         sudo apt install -y libmodsecurity-dev modsecurity-crs 2>/dev/null || true
     }
     
