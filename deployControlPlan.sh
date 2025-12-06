@@ -120,6 +120,7 @@ GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
 calculate_ports() {
     HTTP_PORT=${RANGE_START_CONTROLPLAN}
     HTTPS_PORT=$((HTTP_PORT + 1))
+    HTTPS_PORT2=$((HTTPS_PORT + 1))
 }
 
 # Display environment variables for operations
@@ -133,6 +134,7 @@ show_environment() {
     echo "  USER_EMAIL=${USER_EMAIL}"
     echo "  HTTP_PORT=${HTTP_PORT}"
     echo "  HTTPS_PORT=${HTTPS_PORT}"
+    echo "  HTTPS_PORT2=${HTTPS_PORT2}"
     echo ""
 }
 
@@ -185,7 +187,7 @@ check_gitea_status() {
 
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
-        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + ${DOCKER_PORT_OFFSET:-363})) USER_ID=$USER_ID docker-compose ps
+        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + ${DOCKER_PORT_OFFSET:-363})) HTTPS_PORT2=$((HTTPS_PORT2 + ${DOCKER_PORT_OFFSET:-363})) USER_ID=$USER_ID docker-compose ps
     else
         echo "  ❌ Docker Compose not installed"
     fi
@@ -339,7 +341,7 @@ stop_nginx_service() {
 }
 
 stop_docker_services() {
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose down
 }
 
 # Show logs
@@ -372,7 +374,7 @@ show_nginx_logs() {
 }
 
 show_docker_logs() {
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose logs -f
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose logs -f
 }
 
 # Restart services
@@ -414,7 +416,7 @@ reload_nginx_config() {
 }
 
 restart_docker_services() {
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose restart
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose restart
 }
 
 # Start services
@@ -662,7 +664,7 @@ setup_api_token() {
 start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose up -d --build
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose up -d --build
     echo "  ✅ Docker services started"
 }
 
@@ -689,6 +691,10 @@ start_flask_application() {
 
 configure_nginx() {
     echo "🌐 Configuring Nginx..."
+    # Setup ModSecurity configuration if not already done
+    setup_modsecurity_config
+    # Check and enable ModSecurity module
+    check_and_enable_modsecurity
     create_nginx_config
     enable_nginx_site
     test_and_reload_nginx
@@ -798,7 +804,7 @@ configure_firewall() {
 
 cleanup_docker() {
     echo "🧹 Cleaning up..."
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
+    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose down --remove-orphans
 }
 
 # Validate user input
