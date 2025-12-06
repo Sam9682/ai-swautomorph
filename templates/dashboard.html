@@ -850,6 +850,15 @@ function unassignApp(userId, appId) {
 
 // Deployment functions
 function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
+    // Handle button state changes for START action
+    if (action === 'start') {
+        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '⏳ STARTING';
+        }
+    }
+    
     // Show logs section
     showLogs();
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -933,6 +942,11 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
             checkApplicationStatus(appName);
         }, 1000);
         
+        // Start periodic status checking for START action
+        if (action === 'start') {
+            startPeriodicStatusCheck(appName);
+        }
+        
         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
     })
     .catch(error => {
@@ -951,6 +965,15 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
         setTimeout(() => {
             checkApplicationStatus(appName);
         }, 1000);
+        
+        // Reset START button on failure
+        if (action === 'start') {
+            const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '▶️ START';
+            }
+        }
     });
     });
 }
@@ -1305,6 +1328,8 @@ function updateApplicationButtonStatus(appName, logs) {
             cloneBtn.title = 'Application is already running';
         }
         if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerHTML = '✅ STARTED';
             startBtn.style.pointerEvents = 'none';
             startBtn.style.opacity = '0.6';
             startBtn.title = 'Application is already running';
@@ -1335,6 +1360,8 @@ function updateApplicationButtonStatus(appName, logs) {
             cloneBtn.title = 'Re-clone application';
         }
         if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerHTML = '▶️ START';
             startBtn.style.pointerEvents = 'auto';
             startBtn.style.opacity = '1';
             startBtn.title = 'Start application';
@@ -2232,6 +2259,37 @@ if (updateServerForm) {
         });
     });
 }
+
+// Periodic status checking for START button
+function startPeriodicStatusCheck(appName) {
+    const checkInterval = setInterval(() => {
+        checkApplicationStatus(appName);
+        
+        // Check if application is running and stop the interval
+        const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        if (openBtn && openBtn.classList.contains('btn-success')) {
+            clearInterval(checkInterval);
+        }
+    }, 3000); // Check every 3 seconds
+    
+    // Stop checking after 5 minutes to prevent infinite polling
+    setTimeout(() => {
+        clearInterval(checkInterval);
+    }, 300000);
+}
+
+// Override the original deploy function to handle STOP action
+const originalDeployFunction = deploy_sh_executionCmdInApp;
+deploy_sh_executionCmdInApp = function(appName, gitUrl, action) {
+    if (action === 'stop') {
+        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        if (startBtn) {
+            startBtn.disabled = false;
+            startBtn.innerHTML = '▶️ START';
+        }
+    }
+    return originalDeployFunction.call(this, appName, gitUrl, action);
+};
 
 // Close modal when clicking outside
 window.onclick = function(event) {
