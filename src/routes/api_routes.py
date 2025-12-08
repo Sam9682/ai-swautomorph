@@ -354,6 +354,8 @@ def api_user_applications(user_id):
 
 @api_bp.route('/deployments', methods=['GET', 'POST'])
 def api_deployments():
+    from flask import Response, stream_with_context
+    import json
     import logging
     
     # Log API call
@@ -611,35 +613,76 @@ def api_deployments():
                 user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
                 user_email = user_details[1] if user_details else 'user@example.com'
                 
-                # Execute deployApp.sh with action and user environment variables
-                print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                print(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
-                result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
-                                          cwd=deploy_path, capture_output=True, text=True, timeout=600)
-                print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
+                # Check if streaming is requested
+                stream_output = data.get('stream', False)
                 
-                # Build command output only for non-empty content
-                output_parts = []
-                if result.stdout and result.stdout.strip():
-                    output_parts.append(f"STDOUT:\n{result.stdout}")
-                if result.stderr and result.stderr.strip():
-                    output_parts.append(f"STDERR:\n{result.stderr}")
-                command_output = "\n\n".join(output_parts) if output_parts else "No output"
-                
-                status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
-                
-                # Update deployment status
-                db_manager.execute_query('''
-                    UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
-                    WHERE user_id = ? AND application_name = ?
-                ''', (status, session['user_id'], app_name))
-                print(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
-                
-                # Record billing activity for start/stop actions
-                if action in ['start', 'stop'] and result.returncode == 0:
-                    from .billing_routes import record_billing_activity
-                    record_billing_activity(session['user_id'], app_name, action)
-                    print(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
+                if stream_output:
+                    # Stream output in real-time
+                    def generate():
+                        import re
+                        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+                        
+                        try:
+                            process = subprocess.Popen(
+                                [deploy_script, action, str(session['user_id']), user_name, user_email],
+                                cwd=deploy_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                text=True, bufsize=1
+                            )
+                            
+                            for line in iter(process.stdout.readline, ''):
+                                if line:
+                                    clean_line = ansi_escape.sub('', line.rstrip())
+                                    if clean_line:
+                                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+                            
+                            process.wait()
+                            status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+                            
+                            db_manager.execute_query('''
+                                UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
+                                WHERE user_id = ? AND application_name = ?
+                            ''', (status, session['user_id'], app_name))
+                            
+                            if action in ['start', 'stop'] and process.returncode == 0:
+                                from .billing_routes import record_billing_activity
+                                record_billing_activity(session['user_id'], app_name, action)
+                            
+                            yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
+                        except Exception as e:
+                            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                    
+                    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+                else:
+                    # Execute deployApp.sh with action and user environment variables
+                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
+                    print(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
+                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
+                                              cwd=deploy_path, capture_output=True, text=True, timeout=600)
+                    print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
+                    
+                    # Build command output only for non-empty content
+                    output_parts = []
+                    if result.stdout and result.stdout.strip():
+                        output_parts.append(f"STDOUT:\n{result.stdout}")
+                    if result.stderr and result.stderr.strip():
+                        output_parts.append(f"STDERR:\n{result.stderr}")
+                    command_output = "\n\n".join(output_parts) if output_parts else "No output"
+                    
+                    status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+                    
+                    # Update deployment status
+                    db_manager.execute_query('''
+                        UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE user_id = ? AND application_name = ?
+                    ''', (status, session['user_id'], app_name))
+                    print(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
+                    
+                    # Record billing activity for start/stop actions
+                    if action in ['start', 'stop'] and result.returncode == 0:
+                        from .billing_routes import record_billing_activity
+                        record_billing_activity(session['user_id'], app_name, action)
+                        print(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
             
             print(f"[DEPLOYMENT API] POST - SUCCESS - Action '{action}' completed for app '{app_name}' by user {user_id}")
             return jsonify({
@@ -754,31 +797,25 @@ def api_qchat():
 
 @api_bp.route('/qchat_question', methods=['POST'])
 def api_qchat_question():
-    from ..automorph_application import process_qchat_question
+    from flask import Response, stream_with_context
+    import json
+    import subprocess
+    import re
     import time
     
-    # Log API call details
     user_id = session.get('user_id', 'anonymous')
-    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-    timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-    
-    print(f"[VIRTUAL DEVOPS TEAM API] {timestamp} - POST /api/qchat_question - User: {user_id}, IP: {remote_ip}")
     
     if 'user_id' not in session:
-        print(f"[VIRTUAL DEVOPS TEAM API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     data = request.get_json()
     message = data.get('message', '').strip()
-    
-    print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - Message length: {len(message)} chars")
-    print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    application_name = data.get('application_name', '')
+    application_folder = data.get('application_folder', '')
     
     if not message:
-        print(f"[VIRTUAL DEVOPS TEAM API] FAILED - Empty message from user {user_id}")
         return jsonify({'error': 'Message required'}), 400
     
-    # Get user details for context
     user_details = db_manager.execute_query(
         'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
         (session['user_id'],), fetch_one=True
@@ -787,34 +824,51 @@ def api_qchat_question():
     username = user_details[0] if user_details else 'user'
     user_email = user_details[1] if user_details else 'user@example.com'
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+    description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
     
-    try:
-        # Use automorph_application module to process the question with user context
-        result = process_qchat_question(
-            message, 
-            user_id=str(session['user_id']),
-            user_name=user_name.strip(),
-            user_email=user_email
-        )
+    def generate():
+        from ..automorph_application import build_qchat_prompt
         
-        if 'error' in result:
-            print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - ERROR: {result['error']}")
-            return jsonify(result), 500
+        prompt = build_qchat_prompt(message, str(session['user_id']), user_name.strip(), user_email, description)
         
-        response_data = {
-            'response': result['response'],
-            'execution_time': result['execution_time'],
-            'success': result['success']
-        }
+        qchat_paths = ['/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+        qchat_cmd = None
+        for path in qchat_paths:
+            try:
+                subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                qchat_cmd = path
+                break
+            except:
+                continue
         
-        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - SUCCESS - Question processing completed")
-        return jsonify(response_data)
+        if not qchat_cmd:
+            yield f"data: {json.dumps({'error': 'Q Chat not found'})}\n\n"
+            return
         
-    except Exception as e:
-        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
-        import traceback
-        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
-        return jsonify({'error': f'Virtual DevOps Team error: {str(e)}'}), 500
+        cmd_args = [qchat_cmd, 'chat', '--trust-all-tools', prompt]
+        qchat_env = os.environ.copy()
+        qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
+        
+        try:
+            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                      text=True, bufsize=1, env=qchat_env)
+            
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    clean_line = ansi_escape.sub('', line.rstrip())
+                    if clean_line and 'Thinking...' not in clean_line:
+                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+            
+            process.wait()
+            yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 @api_bp.route('/database/tables/<table_name>', methods=['GET', 'POST'])
 def api_database_table(table_name):

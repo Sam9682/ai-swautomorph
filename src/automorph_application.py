@@ -192,6 +192,64 @@ If ANY step fails, explain clearly which step failed and why.
             'execution_time': round(time.time() - start_time, 2)
         }
 
+def build_qchat_prompt(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
+    """Build prompt for Q Chat"""
+    action_keywords = {
+        'start': ['start', 'deploy', 'launch', 'run'],
+        'stop': ['stop', 'shutdown', 'halt', 'terminate'],
+        'restart': ['restart', 'reboot', 'reload'],
+        'ps': ['status', 'ps', 'check', 'running'],
+        'logs': ['logs', 'log', 'output', 'console']
+    }
+    
+    detected_action = None
+    question_lower = user_question.lower()
+    
+    for action, keywords in action_keywords.items():
+        if any(keyword in question_lower for keyword in keywords):
+            detected_action = action
+            break
+    
+    if detected_action:
+        import os
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+        
+        if os.path.exists(context_file):
+            with open(context_file, 'r') as f:
+                context_template = f.read()
+            
+            context = context_template.replace('{USER_ID}', user_id)
+            context = context.replace('{USER_NAME}', user_name)
+            context = context.replace('{USER_EMAIL}', user_email)
+            context = context.replace('{DESCRIPTION}', description)
+            context = context.replace('{TAIL_LINES}', '100')
+            
+            app_folder = ''
+            if 'Path:' in description:
+                parts = description.split('Path:')
+                if len(parts) > 1:
+                    app_folder = parts[1].strip()
+            
+            return f"""
+You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
+
+The user has requested an application management action.
+
+User Request: {user_question}
+
+{'Application Folder: ' + app_folder if app_folder else ''}
+
+Follow the instructions below to execute the {detected_action.upper()} action:
+
+{context}
+
+IMPORTANT: Execute all commands in the application folder: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+
+Execute all required steps and provide a clear summary of the results.
+"""
+    
+    return f"You are a helpful assistant. Answer: {user_question}"
+
 def process_qchat_question(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
     """
     Process Virtual Advisor question using Q Chat for simple Q&A or app management
@@ -236,6 +294,13 @@ def process_qchat_question(user_question: str, user_id: str = '0', user_name: st
             context = context.replace('{DESCRIPTION}', description)
             context = context.replace('{TAIL_LINES}', '100')  # Default tail lines
             
+            # Extract application folder from description if present
+            app_folder = ''
+            if 'Path:' in description:
+                parts = description.split('Path:')
+                if len(parts) > 1:
+                    app_folder = parts[1].strip()
+            
             prompt = f"""
 You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
 
@@ -243,9 +308,13 @@ The user has requested an application management action.
 
 User Request: {user_question}
 
+{'Application Folder: ' + app_folder if app_folder else ''}
+
 Follow the instructions below to execute the {detected_action.upper()} action:
 
 {context}
+
+IMPORTANT: Execute all commands in the application folder: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
 
 Execute all required steps and provide a clear summary of the results.
 """

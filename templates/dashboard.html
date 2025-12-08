@@ -439,7 +439,16 @@
         </div>
         <div class="modal-body">
             <div class="advisor-controls" style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
-                <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label for="virtualAdvisorAppSelect" style="font-weight: bold; display: block; margin-bottom: 5px;">Application:</label>
+                        <select id="virtualAdvisorAppSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <option value="">-- Select Application --</option>
+                            {% for app in applications %}
+                            <option value="{{ app[1] }}">{{ app[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div style="flex: 1; min-width: 200px;">
                         <label for="virtualAdvisorAction" style="font-weight: bold; display: block; margin-bottom: 5px;">Action:</label>
                         <select id="virtualAdvisorAction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
@@ -868,7 +877,6 @@ function unassignApp(userId, appId) {
 
 // Deployment functions
 function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
-    // Handle button state changes for START action
     if (action === 'start') {
         const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         if (startBtn) {
@@ -877,122 +885,77 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
         }
     }
     
-    // Show logs section
     showLogs();
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
-    appendLog(`Starting ${action} operation...`);
     
-    // Add loading indicator for long operations
-    if (['start', 'clone', 'restart'].includes(action)) {
-        appendLog(`⏳ This may take several minutes, like for Docker builds...`);
-    }
-    
-    // Start progress indicator with rotating messages
-    let progressCounter = 0;
-    const progressMessages = [
-        '⏳ Processing request...',
-        '🔄 Executing command...',
-        '📦 Building containers...',
-        '🚀 Starting services...',
-        '⚙️ Configuring application...'
-    ];
-    let progressInterval = setInterval(() => {
-        appendProgressStatus(progressMessages[progressCounter % progressMessages.length]);
-        progressCounter++;
-    }, 2000);
-    
-    // Get server_id first, then proceed with deployment
     getAvailableServerId(appName).then(serverId => {
         const data = {
             action: action,
             application_name: appName,
-            server_id: serverId
+            server_id: serverId,
+            stream: true
         };
         
         if (action === 'clone' && gitUrl) {
             data.git_url = gitUrl;
         }
         
-        // Create AbortController for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 20 * 60 * 1000); // 20 minutes
-        
         fetch('/api/deployments', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data),
-        signal: controller.signal
-    })
-    .then(response => {
-        clearTimeout(timeoutId);
-        clearInterval(progressInterval);
-        stopDotAnimation(); // Stop dot animation when response received
-        appendLog(`Server response status: ${response.status} ${response.statusText}`);
-        if (!response.ok) {
-            return response.text().then(text => {
-                throw new Error(`HTTP ${response.status}: ${text.substring(0, 200)}`);
-            });
-        }
-        return response.text().then(text => {
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                appendLog(`Invalid JSON response: ${text.substring(0, 200)}`);
-                throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}`);
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
+                        setTimeout(() => checkApplicationStatus(appName), 1000);
+                        if (action === 'start') startPeriodicStatusCheck(appName);
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    appendLog(data.chunk);
+                                } else if (data.error) {
+                                    appendLog(`ERROR: ${data.error}`);
+                                } else if (data.done) {
+                                    if (!data.success) appendLog('Operation failed');
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    readStream();
+                });
+            }
+            readStream();
+        })
+        .catch(error => {
+            appendLog(`ERROR: ${error.message}`);
+            appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
+            setTimeout(() => checkApplicationStatus(appName), 1000);
+            if (action === 'start') {
+                const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                if (startBtn) {
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = '▶️ START';
+                }
             }
         });
-    })
-    .then(data => {
-        if (data.error) {
-            appendLog(`ERROR: ${data.error}`);
-            if (data.logs) {
-                appendLog(`\nCommand Output:\n${data.logs}`);
-            }
-        } else {
-            appendLog(`SUCCESS: ${data.message}`);
-            if (data.logs) {
-                appendLog(`\nCommand Output:\n${data.logs}`);
-            }
-        }
-        
-        // Always update button status after any deployment action
-        setTimeout(() => {
-            checkApplicationStatus(appName);
-        }, 1000);
-        
-        // Start periodic status checking for START action
-        if (action === 'start') {
-            startPeriodicStatusCheck(appName);
-        }
-        
-        appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
-    })
-    .catch(error => {
-        clearTimeout(timeoutId);
-        clearInterval(progressInterval);
-        stopDotAnimation(); // Stop dot animation on error
-        console.error('Deployment error:', error);
-        if (error.name === 'AbortError') {
-            appendLog(`TIMEOUT ERROR: Operation exceeded 10 minutes`);
-        } else {
-            appendLog(`APP SERVER ERROR: ${error.message}`);
-        }
-        appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
-        
-        // Update button status even on failure
-        setTimeout(() => {
-            checkApplicationStatus(appName);
-        }, 1000);
-        
-        // Reset START button on failure
-        if (action === 'start') {
-            const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-            if (startBtn) {
-                startBtn.disabled = false;
-                startBtn.innerHTML = '▶️ START';
-            }
-        }
-    });
     });
 }
 
@@ -1118,73 +1081,6 @@ function appendLog(message) {
     
     // Auto-scroll to bottom
     logsContent.scrollTop = logsContent.scrollHeight;
-}
-
-// Global variable to track dot animation
-let dotAnimationInterval = null;
-let baseDotMessage = '';
-
-function appendProgressStatus(message) {
-    const logsContent = document.getElementById('deploymentLogsContent');
-    const lines = logsContent.textContent.split('\n');
-    
-    // Remove previous progress message if it exists
-    if (lines[lines.length - 1].startsWith('⏳') || lines[lines.length - 1].startsWith('🔄') || 
-        lines[lines.length - 1].startsWith('📦') || lines[lines.length - 1].startsWith('🚀') || 
-        lines[lines.length - 1].startsWith('⚙️')) {
-        lines.pop();
-    }
-    
-    // Add new progress message
-    lines.push(message);
-    logsContent.textContent = lines.join('\n');
-    
-    // Start dot animation for this message
-    startDotAnimation(message);
-    
-    // Auto-scroll to bottom
-    logsContent.scrollTop = logsContent.scrollHeight;
-}
-
-function startDotAnimation(message) {
-    // Clear any existing dot animation
-    if (dotAnimationInterval) {
-        clearInterval(dotAnimationInterval);
-    }
-    
-    // Store the base message without dots
-    baseDotMessage = message.replace(/\.+$/, '');
-    let dotCount = 0;
-    
-    dotAnimationInterval = setInterval(() => {
-        const logsContent = document.getElementById('deploymentLogsContent');
-        const lines = logsContent.textContent.split('\n');
-        
-        // Find and update the last progress line
-        for (let i = lines.length - 1; i >= 0; i--) {
-            if (lines[i].startsWith('⏳') || lines[i].startsWith('🔄') || 
-                lines[i].startsWith('📦') || lines[i].startsWith('🚀') || 
-                lines[i].startsWith('⚙️')) {
-                
-                // Add dots (cycle through 1, 2, 3 dots)
-                dotCount = (dotCount % 3) + 1;
-                const dots = '.'.repeat(dotCount);
-                lines[i] = baseDotMessage + dots;
-                
-                logsContent.textContent = lines.join('\n');
-                logsContent.scrollTop = logsContent.scrollHeight;
-                break;
-            }
-        }
-    }, 1000); // Add dot every second
-}
-
-function stopDotAnimation() {
-    if (dotAnimationInterval) {
-        clearInterval(dotAnimationInterval);
-        dotAnimationInterval = null;
-        baseDotMessage = '';
-    }
 }
 
 // Check application status on page load and every 10 seconds
@@ -1678,77 +1574,117 @@ function sendVirtualAdvisorMessage() {
     const input = document.getElementById('virtualAdvisorInput');
     const message = input.value.trim();
     const selectedAction = document.getElementById('virtualAdvisorAction').value;
+    const selectedApp = document.getElementById('virtualAdvisorAppSelect').value;
     
     if (!message) return;
     
-    // Prepend action to message for better context
-    const fullMessage = `[${selectedAction}] ${message}`;
+    // Check if application is selected
+    if (!selectedApp) {
+        addVirtualAdvisorMessage('error', 'Please select an application before sending your request.');
+        return;
+    }
     
+    // Get application deployment path for this user
+    const username = '{{ username }}';
+    const userId = '{{ session.user_id }}';
+    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
+    
+    // Prepend action and app info to message for better context
+    const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+    
+    addVirtualAdvisorMessage('user', `Application: ${selectedApp}`);
     addVirtualAdvisorMessage('user', `Action: ${selectedAction}`);
     addVirtualAdvisorMessage('user', message);
     input.value = '';
     
     // Show typing indicator
-    addVirtualAdvisorMessage('system', `Virtual DevOps Team is processing ${selectedAction} request...`);
+    addVirtualAdvisorMessage('system', `Virtual DevOps Team is processing ${selectedAction} for ${selectedApp}...`);
     
-    // Start progress indicator for Virtual DevOps Team
+    // Start progress indicator for Virtual DevOps Team with more detailed updates
     let progressCounter = 0;
     const progressMessages = [
-        `💡 Processing ${selectedAction} request...`,
-        '📚 Loading context...',
-        '🧠 Analyzing requirements...',
-        '⚙️ Executing commands...',
-        '✍️ Preparing response...'
+        `💡 Processing ${selectedAction} for ${selectedApp}...`,
+        '📚 Loading context from shared folder...',
+        '🔍 Analyzing user requirements...',
+        '🔐 Authenticating with Q Chat...',
+        '⚙️ Executing commands in application folder...',
+        '📊 Checking deployment status...',
+        '🔄 Running deployment scripts...',
+        '📝 Collecting output and logs...',
+        '✅ Finalizing response...',
+        '⏳ Still processing, please wait...',
+        '🚀 Almost done...',
+        '⌛ This may take a few minutes for complex operations...'
     ];
     let progressInterval = setInterval(() => {
         updateVirtualAdvisorProgress(progressMessages[progressCounter % progressMessages.length]);
         progressCounter++;
-    }, 2000);
+    }, 3000);
     
-    // Send to Virtual DevOps Team API
+    // Create streaming message container
+    const messages = document.getElementById('virtualAdvisorMessages');
+    const streamDiv = document.createElement('div');
+    streamDiv.className = 'chat-message chat-assistant';
+    streamDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">💡</span>
+            <span class="message-time">${new Date().toLocaleTimeString()}</span>
+        </div>
+        <div class="message-content" style="white-space: pre-wrap;"></div>
+    `;
+    messages.appendChild(streamDiv);
+    const contentDiv = streamDiv.querySelector('.message-content');
+    
+    // Stream from API
     fetch('/api/qchat_question', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({message: fullMessage})
+        body: JSON.stringify({
+            message: fullMessage,
+            application_name: selectedApp,
+            application_folder: appFolder
+        })
     })
     .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-    })
-    .then(data => {
         clearInterval(progressInterval);
-        // Remove typing indicator
-        const messages = document.getElementById('virtualAdvisorMessages');
         const systemMessages = messages.querySelectorAll('.chat-system');
         for (let i = systemMessages.length - 1; i >= 0; i--) {
-            if (systemMessages[i].textContent.includes('thinking')) {
-                systemMessages[i].remove();
-                break;
-            }
+            systemMessages[i].remove();
         }
         
-        if (data.error) {
-            addVirtualAdvisorMessage('error', `Error: ${data.error}`);
-        } else {
-            addVirtualAdvisorMessage('assistant', data.response);
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        function readStream() {
+            reader.read().then(({done, value}) => {
+                if (done) return;
+                
+                const chunk = decoder.decode(value, {stream: true});
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.chunk) {
+                                contentDiv.textContent += data.chunk + '\n';
+                                messages.scrollTop = messages.scrollHeight;
+                            } else if (data.error) {
+                                contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                            } else if (data.done) {
+                                contentDiv.textContent += '\n✅ Completed';
+                            }
+                        } catch (e) {}
+                    }
+                }
+                readStream();
+            });
         }
+        readStream();
     })
     .catch(error => {
         clearInterval(progressInterval);
-        // Remove typing indicator
-        const messages = document.getElementById('virtualAdvisorMessages');
-        const systemMessages = messages.querySelectorAll('.chat-system');
-        for (let i = systemMessages.length - 1; i >= 0; i--) {
-            if (systemMessages[i].textContent.includes('thinking')) {
-                systemMessages[i].remove();
-                break;
-            }
-        }
-        
-        addVirtualAdvisorMessage('error', `App Server error: ${error.message}`);
-        console.error('Virtual DevOps Team error:', error);
+        contentDiv.textContent += `\n❌ Error: ${error.message}`;
     });
 }
 
@@ -1783,10 +1719,11 @@ function updateVirtualAdvisorProgress(message) {
     
     if (lastMessage && lastMessage.classList.contains('chat-system')) {
         const messageContent = lastMessage.querySelector('.message-content');
-        if (messageContent && (messageContent.textContent.includes('thinking') || 
-            messageContent.textContent.includes('Searching') || messageContent.textContent.includes('Analyzing') ||
-            messageContent.textContent.includes('Preparing'))) {
-            messageContent.textContent = message;
+        if (messageContent) {
+            const baseMessage = message.replace(/\.+$/, '');
+            const dotCount = Math.floor(Date.now() / 500) % 4;
+            const dots = '.'.repeat(dotCount);
+            messageContent.textContent = baseMessage + dots;
             messages.scrollTop = messages.scrollHeight;
         }
     }
