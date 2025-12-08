@@ -192,17 +192,76 @@ If ANY step fails, explain clearly which step failed and why.
             'execution_time': round(time.time() - start_time, 2)
         }
 
-def process_qchat_question(user_question: str):
+def process_qchat_question(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
     """
-    Process Virtual Advisor question using Q Chat for simple Q&A
+    Process Virtual Advisor question using Q Chat for simple Q&A or app management
     Returns dict with response and timing
     """
     start_time = time.time()
     
     print(f"[VIRTUAL ADVISOR] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
     
-    # Simple prompt for Q&A without code execution
-    prompt = f"""
+    # Detect application management actions
+    action_keywords = {
+        'start': ['start', 'deploy', 'launch', 'run'],
+        'stop': ['stop', 'shutdown', 'halt', 'terminate'],
+        'restart': ['restart', 'reboot', 'reload'],
+        'ps': ['status', 'ps', 'check', 'running'],
+        'logs': ['logs', 'log', 'output', 'console']
+    }
+    
+    detected_action = None
+    question_lower = user_question.lower()
+    
+    for action, keywords in action_keywords.items():
+        if any(keyword in question_lower for keyword in keywords):
+            detected_action = action
+            break
+    
+    # Load context from shared folder if action detected
+    if detected_action:
+        import os
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+        
+        if os.path.exists(context_file):
+            print(f"[VIRTUAL ADVISOR] Detected action: {detected_action.upper()}, loading context from {context_file}")
+            
+            with open(context_file, 'r') as f:
+                context_template = f.read()
+            
+            # Replace placeholders
+            context = context_template.replace('{USER_ID}', user_id)
+            context = context.replace('{USER_NAME}', user_name)
+            context = context.replace('{USER_EMAIL}', user_email)
+            context = context.replace('{DESCRIPTION}', description)
+            context = context.replace('{TAIL_LINES}', '100')  # Default tail lines
+            
+            prompt = f"""
+You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
+
+The user has requested an application management action.
+
+User Request: {user_question}
+
+Follow the instructions below to execute the {detected_action.upper()} action:
+
+{context}
+
+Execute all required steps and provide a clear summary of the results.
+"""
+        else:
+            print(f"[VIRTUAL ADVISOR] Context file not found: {context_file}, using default Q&A mode")
+            prompt = f"""
+You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+Do not execute any commands or modify any files. Just provide helpful information and guidance.
+
+User Question: {user_question}
+
+Provide a helpful and informative response.
+"""
+    else:
+        # Simple prompt for Q&A without code execution
+        prompt = f"""
 You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
 
@@ -231,7 +290,11 @@ Provide a helpful and informative response.
                 'execution_time': round(time.time() - start_time, 2)
             }
         
-        cmd_args = [qchat_cmd, 'chat', prompt]
+        # Use --trust-all-tools if action detected (needs command execution)
+        cmd_args = [qchat_cmd, 'chat']
+        if detected_action:
+            cmd_args.append('--trust-all-tools')
+        cmd_args.append(prompt)
         
         print(f"[VIRTUAL ADVISOR] Executing qchat command for question using: {qchat_cmd}")
         

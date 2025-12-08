@@ -83,7 +83,7 @@ TRANSLATIONS = {
         'developed_by': 'Developed by',
         'with_help_of': 'with the help of',
         'and': 'and',
-        'virtual_advisor_toggle': 'My Virtual Advisor : ask him a question',
+        'virtual_advisor_toggle': 'My Virtual DevOps Team : ask him a question',
         'virtual_developer_toggle': 'My Virtual Developer: ask him to modify the application'
     },
     'fr': {

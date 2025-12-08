@@ -762,28 +762,43 @@ def api_qchat_question():
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
     
-    print(f"[VIRTUAL ADVISOR API] {timestamp} - POST /api/qchat_question - User: {user_id}, IP: {remote_ip}")
+    print(f"[VIRTUAL DEVOPS TEAM API] {timestamp} - POST /api/qchat_question - User: {user_id}, IP: {remote_ip}")
     
     if 'user_id' not in session:
-        print(f"[VIRTUAL ADVISOR API] FAILED - Authentication required from {remote_ip}")
+        print(f"[VIRTUAL DEVOPS TEAM API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     data = request.get_json()
     message = data.get('message', '').strip()
     
-    print(f"[VIRTUAL ADVISOR API] User {user_id} - Message length: {len(message)} chars")
-    print(f"[VIRTUAL ADVISOR API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - Message length: {len(message)} chars")
+    print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
     
     if not message:
-        print(f"[VIRTUAL ADVISOR API] FAILED - Empty message from user {user_id}")
+        print(f"[VIRTUAL DEVOPS TEAM API] FAILED - Empty message from user {user_id}")
         return jsonify({'error': 'Message required'}), 400
     
+    # Get user details for context
+    user_details = db_manager.execute_query(
+        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    username = user_details[0] if user_details else 'user'
+    user_email = user_details[1] if user_details else 'user@example.com'
+    user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+    
     try:
-        # Use automorph_application module to process the question
-        result = process_qchat_question(message)
+        # Use automorph_application module to process the question with user context
+        result = process_qchat_question(
+            message, 
+            user_id=str(session['user_id']),
+            user_name=user_name.strip(),
+            user_email=user_email
+        )
         
         if 'error' in result:
-            print(f"[VIRTUAL ADVISOR API] User {user_id} - ERROR: {result['error']}")
+            print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - ERROR: {result['error']}")
             return jsonify(result), 500
         
         response_data = {
@@ -792,14 +807,14 @@ def api_qchat_question():
             'success': result['success']
         }
         
-        print(f"[VIRTUAL ADVISOR API] User {user_id} - SUCCESS - Question processing completed")
+        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - SUCCESS - Question processing completed")
         return jsonify(response_data)
         
     except Exception as e:
-        print(f"[VIRTUAL ADVISOR API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
+        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
         import traceback
-        print(f"[VIRTUAL ADVISOR API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
-        return jsonify({'error': f'Virtual Advisor error: {str(e)}'}), 500
+        print(f"[VIRTUAL DEVOPS TEAM API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
+        return jsonify({'error': f'Virtual DevOps Team error: {str(e)}'}), 500
 
 @api_bp.route('/database/tables/<table_name>', methods=['GET', 'POST'])
 def api_database_table(table_name):
