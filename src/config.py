@@ -83,7 +83,7 @@ TRANSLATIONS = {
         'developed_by': 'Developed by',
         'with_help_of': 'with the help of',
         'and': 'and',
-        'virtual_advisor_toggle': 'My Virtual DevOps Team : ask him a question',
+        'virtual_advisor_toggle': 'My Virtual DevOps Team : ask them to START / STOP / PS / RESTART / LOGS',
         'virtual_developer_toggle': 'My Virtual Developer: ask him to modify the application'
     },
     'fr': {
@@ -153,7 +153,7 @@ TRANSLATIONS = {
         'developed_by': 'Développé par',
         'with_help_of': 'avec l\'aide de',
         'and': 'et',
-        'virtual_advisor_toggle': 'Mon Conseiller Virtuel : posez-lui une question',
+        'virtual_advisor_toggle': 'Mon Équipe DevOps Virtuelle : demandez-leur de START / STOP / PS / RESTART / LOGS',
         'virtual_developer_toggle': 'Mon Développeur Virtuel : demandez-lui de modifier l\'application'
     }
 }
