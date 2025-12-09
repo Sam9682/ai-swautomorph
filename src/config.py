@@ -81,7 +81,7 @@ TRANSLATIONS = {
         'revolution_message': 'The software development industry as we know it is about to change forever. Get ready to get wet - the wave of agentic AI is here.',
         'all_rights_reserved': 'All rights reserved.',
         'developed_by': 'Developed by',
-        'with_help_of': 'with the help of',
+        'with_help_of': 'tested by',
         'and': 'and',
         'virtual_advisor_toggle': 'My Virtual DevOps Team : ask them to START / STOP / PS / RESTART / LOGS',
         'virtual_developer_toggle': 'My Virtual Developer: ask him to modify the application'
@@ -151,9 +151,9 @@ TRANSLATIONS = {
         'revolution_message': 'L\'industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.',
         'all_rights_reserved': 'Tous droits réservés.',
         'developed_by': 'Développé par',
-        'with_help_of': 'avec l\'aide de',
+        'with_help_of': 'testé par',
         'and': 'et',
-        'virtual_advisor_toggle': 'Mon Équipe DevOps Virtuelle : demandez-leur de START / STOP / PS / RESTART / LOGS',
-        'virtual_developer_toggle': 'Mon Développeur Virtuel : demandez-lui de modifier l\'application'
+        'virtual_advisor_toggle': 'La Team Ingénieurs DevOps virtuels : demandez-leur de START / STOP / PS / RESTART / LOGS',
+        'virtual_developer_toggle': 'La Team Développeurs virtuels : demandez-leur de modifier l\'application'
     }
 }

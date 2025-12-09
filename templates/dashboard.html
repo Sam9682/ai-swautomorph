@@ -59,8 +59,8 @@
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small">📊 {{ get_text('status') }}</button>
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small">📋 {{ get_text('logs') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small" id="logsBtn-{{ app[1] | replace(' ', '-') | lower }}">📋 {{ get_text('logs') }}</button>
                 </div>
                 {% endif %}
             </div>
@@ -316,6 +316,7 @@
                 <option value="servers">Servers</option>
                 <option value="application_costs">Application Costs</option>
                 <option value="billing_activities">Billing Activities</option>
+                <option value="users_logs">Users Logs</option>
             </select>
             <button class="btn btn-primary" onclick="refreshTable()">Refresh</button>
             <button class="btn btn-secondary" onclick="showAddRecordForm()">Add Record</button>
@@ -452,8 +453,7 @@
                     <div style="flex: 1; min-width: 200px;">
                         <label for="virtualAdvisorAction" style="font-weight: bold; display: block; margin-bottom: 5px;">Action:</label>
                         <select id="virtualAdvisorAction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                            <option value="PS" selected>PS (Status)</option>
-                            <option value="START">START</option>
+                            <option value="START" selected>START</option>
                             <option value="STOP">STOP</option>
                             <option value="RESTART">RESTART</option>
                             <option value="LOGS">LOGS</option>
@@ -1110,9 +1110,7 @@ function initializeButtonStates() {
         
         [startBtn, stopBtn, restartBtn].forEach(btn => {
             if (btn) {
-                btn.style.pointerEvents = 'none';
-                btn.style.opacity = '0.6';
-                btn.title = 'Checking application status...';
+                btn.style.display = 'none';
             }
         });
     });
@@ -1168,6 +1166,8 @@ function updateApplicationButtonStatus(appName, logs) {
     const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     const stopBtn = document.getElementById(`stopBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
     // Check if application is not cloned/installed
@@ -1207,68 +1207,56 @@ function updateApplicationButtonStatus(appName, logs) {
         
         // Only Clone button enabled
         if (cloneBtn) {
+            cloneBtn.style.display = 'inline-block';
             cloneBtn.style.pointerEvents = 'auto';
             cloneBtn.style.opacity = '1';
             cloneBtn.title = 'Clone application first';
         }
-        // Disable all other buttons
+        // Hide all other buttons
         if (startBtn) {
-            startBtn.style.pointerEvents = 'none';
-            startBtn.style.opacity = '0.6';
-            startBtn.title = 'Application is not cloned yet';
+            startBtn.style.display = 'none';
         }
         if (stopBtn) {
-            stopBtn.style.pointerEvents = 'none';
-            stopBtn.style.opacity = '0.6';
-            stopBtn.title = 'Application is not cloned yet';
+            stopBtn.style.display = 'none';
         }
         if (restartBtn) {
-            restartBtn.style.pointerEvents = 'none';
-            restartBtn.style.opacity = '0.6';
-            restartBtn.title = 'Application is not cloned yet';
+            restartBtn.style.display = 'none';
+        }
+        if (psBtn) {
+            psBtn.style.display = 'none';
+        }
+        if (logsBtn) {
+            logsBtn.style.display = 'none';
         }
     } else if (isRunning) {
-        // Application is running - GREEN and ENABLED
+        // Application is running
         openBtn.classList.remove('btn-primary', 'btn-danger');
         openBtn.classList.add('btn-success');
         openBtn.style.pointerEvents = 'auto';
         openBtn.style.opacity = '1';
         openBtn.title = 'Application is running';
         
-        // Disable Clone and Start buttons when running
-        if (cloneBtn) {
-            cloneBtn.style.pointerEvents = 'none';
-            cloneBtn.style.opacity = '0.6';
-            cloneBtn.title = 'Application is already running';
-        }
-        if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.innerHTML = '✅ STARTED';
-            startBtn.style.pointerEvents = 'none';
-            startBtn.style.opacity = '0.6';
-            startBtn.title = 'Application is already running';
-        }
-        // Enable Stop and Restart buttons when running
+        if (cloneBtn) cloneBtn.style.display = 'none';
+        if (startBtn) startBtn.style.display = 'none';
+        if (psBtn) psBtn.style.display = 'inline-block';
         if (stopBtn) {
+            stopBtn.style.display = 'inline-block';
             stopBtn.style.pointerEvents = 'auto';
             stopBtn.style.opacity = '1';
             stopBtn.title = 'Stop application';
         }
-        if (restartBtn) {
-            restartBtn.style.pointerEvents = 'auto';
-            restartBtn.style.opacity = '1';
-            restartBtn.title = 'Restart application';
-        }
+        if (logsBtn) logsBtn.style.display = 'inline-block';
+        if (restartBtn) restartBtn.style.display = 'none';
     } else if (isNotRunning) {
-        // Application is cloned but not running - RED and Start enabled
+        // Application is cloned but not running
         openBtn.classList.remove('btn-primary', 'btn-success');
         openBtn.classList.add('btn-danger');
         openBtn.style.pointerEvents = 'none';
         openBtn.style.opacity = '0.6';
         openBtn.title = 'Application is not running';
         
-        // Enable Clone and Start buttons
         if (cloneBtn) {
+            cloneBtn.style.display = 'inline-block';
             cloneBtn.style.pointerEvents = 'auto';
             cloneBtn.style.opacity = '1';
             cloneBtn.title = 'Re-clone application';
@@ -1276,21 +1264,15 @@ function updateApplicationButtonStatus(appName, logs) {
         if (startBtn) {
             startBtn.disabled = false;
             startBtn.innerHTML = '▶️ START';
+            startBtn.style.display = 'inline-block';
             startBtn.style.pointerEvents = 'auto';
             startBtn.style.opacity = '1';
             startBtn.title = 'Start application';
         }
-        // Disable Stop and Restart buttons when not running
-        if (stopBtn) {
-            stopBtn.style.pointerEvents = 'none';
-            stopBtn.style.opacity = '0.6';
-            stopBtn.title = 'Application is not running';
-        }
-        if (restartBtn) {
-            restartBtn.style.pointerEvents = 'none';
-            restartBtn.style.opacity = '0.6';
-            restartBtn.title = 'Application is not running';
-        }
+        if (psBtn) psBtn.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (logsBtn) logsBtn.style.display = 'none';
+        if (restartBtn) restartBtn.style.display = 'none';
     }
 }
 

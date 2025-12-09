@@ -59,6 +59,12 @@ def login():
         token = generate_sso_token(user[0])
         session['sso_token'] = token
         
+        # Log login event
+        db_manager.execute_query(
+            'INSERT INTO users_logs (user_id, username, action) VALUES (?, ?, ?)',
+            (user[0], username, 'login')
+        )
+        
         if request.is_json:
             return jsonify({'message': 'Login successful', 'sso_token': token}), 200
         return redirect(url_for('main.dashboard'))
@@ -67,6 +73,18 @@ def login():
 
 @auth_bp.route('/logout')
 def logout():
+    # Log logout event
+    if 'user_id' in session:
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = ?',
+            (session['user_id'],), fetch_one=True
+        )
+        if user:
+            db_manager.execute_query(
+                'INSERT INTO users_logs (user_id, username, action) VALUES (?, ?, ?)',
+                (session['user_id'], user[0], 'logout')
+            )
+    
     # Invalidate SSO token
     if 'sso_token' in session:
         invalidate_sso_token(session['sso_token'])
