@@ -1368,7 +1368,8 @@ body {
     position: fixed;
     top: 80px;
     right: 20px;
-    width: 400px;
+    width: calc(100vw - 60px);
+    max-width: 800px;
     height: calc(100vh - 120px);
     background: white;
     border-radius: 12px;
@@ -1620,7 +1621,8 @@ body {
 /* Responsive adjustments for the panel */
 @media (max-width: 1024px) {
     .virtual-agents-panel {
-        width: 350px;
+        width: calc(100vw - 40px);
+        max-width: 600px;
     }
 }
 
@@ -1663,6 +1665,6 @@ body {
 /* Adjust main content to accommodate panel */
 @media (min-width: 769px) {
     .dashboard-container {
-        margin-right: 440px;
+        margin-right: calc(min(100vw - 40px, 800px) + 40px);
     }
 }
