@@ -56,8 +56,10 @@
                 {% if app[4] %}
                 <div class="deployment-buttons">
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    {% if username == 'admin' %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
+                    {% endif %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small" id="logsBtn-{{ app[1] | replace(' ', '-') | lower }}">📋 {{ get_text('logs') }}</button>
@@ -400,90 +402,64 @@
     </div>
 </div>
 
-<!-- Virtual Developer Modal -->
-<div id="virtualDeveloperModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>🤖 Virtual Developer</h3>
-            <span class="close" onclick="closeVirtualDeveloperModal()">&times;</span>
+
+
+<!-- Virtual Agents Panel -->
+<div id="virtualAgentsPanel" class="virtual-agents-panel">
+    <div class="panel-header">
+        <h3>Virtual Agents</h3>
+        <button id="togglePanel" class="toggle-btn" onclick="toggleAgentsPanel()">−</button>
+    </div>
+    
+    <div class="panel-content">
+        <div class="tab-buttons">
+            <button id="developerTabBtn" class="tab-btn active" onclick="switchAgentTab('developer')">🤖 Developer</button>
+            <button id="devopsTabBtn" class="tab-btn" onclick="switchAgentTab('devops')">💡 DevOps</button>
         </div>
-        <div class="modal-body">
-            <div class="chat-app-selection">
-                <label for="virtualDeveloperAppSelect">{{ get_text('select_application') }}:</label>
-                <select id="virtualDeveloperAppSelect">
-                    <option value="">-- {{ get_text('select_application') }} --</option>
+        
+        <!-- Developer Tab Content -->
+        <div id="developerTab" class="tab-content active">
+            <div class="app-selection">
+                <select id="developerAppSelect">
+                    <option value="">-- Select Application --</option>
                     {% for app in applications %}
                     <option value="{{ app[1] }}">{{ app[1] }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div id="virtualDeveloperMessages" class="chat-messages"></div>
-            <div class="chat-input-area">
-                <textarea id="virtualDeveloperInput" placeholder="{{ get_text('qchat_placeholder') }}" rows="3"></textarea>
-                <div class="chat-controls">
-                    <label>
-                        <input type="checkbox" id="virtualDeveloperAutoYes" checked> {{ get_text('auto_approve') }}
-                    </label>
-                    <button onclick="sendVirtualDeveloperMessage()" class="btn btn-primary">{{ get_text('send') }}</button>
-                </div>
+            <div id="developerMessages" class="messages-area"></div>
+        </div>
+        
+        <!-- DevOps Tab Content -->
+        <div id="devopsTab" class="tab-content">
+            <div class="devops-controls">
+                <select id="devopsAppSelect">
+                    <option value="">-- Select Application --</option>
+                    {% for app in applications %}
+                    <option value="{{ app[1] }}">{{ app[1] }}</option>
+                    {% endfor %}
+                </select>
+                <select id="devopsAction">
+                    <option value="START" selected>START</option>
+                    <option value="STOP">STOP</option>
+                    <option value="RESTART">RESTART</option>
+                    <option value="LOGS">LOGS</option>
+                </select>
+            </div>
+            <div id="devopsMessages" class="messages-area"></div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="input-area">
+            <textarea id="agentInput" placeholder="Type your request here..." rows="3"></textarea>
+            <div class="input-controls">
+                <label id="autoApproveLabel" style="display: none;">
+                    <input type="checkbox" id="autoApprove" checked> Auto Approve
+                </label>
+                <button id="sendBtn" onclick="sendAgentMessage()">Send</button>
             </div>
         </div>
     </div>
-</div>
-
-<!-- Virtual DevOps Team Modal -->
-<div id="virtualAdvisorModal" class="modal" style="display: none;">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>💡 Virtual DevOps Team</h3>
-            <span class="close" onclick="closeVirtualAdvisorModal()">&times;</span>
-        </div>
-        <div class="modal-body">
-            <div class="advisor-controls" style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
-                <div style="display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 200px;">
-                        <label for="virtualAdvisorAppSelect" style="font-weight: bold; display: block; margin-bottom: 5px;">Application:</label>
-                        <select id="virtualAdvisorAppSelect" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                            <option value="">-- Select Application --</option>
-                            {% for app in applications %}
-                            <option value="{{ app[1] }}">{{ app[1] }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div style="flex: 1; min-width: 200px;">
-                        <label for="virtualAdvisorAction" style="font-weight: bold; display: block; margin-bottom: 5px;">Action:</label>
-                        <select id="virtualAdvisorAction" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                            <option value="START" selected>START</option>
-                            <option value="STOP">STOP</option>
-                            <option value="RESTART">RESTART</option>
-                            <option value="LOGS">LOGS</option>
-                        </select>
-                    </div>
-                    <div style="flex: 0 0 auto;">
-                        <label style="font-weight: bold; display: block; margin-bottom: 5px;">USER_ID:</label>
-                        <div style="padding: 8px 12px; background: #fff; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 14px; color: #2c5282;">{{ session.user_id }}</div>
-                    </div>
-                </div>
-            </div>
-            <div id="virtualAdvisorMessages" class="chat-messages"></div>
-            <div class="chat-input-area">
-                <textarea id="virtualAdvisorInput" placeholder="Ask your question or describe what you need..." rows="3"></textarea>
-                <div class="chat-controls">
-                    <button onclick="sendVirtualAdvisorMessage()" class="btn btn-primary">Send Request</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Virtual Developer Toggle Button -->
-<div id="virtualDeveloperToggle" class="chat-toggle" onclick="showVirtualDeveloperModal()">
-    🤖 {{ get_text('virtual_developer_toggle') }}
-</div>
-
-<!-- Virtual DevOps Team Toggle Button -->
-<div id="virtualAdvisorToggle" class="chat-toggle" onclick="showVirtualAdvisorModal()" style="bottom: 120px;">
-    💡 {{ get_text('virtual_advisor_toggle') }}
 </div>
 
 <script>
@@ -1276,82 +1252,110 @@ function updateApplicationButtonStatus(appName, logs) {
     }
 }
 
-// Virtual Developer functions
-function showVirtualDeveloperModal() {
-    document.getElementById('virtualDeveloperModal').style.display = 'block';
-    if (document.getElementById('virtualDeveloperMessages').innerHTML === '') {
-        addVirtualDeveloperMessage('system', '{{ get_text("qchat_ready") }}');
+// Virtual Agents Panel functions
+let currentAgent = 'developer';
+
+function toggleAgentsPanel() {
+    const panel = document.getElementById('virtualAgentsPanel');
+    const toggleBtn = document.getElementById('togglePanel');
+    const isCollapsed = panel.classList.contains('collapsed');
+    
+    if (isCollapsed) {
+        panel.classList.remove('collapsed');
+        toggleBtn.textContent = '−';
+    } else {
+        panel.classList.add('collapsed');
+        toggleBtn.textContent = '+';
     }
 }
 
-function closeVirtualDeveloperModal() {
-    document.getElementById('virtualDeveloperModal').style.display = 'none';
+function switchAgentTab(agent) {
+    currentAgent = agent;
+    
+    // Update tab buttons
+    document.getElementById('developerTabBtn').classList.toggle('active', agent === 'developer');
+    document.getElementById('devopsTabBtn').classList.toggle('active', agent === 'devops');
+    
+    // Update tab content
+    document.getElementById('developerTab').classList.toggle('active', agent === 'developer');
+    document.getElementById('devopsTab').classList.toggle('active', agent === 'devops');
+    
+    // Update input placeholder and controls
+    const input = document.getElementById('agentInput');
+    const autoApproveLabel = document.getElementById('autoApproveLabel');
+    
+    if (agent === 'developer') {
+        input.placeholder = 'Describe what changes you want the AI to make to the code...';
+        autoApproveLabel.style.display = 'block';
+        
+        // Initialize developer messages if empty
+        if (document.getElementById('developerMessages').innerHTML === '') {
+            addAgentMessage('developer', 'system', 'Virtual Developer ready. Select an application and describe your coding needs.');
+        }
+    } else {
+        input.placeholder = 'Ask your question or describe what you need...';
+        autoApproveLabel.style.display = 'none';
+        
+        // Initialize devops messages if empty
+        if (document.getElementById('devopsMessages').innerHTML === '') {
+            addAgentMessage('devops', 'system', 'Virtual DevOps Team ready. Select an application and action.');
+        }
+    }
 }
 
-function sendVirtualDeveloperMessage() {
-    const input = document.getElementById('virtualDeveloperInput');
+function sendAgentMessage() {
+    const input = document.getElementById('agentInput');
     const message = input.value.trim();
     if (!message) return;
     
-    // Check if application is selected
-    const selectedApp = document.getElementById('virtualDeveloperAppSelect').value;
+    if (currentAgent === 'developer') {
+        sendDeveloperMessage(message);
+    } else {
+        sendDevOpsMessage(message);
+    }
+    
+    input.value = '';
+}
+
+function sendDeveloperMessage(message) {
+    const selectedApp = document.getElementById('developerAppSelect').value;
     if (!selectedApp) {
-        addVirtualDeveloperMessage('error', 'Please select an application before sending your request.');
+        addAgentMessage('developer', 'error', 'Please select an application before sending your request.');
         return;
     }
     
-    addVirtualDeveloperMessage('user', message);
-    input.value = '';
+    addAgentMessage('developer', 'user', message);
+    addAgentMessage('developer', 'system', 'Virtual Developer is thinking...');
     
-    // Show typing indicator
-    addVirtualDeveloperMessage('system', 'Virtual Developer is thinking...');
+    const autoYes = document.getElementById('autoApprove').checked;
     
-    // Add real-time logging
-    addVirtualDeveloperMessage('system', '🔄 Preparing request...');
-    
-    // Send to Virtual Developer API
-    const autoYes = document.getElementById('virtualDeveloperAutoYes').checked;
-    
-    // Get application details from the applications data
+    // Get application details
     let appFolder = '';
     let githubUrl = '';
     let giteaUrl = '';
-    let username = '';
-    let userId = '';
+    let username = '{{ username }}';
+    let userId = '{{ session.user_id }}';
     
-    if (selectedApp) {
-        addVirtualDeveloperMessage('system', `📱 Selected application: ${selectedApp}`);
-        // Find the selected application in the applications list
-        const appCards = document.querySelectorAll('.app-card');
-        for (const card of appCards) {
-            const appName = card.querySelector('h3').textContent;
-            if (appName === selectedApp) {
-                // Get deployment path for this user and app
-                username = '{{ username }}';
-                userId = '{{ session.user_id }}';
-                appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
-                
-                // Extract git URL from deployment buttons (if available)
-                const cloneBtn = card.querySelector('[onclick*="clone"]');
-                if (cloneBtn) {
-                    const onclickAttr = cloneBtn.getAttribute('onclick');
-                    const match = onclickAttr.match(/deploy_sh_executionCmdInApp\('([^']+)',\s*'([^']*)',\s*'clone'\)/);
-                    if (match && match[2]) {
-                        githubUrl = match[2];
-                    }
+    const appCards = document.querySelectorAll('.app-card');
+    for (const card of appCards) {
+        const appName = card.querySelector('h3').textContent;
+        if (appName === selectedApp) {
+            appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
+            
+            const cloneBtn = card.querySelector('[onclick*="clone"]');
+            if (cloneBtn) {
+                const onclickAttr = cloneBtn.getAttribute('onclick');
+                const match = onclickAttr.match(/deploy_sh_executionCmdInApp\('([^']+)',\s*'([^']*)',\s*'clone'\)/);
+                if (match && match[2]) {
+                    githubUrl = match[2];
                 }
-                
-                // Generate Gitea URL based on app name
-                giteaUrl = `http://gitadmin:password@localhost:3000/gitadmin/${username}-automorph-${appName}-%DATETIME%.git`;
-                break;
             }
+            
+            giteaUrl = `http://gitadmin:password@localhost:3000/gitadmin/${username}-automorph-${appName}-%DATETIME%.git`;
+            break;
         }
-        addVirtualDeveloperMessage('system', `📁 App folder: ${appFolder}`);
-        addVirtualDeveloperMessage('system', `🔗 GitHub URL: ${githubUrl || 'Not specified'}`);
-        addVirtualDeveloperMessage('system', `🏠 Gitea URL: ${giteaUrl}`);
     }
     
-    // Get server_id before creating payload
     getAvailableServerId(selectedApp).then(serverId => {
         const payload = {
             message: message,
@@ -1365,9 +1369,88 @@ function sendVirtualDeveloperMessage() {
             server_id: serverId
         };
         
-        sendQChatRequest(payload);
+        sendQChatRequest(payload, 'developer');
     }).catch(error => {
-        addVirtualDeveloperMessage('error', `Server allocation error: ${error.message}`);
+        addAgentMessage('developer', 'error', `Server allocation error: ${error.message}`);
+    });
+}
+
+function sendDevOpsMessage(message) {
+    const selectedApp = document.getElementById('devopsAppSelect').value;
+    const selectedAction = document.getElementById('devopsAction').value;
+    
+    if (!selectedApp) {
+        addAgentMessage('devops', 'error', 'Please select an application before sending your request.');
+        return;
+    }
+    
+    const username = '{{ username }}';
+    const userId = '{{ session.user_id }}';
+    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
+    
+    const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+    
+    addAgentMessage('devops', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
+    addAgentMessage('devops', 'user', message);
+    addAgentMessage('devops', 'system', `Virtual DevOps Team is processing ${selectedAction} for ${selectedApp}...`);
+    
+    // Create streaming message container
+    const messagesDiv = document.getElementById('devopsMessages');
+    const streamDiv = document.createElement('div');
+    streamDiv.className = 'message devops-assistant';
+    streamDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">💡</span>
+            <span class="message-time">${new Date().toLocaleTimeString()}</span>
+        </div>
+        <div class="message-content" style="white-space: pre-wrap;"></div>
+    `;
+    messagesDiv.appendChild(streamDiv);
+    const contentDiv = streamDiv.querySelector('.message-content');
+    
+    // Stream from API
+    fetch('/api/qchat_question', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            message: fullMessage,
+            application_name: selectedApp,
+            application_folder: appFolder
+        })
+    })
+    .then(response => {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        function readStream() {
+            reader.read().then(({done, value}) => {
+                if (done) return;
+                
+                const chunk = decoder.decode(value, {stream: true});
+                const lines = chunk.split('\n');
+                
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.chunk) {
+                                contentDiv.textContent += data.chunk + '\n';
+                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            } else if (data.error) {
+                                contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                            } else if (data.done) {
+                                contentDiv.textContent += '\n✅ Completed';
+                            }
+                        } catch (e) {}
+                    }
+                }
+                readStream();
+            });
+        }
+        readStream();
+    })
+    .catch(error => {
+        contentDiv.textContent += `\n❌ Error: ${error.message}`;
     });
 }
 
@@ -1386,22 +1469,8 @@ function getAvailableServerId(applicationName) {
     });
 }
 
-function sendQChatRequest(payload) {
-    
-    addVirtualDeveloperMessage('system', '📤 Sending request to Virtual Developer API...');
-    
-    // Start progress indicator for Virtual Developer
-    let progressCounter = 0;
-    const progressMessages = [
-        '📤 Sending request to AI...',
-        '🤖 AI is analyzing code...',
-        '📝 AI is writing solution...',
-        '⚙️ AI is preparing response...'
-    ];
-    let progressInterval = setInterval(() => {
-        updateVirtualDeveloperProgress(progressMessages[progressCounter % progressMessages.length]);
-        progressCounter++;
-    }, 2000);
+function sendQChatRequest(payload, agent) {
+    addAgentMessage(agent, 'system', '📤 Sending request to Virtual Developer API...');
     
     fetch('/api/qchat', {
         method: 'POST',
@@ -1409,7 +1478,6 @@ function sendQChatRequest(payload) {
         body: JSON.stringify(payload)
     })
     .then(response => {
-        // Set a longer timeout for Virtual Developer requests (20 minutes)
         const timeoutPromise = new Promise((_, reject) => 
             setTimeout(() => reject(new Error('Request timeout after 20 minutes')), 20 * 60 * 1000)
         );
@@ -1417,9 +1485,6 @@ function sendQChatRequest(payload) {
         return Promise.race([response, timeoutPromise]);
     })
     .then(response => {
-        clearInterval(progressInterval);
-        addVirtualDeveloperMessage('system', `📥 Received response (${response.status} ${response.statusText})`);
-        
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -1428,74 +1493,59 @@ function sendQChatRequest(payload) {
             try {
                 return JSON.parse(text);
             } catch (e) {
-                addVirtualDeveloperMessage('error', `JSON Parse Error: ${text.substring(0, 200)}`);
+                addAgentMessage(agent, 'error', `JSON Parse Error: ${text.substring(0, 200)}`);
                 throw new Error(`Invalid JSON response: ${e.message}`);
             }
         });
     })
     .then(data => {
-        // Remove typing indicators
-        const messages = document.getElementById('virtualDeveloperMessages');
-        const systemMessages = messages.querySelectorAll('.chat-system');
-        // Remove the last few system messages (typing indicators and logs)
-        for (let i = systemMessages.length - 1; i >= Math.max(0, systemMessages.length - 6); i--) {
-            if (systemMessages[i].textContent.includes('thinking') || 
-                systemMessages[i].textContent.includes('Preparing') ||
-                systemMessages[i].textContent.includes('Sending') ||
-                systemMessages[i].textContent.includes('Received') ||
-                systemMessages[i].textContent.includes('Selected') ||
-                systemMessages[i].textContent.includes('folder') ||
-                systemMessages[i].textContent.includes('URL')) {
-                systemMessages[i].remove();
+        // Remove system messages
+        const messages = document.getElementById(`${agent}Messages`);
+        const systemMessages = messages.querySelectorAll('.message.system');
+        systemMessages.forEach(msg => {
+            if (msg.textContent.includes('thinking') || msg.textContent.includes('Sending')) {
+                msg.remove();
             }
-        }
+        });
         
         if (data.error) {
-            addVirtualDeveloperMessage('error', `Error: ${data.error}`);
+            addAgentMessage(agent, 'error', `Error: ${data.error}`);
         } else {
-            addVirtualDeveloperMessage('assistant', data.response);
+            addAgentMessage(agent, 'assistant', data.response);
             if (data.command_executed) {
-                addVirtualDeveloperMessage('system', `✅ Command executed successfully`);
+                addAgentMessage(agent, 'system', `✅ Command executed successfully`);
                 if (data.branch_name) {
-                    addVirtualDeveloperMessage('system', `🌿 Branch created: ${data.branch_name}`);
+                    addAgentMessage(agent, 'system', `🌿 Branch created: ${data.branch_name}`);
                 }
             }
             if (data.execution_time) {
-                addVirtualDeveloperMessage('system', `⏱️ Execution time: ${data.execution_time}s`);
+                addAgentMessage(agent, 'system', `⏱️ Execution time: ${data.execution_time}s`);
             }
         }
     })
     .catch(error => {
-        clearInterval(progressInterval);
-        // Remove typing indicators
-        const messages = document.getElementById('virtualDeveloperMessages');
-        const systemMessages = messages.querySelectorAll('.chat-system');
-        for (let i = systemMessages.length - 1; i >= Math.max(0, systemMessages.length - 6); i--) {
-            if (systemMessages[i].textContent.includes('thinking') || 
-                systemMessages[i].textContent.includes('Preparing') ||
-                systemMessages[i].textContent.includes('Sending') ||
-                systemMessages[i].textContent.includes('Received') ||
-                systemMessages[i].textContent.includes('Selected') ||
-                systemMessages[i].textContent.includes('folder') ||
-                systemMessages[i].textContent.includes('URL')) {
-                systemMessages[i].remove();
+        const messages = document.getElementById(`${agent}Messages`);
+        const systemMessages = messages.querySelectorAll('.message.system');
+        systemMessages.forEach(msg => {
+            if (msg.textContent.includes('thinking') || msg.textContent.includes('Sending')) {
+                msg.remove();
             }
-        }
+        });
         
-        addVirtualDeveloperMessage('error', `App Server error: ${error.message}`);
+        addAgentMessage(agent, 'error', `App Server error: ${error.message}`);
         console.error('Virtual Developer error:', error);
     });
 }
 
-function addVirtualDeveloperMessage(type, content) {
-    const messages = document.getElementById('virtualDeveloperMessages');
+function addAgentMessage(agent, type, content) {
+    const messages = document.getElementById(`${agent}Messages`);
     const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message chat-${type}`;
+    messageDiv.className = `message ${type}`;
     
     const timestamp = new Date().toLocaleTimeString();
     const icon = {
         'user': '👤',
-        'assistant': '🤖',
+        'assistant': agent === 'developer' ? '🤖' : '💡',
         'system': '⚙️',
         'error': '❌',
         'output': '💻'
@@ -1513,203 +1563,23 @@ function addVirtualDeveloperMessage(type, content) {
     messages.scrollTop = messages.scrollHeight;
 }
 
-function updateVirtualDeveloperProgress(message) {
-    const messages = document.getElementById('virtualDeveloperMessages');
-    const lastMessage = messages.lastElementChild;
-    
-    if (lastMessage && lastMessage.classList.contains('chat-system')) {
-        const messageContent = lastMessage.querySelector('.message-content');
-        if (messageContent && (messageContent.textContent.includes('Sending request') || 
-            messageContent.textContent.includes('AI is') || messageContent.textContent.includes('analyzing') ||
-            messageContent.textContent.includes('writing') || messageContent.textContent.includes('preparing'))) {
-            messageContent.textContent = message;
-            messages.scrollTop = messages.scrollHeight;
-        }
-    }
-}
 
-// Handle Enter key in Virtual Developer and Virtual DevOps Team inputs
+
+// Handle Enter key in agent input
 document.addEventListener('keydown', function(e) {
-    if (e.target.id === 'virtualDeveloperInput' && e.key === 'Enter' && !e.shiftKey) {
+    if (e.target.id === 'agentInput' && e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendVirtualDeveloperMessage();
-    }
-    if (e.target.id === 'virtualAdvisorInput' && e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendVirtualAdvisorMessage();
+        sendAgentMessage();
     }
 });
 
-// Virtual DevOps Team functions
-function showVirtualAdvisorModal() {
-    document.getElementById('virtualAdvisorModal').style.display = 'block';
-    if (document.getElementById('virtualAdvisorMessages').innerHTML === '') {
-        addVirtualAdvisorMessage('system', 'Hello! I\'m your Virtual DevOps Team. Ask me something to do with one of the applications (start, stop, deploy, status, restart).');
-    }
-}
+// Initialize panel on page load
+document.addEventListener('DOMContentLoaded', function() {
+    switchAgentTab('developer'); // Initialize with developer tab
+    showTab('apps'); // Show applications tab by default
+});
 
-function closeVirtualAdvisorModal() {
-    document.getElementById('virtualAdvisorModal').style.display = 'none';
-}
 
-function sendVirtualAdvisorMessage() {
-    const input = document.getElementById('virtualAdvisorInput');
-    const message = input.value.trim();
-    const selectedAction = document.getElementById('virtualAdvisorAction').value;
-    const selectedApp = document.getElementById('virtualAdvisorAppSelect').value;
-    
-    if (!message) return;
-    
-    // Check if application is selected
-    if (!selectedApp) {
-        addVirtualAdvisorMessage('error', 'Please select an application before sending your request.');
-        return;
-    }
-    
-    // Get application deployment path for this user
-    const username = '{{ username }}';
-    const userId = '{{ session.user_id }}';
-    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
-    
-    // Prepend action and app info to message for better context
-    const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
-    
-    addVirtualAdvisorMessage('user', `Application: ${selectedApp}`);
-    addVirtualAdvisorMessage('user', `Action: ${selectedAction}`);
-    addVirtualAdvisorMessage('user', message);
-    input.value = '';
-    
-    // Show typing indicator
-    addVirtualAdvisorMessage('system', `Virtual DevOps Team is processing ${selectedAction} for ${selectedApp}...`);
-    
-    // Start progress indicator for Virtual DevOps Team with more detailed updates
-    let progressCounter = 0;
-    const progressMessages = [
-        `💡 Processing ${selectedAction} for ${selectedApp}...`,
-        '📚 Loading context from shared folder...',
-        '🔍 Analyzing user requirements...',
-        '🔐 Authenticating with Q Chat...',
-        '⚙️ Executing commands in application folder...',
-        '📊 Checking deployment status...',
-        '🔄 Running deployment scripts...',
-        '📝 Collecting output and logs...',
-        '✅ Finalizing response...',
-        '⏳ Still processing, please wait...',
-        '🚀 Almost done...',
-        '⌛ This may take a few minutes for complex operations...'
-    ];
-    let progressInterval = setInterval(() => {
-        updateVirtualAdvisorProgress(progressMessages[progressCounter % progressMessages.length]);
-        progressCounter++;
-    }, 3000);
-    
-    // Create streaming message container
-    const messages = document.getElementById('virtualAdvisorMessages');
-    const streamDiv = document.createElement('div');
-    streamDiv.className = 'chat-message chat-assistant';
-    streamDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">💡</span>
-            <span class="message-time">${new Date().toLocaleTimeString()}</span>
-        </div>
-        <div class="message-content" style="white-space: pre-wrap;"></div>
-    `;
-    messages.appendChild(streamDiv);
-    const contentDiv = streamDiv.querySelector('.message-content');
-    
-    // Stream from API
-    fetch('/api/qchat_question', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            message: fullMessage,
-            application_name: selectedApp,
-            application_folder: appFolder
-        })
-    })
-    .then(response => {
-        clearInterval(progressInterval);
-        const systemMessages = messages.querySelectorAll('.chat-system');
-        for (let i = systemMessages.length - 1; i >= 0; i--) {
-            systemMessages[i].remove();
-        }
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        
-        function readStream() {
-            reader.read().then(({done, value}) => {
-                if (done) return;
-                
-                const chunk = decoder.decode(value, {stream: true});
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.substring(6));
-                            if (data.chunk) {
-                                contentDiv.textContent += data.chunk + '\n';
-                                messages.scrollTop = messages.scrollHeight;
-                            } else if (data.error) {
-                                contentDiv.textContent += `\n❌ Error: ${data.error}`;
-                            } else if (data.done) {
-                                contentDiv.textContent += '\n✅ Completed';
-                            }
-                        } catch (e) {}
-                    }
-                }
-                readStream();
-            });
-        }
-        readStream();
-    })
-    .catch(error => {
-        clearInterval(progressInterval);
-        contentDiv.textContent += `\n❌ Error: ${error.message}`;
-    });
-}
-
-function addVirtualAdvisorMessage(type, content) {
-    const messages = document.getElementById('virtualAdvisorMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `chat-message chat-${type}`;
-    
-    const timestamp = new Date().toLocaleTimeString();
-    const icon = {
-        'user': '👤',
-        'assistant': '💡',
-        'system': '⚙️',
-        'error': '❌'
-    }[type] || '💬';
-    
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">${icon}</span>
-            <span class="message-time">${timestamp}</span>
-        </div>
-        <div class="message-content">${content}</div>
-    `;
-    
-    messages.appendChild(messageDiv);
-    messages.scrollTop = messages.scrollHeight;
-}
-
-function updateVirtualAdvisorProgress(message) {
-    const messages = document.getElementById('virtualAdvisorMessages');
-    const lastMessage = messages.lastElementChild;
-    
-    if (lastMessage && lastMessage.classList.contains('chat-system')) {
-        const messageContent = lastMessage.querySelector('.message-content');
-        if (messageContent) {
-            const baseMessage = message.replace(/\.+$/, '');
-            const dotCount = Math.floor(Date.now() / 500) % 4;
-            const dots = '.'.repeat(dotCount);
-            messageContent.textContent = baseMessage + dots;
-            messages.scrollTop = messages.scrollHeight;
-        }
-    }
-}
 
 // Billing functions
 function loadBillingData() {
@@ -2239,20 +2109,12 @@ deploy_sh_executionCmdInApp = function(appName, gitUrl, action) {
 window.onclick = function(event) {
     const deploymentModal = document.getElementById('deploymentModal');
     const automorphModal = document.getElementById('automorphModal');
-    const virtualDeveloperModal = document.getElementById('virtualDeveloperModal');
-    const virtualAdvisorModal = document.getElementById('virtualAdvisorModal');
     
     if (event.target === deploymentModal) {
         deploymentModal.style.display = 'none';
     }
     if (event.target === automorphModal) {
         automorphModal.style.display = 'none';
-    }
-    if (event.target === virtualDeveloperModal) {
-        virtualDeveloperModal.style.display = 'none';
-    }
-    if (event.target === virtualAdvisorModal) {
-        virtualAdvisorModal.style.display = 'none';
     }
 }
 </script>

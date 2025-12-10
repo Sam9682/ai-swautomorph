@@ -2,7 +2,7 @@
 
 ## Overview
 
-AI-SwAutoMorph is a centralized application management platform that automates the deployment, evolution, and management of containerized applications using a standardized approach. The platform leverages Docker Compose, deployment scripts, and GenAI integration to provide seamless application lifecycle management.
+AI-SwAutoMorph is a centralized application management platform that automates the deployment, evolution, and management of containerized applications using a standardized approach. The platform leverages Docker Compose, deployment scripts, GenAI integration, and multi-server deployment capabilities to provide seamless application lifecycle management.
 
 ## Core Architecture
 
@@ -12,29 +12,158 @@ AI-SwAutoMorph is a centralized application management platform that automates t
 ai-swautomorph/
 ├── src/                          # Core application modules
 │   ├── config.py                 # Configuration & environment settings
-│   ├── database.py               # Database schema & initialization
+│   ├── database.py               # Database schema & initialization with thread-safe manager
 │   ├── auth.py                   # Authentication & SSO management
 │   ├── app.py                    # Flask application factory
+│   ├── main.py                   # Application entry point with timestamped logging
+│   ├── automorph_application.py  # GenAI integration for code modification
+│   ├── db_health.py              # Database health monitoring utilities
 │   └── routes/                   # Route handlers (blueprints)
 │       ├── main_routes.py        # Dashboard & main pages
 │       ├── auth_routes.py        # User authentication
 │       ├── sso_routes.py         # Single Sign-On functionality
-│       └── api_routes.py         # REST API endpoints
-├── app.py                        # Application entry point
-├── cli.py                        # Command-line interface
-├── mcp_server.py                 # Model Context Protocol server
-└── deployApp.sh                     # Universal deployment script
+│       ├── api_routes.py         # REST API endpoints with streaming support
+│       └── billing_routes.py     # Billing and cost management
+├── app.py                        # Legacy entry point (redirects to src/main.py)
+├── scripts/
+│   ├── cli.py                    # Command-line interface
+│   └── mcp_server.py             # Model Context Protocol server
+├── shared/                       # Shared deployment resources
+│   ├── deployApp.sh              # Universal deployment script
+│   └── *_context.md              # Context templates for GenAI operations
+└── templates/                    # HTML templates with multi-language support
 ```
 
 ### 2. Database Schema
 
 ```sql
 -- Core entities for application management
-Users: id, username, email, password_hash, created_at
-Applications: id, name, url, description, git_url, created_at
-Deployments: id, user_id, application_name, status, deployment_path, git_url
+Users: id, username, email, password_hash, first_name, last_name, suspended, created_at
+Applications: id, name, description, git_url, created_at
+User_Applications: id, user_id, application_id, url, created_at
+Deployments: id, user_id, application_name, status, deployment_path, git_url, server_id, created_at, updated_at
+Servers: id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
 Auth_Tokens: id, user_id, token_hash, expires_at, created_at
+Application_Costs: id, application_id, cost_per_day, created_at, updated_at
+Billing_Activities: id, user_id, application_id, action, started_at, stopped_at, duration_seconds, cost_amount, created_at
+Users_Logs: id, user_id, username, action, datetime
 ```
+
+## Multi-Server Deployment Architecture
+
+### 1. Server Management
+
+The platform supports deployment across multiple servers with automatic capacity management:
+
+```python
+# Server allocation based on capacity constraints
+def allocate_server(application_name):
+    """
+    Find available server based on:
+    - SERVER_CAPACITY_USER_MAX: Maximum users per server
+    - SERVER_CAPACITY_APPLI_MAX: Maximum applications per server
+    - SERVER_STATUS: STAND_BY, ACTIVE, MAINTENANCE
+    """
+    return optimal_server_id
+```
+
+### 2. Remote Deployment
+
+- **Local Deployment**: Direct execution on current server
+- **Remote Deployment**: SSH-based execution on target servers
+- **SSL Certificate Sync**: Automatic SSL certificate distribution
+- **Load Balancing**: Automatic server selection based on capacity
+
+## Application Evolution with GenAI
+
+### 1. Q Chat Integration
+
+The platform integrates with Amazon Q Developer for automated application evolution:
+
+```python
+# Automorph application for GenAI integration
+def process_qchat_request(user_request, auto_approve=True, app_name='', app_folder='', git_url='', user_id='0', user_name='anonymous'):
+    """
+    Process evolution requests through Q Chat
+    1. Analyze current application structure
+    2. Generate code modifications
+    3. Create new Git branch with timestamp
+    4. Test deployment
+    5. Apply changes and redeploy
+    """
+    return result_with_branch_name_and_execution_details
+```
+
+### 2. Virtual DevOps Team
+
+The platform includes context-aware virtual assistants:
+
+- **Virtual Developer**: Code modification and feature development
+- **Virtual DevOps Team**: Application lifecycle management (START/STOP/PS/RESTART/LOGS)
+- **Context Templates**: Pre-built templates for common operations in `/shared/*_context.md`
+
+### 3. Automated Evolution Process
+
+```mermaid
+graph TD
+    A[User Request] --> B[Q Chat Analysis]
+    B --> C[Code Generation]
+    C --> D[Git Branch Creation]
+    D --> E[Test Deployment]
+    E --> F[Apply Changes]
+    F --> G[Monitor Status]
+```
+
+### 4. Evolution Workflow
+
+1. **Analysis Phase**
+   - Q Chat analyzes existing application code
+   - Identifies modification points
+   - Generates implementation plan
+
+2. **Branch Management**
+   - Creates timestamped Git branch: `{user_id}-automorph-{app_name}-{timestamp}`
+   - Commits changes with descriptive messages
+   - Pushes to Gitea remote for tracking
+
+3. **Code Generation**
+   - Generates new features/modifications
+   - Updates dependencies
+   - Maintains application structure
+
+4. **Deployment Testing**
+   - Uses same `deployApp.sh` script
+   - Validates deployment success
+   - Performs health checks
+
+## Database Improvements
+
+### 1. Thread-Safe Connection Management
+
+```python
+class DatabaseManager:
+    """Thread-safe database manager with connection pooling"""
+    
+    def __init__(self):
+        self._local = threading.local()
+    
+    @contextmanager
+    def get_db_connection(self):
+        """Context manager for database connections"""
+        conn = self._get_connection()
+        try:
+            yield conn
+        except Exception as e:
+            conn.rollback()
+            raise
+```
+
+### 2. WAL Mode and Retry Logic
+
+- **WAL Mode**: Enables better concurrent read/write operations
+- **Busy Timeout**: 30-second timeout for locked database operations
+- **Retry Logic**: Automatic retry with exponential backoff on lock errors
+- **Health Monitoring**: Database performance and statistics tracking
 
 ## Containerization Strategy
 
@@ -54,19 +183,7 @@ services:
     image: nginx:alpine
     ports: ["80:80", "443:443"]
     volumes: ["./conf/nginx.conf:/etc/nginx/nginx.conf"]
-    
-  db:                     # Database (optional - can use SQLite)
-    image: postgres:13
-    environment: [POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD]
 ```
-
-### Benefits of Docker Compose
-
-- **Service Isolation**: Each component runs in its own container
-- **Environment Consistency**: Same setup across development/production
-- **Easy Scaling**: Services can be scaled independently
-- **Network Management**: Internal service communication
-- **Volume Management**: Persistent data storage
 
 ## Universal Deployment System
 
@@ -77,129 +194,36 @@ All applications follow the same deployment pattern:
 ```bash
 # Universal workflow for any application
 1. Clone repository → User-specific directory
-2. Read deploy.ini → Application configuration
+2. Allocate server → Based on capacity constraints
 3. Execute deployApp.sh → Start/stop/status operations
 4. Monitor status → Health checks & logging
 ```
 
 ### 2. Deploy Configuration (deploy.ini)
 
-Each application requires only a `deploy.ini` file for customization:
+Each application uses configuration from `conf/deploy.ini`:
 
 ```ini
-[application]
-name = AI-HACCP
-port = 3000
-git_url = https://github.com/user/ai-haccp.git
-docker_compose_file = docker-compose.yml
-health_check_url = http://localhost:3000/health
-
-[environment]
-NODE_ENV = production
-DATABASE_URL = sqlite:///data/app.db
-API_KEY = ${API_KEY}
-
-[deployment]
-pre_start_commands = npm install, npm run build
-post_start_commands = npm run migrate
-restart_policy = unless-stopped
+NAME_OF_APPLICATION=ai-swautomorph
+APPLICATION_IDENTITY_NUMBER=0
+RANGE_START=8100
+RANGE_RESERVED=100
+RANGE_START_CONTROLPLAN=8000
+RANGE_RESERVED_CONTROLPLAN=100
 ```
 
-### 3. Universal Deploy Script (deployApp.sh)
+### 3. Port Allocation System
 
-The same `deployApp.sh` script works for all applications:
-
-```bash
-#!/bin/bash
-# Universal deployment script - works for any application
-
-ACTION=$1
-CONFIG_FILE="deploy.ini"
-
-# Read configuration
-source_config() {
-    # Parse deploy.ini and set environment variables
-    eval $(python3 -c "
-import configparser
-config = configparser.ConfigParser()
-config.read('$CONFIG_FILE')
-for section in config.sections():
-    for key, value in config[section].items():
-        print(f'export {key.upper()}={value}')
-    ")
-}
-
-case $ACTION in
-    "start")
-        source_config
-        docker-compose -f $DOCKER_COMPOSE_FILE up -d
-        ;;
-    "stop")
-        docker-compose -f $DOCKER_COMPOSE_FILE down
-        ;;
-    "status")
-        docker-compose -f $DOCKER_COMPOSE_FILE ps
-        ;;
-    "logs")
-        docker-compose -f $DOCKER_COMPOSE_FILE logs -f
-        ;;
-esac
-```
-
-## Application Evolution with GenAI
-
-### 1. Q Chat Integration
-
-The platform integrates with Amazon Q Developer for automated application evolution:
+Automatic port calculation based on user and application IDs:
 
 ```python
-# MCP Server for GenAI integration
-class MCPServer:
-    def handle_evolution_request(self, app_name, requirements):
-        """
-        Process evolution requests through Q Chat
-        1. Analyze current application structure
-        2. Generate code modifications
-        3. Update deploy.ini if needed
-        4. Test deployment
-        5. Apply changes
-        """
-        return self.apply_ai_changes(app_name, requirements)
+def calculate_app_ports(user_id, app_id):
+    """Calculate HTTP and HTTPS ports using deployControlPlan.sh logic"""
+    PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
+    HTTP_PORT = PORT_RANGE_BEGIN + app_id * 2
+    HTTPS_PORT = HTTP_PORT + 1
+    return HTTP_PORT, HTTPS_PORT
 ```
-
-### 2. Automated Evolution Process
-
-```mermaid
-graph TD
-    A[User Request] --> B[Q Chat Analysis]
-    B --> C[Code Generation]
-    C --> D[Update deploy.ini]
-    D --> E[Test Deployment]
-    E --> F[Apply Changes]
-    F --> G[Monitor Status]
-```
-
-### 3. Evolution Workflow
-
-1. **Analysis Phase**
-   - Q Chat analyzes existing application code
-   - Identifies modification points
-   - Generates implementation plan
-
-2. **Configuration Update**
-   - Modifies `deploy.ini` if needed (ports, environment variables)
-   - Updates Docker Compose configuration
-   - Adjusts deployment parameters
-
-3. **Code Generation**
-   - Generates new features/modifications
-   - Updates dependencies
-   - Maintains application structure
-
-4. **Deployment Testing**
-   - Uses same `deployApp.sh` script
-   - Validates deployment success
-   - Performs health checks
 
 ## Deployment Isolation
 
@@ -209,17 +233,14 @@ graph TD
 /home/ubuntu/deployments/
 ├── user1/
 │   ├── ai-haccp/
-│   │   ├── deploy.ini
-│   │   ├── docker-compose.yml
+│   │   ├── deployApp.sh
 │   │   └── src/
 │   └── ai-foodflow/
-│       ├── deploy.ini
-│       ├── docker-compose.yml
+│       ├── deployApp.sh
 │       └── src/
 └── user2/
     └── custom-app/
-        ├── deploy.ini
-        ├── docker-compose.yml
+        ├── deployApp.sh
         └── src/
 ```
 
@@ -236,37 +257,55 @@ graph TD
 
 ```python
 # REST API for deployment management
-@app.route('/api/deploy/<app_name>', methods=['POST'])
-def deploy_application(app_name):
-    """Start application deployment"""
+@app.route('/api/deployments', methods=['POST'])
+def api_deployments():
+    """Handle clone, start, stop, restart, ps, logs actions"""
     
-@app.route('/api/deploy/<app_name>/status', methods=['GET'])
-def get_deployment_status(app_name):
-    """Get deployment status and logs"""
+@app.route('/api/deployments/<int:deployment_id>/logs', methods=['GET'])
+def api_deployment_logs(deployment_id):
+    """Get deployment logs"""
     
-@app.route('/api/deploy/<app_name>', methods=['DELETE'])
-def stop_application(app_name):
-    """Stop application deployment"""
+@app.route('/api/qchat', methods=['POST'])
+def api_qchat():
+    """Process Q Chat requests for code modification"""
+
+@app.route('/api/qchat_question', methods=['POST'])
+def api_qchat_question():
+    """Process Virtual Advisor questions with streaming response"""
 ```
 
-### SSO Integration
+### Streaming Support
+
+- **Real-time Logs**: Server-sent events for deployment logs
+- **Q Chat Streaming**: Live response streaming from GenAI
+- **Progress Updates**: Real-time deployment status updates
+
+## Billing and Cost Management
+
+### 1. Cost Tracking
 
 ```python
-# Single Sign-On for deployed applications
-@app.route('/sso/validate', methods=['POST'])
-def validate_sso_token():
-    """Validate SSO token for application access"""
+# Automatic billing for application usage
+def record_billing_activity(user_id, app_name, action):
+    """Record start/stop actions for billing calculation"""
     
-# Automatic token passing to deployed applications
-# Example: http://ai-haccp.swautomorph.com:3000?sso_token=abc123
+# Cost calculation based on usage duration
+Application_Costs: cost_per_day (default: 1.0)
+Billing_Activities: duration_seconds, cost_amount
 ```
+
+### 2. Usage Monitoring
+
+- **Start/Stop Tracking**: Automatic billing event recording
+- **Duration Calculation**: Precise usage time measurement
+- **Cost Reports**: Per-user and per-application cost analysis
 
 ## Security Architecture
 
 ### 1. Multi-Layer Security
 
 - **SSL/TLS**: HTTPS encryption for all communications
-- **Authentication**: User-based access control
+- **Authentication**: User-based access control with suspension capability
 - **SSO Tokens**: Secure token-based application access
 - **Container Isolation**: Docker container security
 - **Network Segmentation**: Internal service communication
@@ -274,7 +313,7 @@ def validate_sso_token():
 ### 2. Token Management
 
 ```python
-# SSO token lifecycle
+# SSO token lifecycle with automatic cleanup
 class SSOTokenManager:
     def generate_token(self, user_id):
         """Generate secure token with expiration"""
@@ -286,19 +325,23 @@ class SSOTokenManager:
         """Revoke existing tokens on new login"""
 ```
 
-## Scalability Design
+## Internationalization
 
-### 1. Horizontal Scaling
+### Multi-Language Support
 
-- **Load Balancing**: Nginx reverse proxy
-- **Service Scaling**: Docker Compose service replicas
-- **Database Scaling**: Connection pooling and read replicas
+The platform supports multiple languages through configuration:
 
-### 2. Resource Management
+```python
+# Language translations in config.py
+TRANSLATIONS = {
+    'en': {'login': 'Login', 'register': 'Register', ...},
+    'fr': {'login': 'Connexion', 'register': 'Inscription', ...}
+}
+```
 
-- **Container Limits**: CPU and memory constraints
-- **Storage Management**: Volume mounting and cleanup
-- **Network Optimization**: Internal service communication
+- **Dynamic Language Switching**: Session-based language selection
+- **Template Integration**: Automatic translation in HTML templates
+- **API Responses**: Localized error messages and responses
 
 ## Monitoring and Logging
 
@@ -309,6 +352,11 @@ class SSOTokenManager:
 @app.route('/health')
 def health_check():
     return {"status": "healthy", "timestamp": datetime.now()}
+
+# Database health monitoring
+@app.route('/api/health/database')
+def database_health():
+    return health_status_and_statistics
 ```
 
 ### 2. Deployment Monitoring
@@ -316,6 +364,7 @@ def health_check():
 - **Status Tracking**: Real-time deployment status
 - **Log Aggregation**: Centralized logging from all containers
 - **Error Reporting**: Automatic error detection and reporting
+- **Performance Metrics**: Database and application performance tracking
 
 ## Future Enhancements
 
@@ -333,6 +382,6 @@ def health_check():
 
 ## Conclusion
 
-The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management. By standardizing the deployment process through `deploy.ini` configuration and universal `deployApp.sh` scripts, combined with Docker Compose containerization and GenAI integration, the platform enables rapid application development and evolution while maintaining security and isolation.
+The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management. By standardizing the deployment process through configuration-driven deployment, combined with Docker Compose containerization, multi-server support, and GenAI integration, the platform enables rapid application development and evolution while maintaining security and isolation.
 
 The modular design ensures maintainability and extensibility, while the automation features reduce manual intervention and improve reliability. This architecture serves as a foundation for building and managing modern containerized applications with AI-assisted evolution capabilities.

@@ -53,6 +53,43 @@ def set_language(language):
         session['language'] = language
     return redirect(request.referrer or url_for('main.index'))
 
+@main_bp.route('/docs')
+def docs():
+    if 'user_id' not in session:
+        return redirect(url_for('main.index'))
+    
+    # Get list of .md files in docs directory
+    docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'docs')
+    md_files = []
+    if os.path.exists(docs_dir):
+        for file in os.listdir(docs_dir):
+            if file.endswith('.md'):
+                md_files.append(file)
+    
+    return render_template('docs.html', md_files=sorted(md_files))
+
+@main_bp.route('/docs/<filename>')
+def view_doc(filename):
+    if 'user_id' not in session:
+        return redirect(url_for('main.index'))
+    
+    # Security check - only allow .md files
+    if not filename.endswith('.md'):
+        return "Invalid file type", 400
+    
+    docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'docs')
+    file_path = os.path.join(docs_dir, filename)
+    
+    if not os.path.exists(file_path):
+        return "File not found", 404
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return render_template('doc_viewer.html', filename=filename, content=content)
+    except Exception as e:
+        return f"Error reading file: {str(e)}", 500
+
 @main_bp.route('/.well-known/pki-validation/<filename>')
 def ssl_validation(filename):
     """Serve SSL certificate validation files"""

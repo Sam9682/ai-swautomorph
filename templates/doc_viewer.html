@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}{{ filename }} - Documentation{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="doc-header">
+        <a href="{{ url_for('main.docs') }}" class="back-link">← Back to Documentation</a>
+        <h1>{{ filename.replace('.md', '').replace('_', ' ').title() }}</h1>
+    </div>
+    
+    <div class="doc-content" id="markdown-content">
+        {{ content }}
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const content = document.getElementById('markdown-content');
+    const markdownText = content.textContent;
+    content.innerHTML = marked.parse(markdownText);
+});
+</script>
+
+<style>
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.doc-header {
+    margin-bottom: 30px;
+}
+
+.back-link {
+    display: inline-block;
+    color: #007bff;
+    text-decoration: none;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.doc-content {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    line-height: 1.6;
+}
+
+.doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4 {
+    color: #333;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.doc-content h1 {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+.doc-content h2 {
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.doc-content pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 15px;
+    overflow-x: auto;
+    font-size: 14px;
+}
+
+.doc-content code {
+    background: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 14px;
+}
+
+.doc-content pre code {
+    background: none;
+    padding: 0;
+}
+
+.doc-content blockquote {
+    border-left: 4px solid #007bff;
+    margin: 20px 0;
+    padding: 10px 20px;
+    background: #f8f9fa;
+}
+
+.doc-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.doc-content table th,
+.doc-content table td {
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.doc-content table th {
+    background: #f8f9fa;
+    font-weight: bold;
+}
+
+.doc-content ul, .doc-content ol {
+    margin: 15px 0;
+    padding-left: 30px;
+}
+
+.doc-content li {
+    margin: 5px 0;
+}
+</style>
+{% endblock %}

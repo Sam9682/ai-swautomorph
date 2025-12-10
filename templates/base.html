@@ -15,6 +15,7 @@
                 <div class="nav-links">
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
                     <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
+                    <a href="{{ url_for('main.docs') }}">DOCS</a>
                     <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 </div>
                 {% endif %}
