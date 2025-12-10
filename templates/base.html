@@ -11,14 +11,17 @@
         <div class="nav-container">
             <h1 class="nav-title">AI-SwAutoMorph</h1>
             <div class="nav-center">
-                {% if session.user_id %}
                 <div class="nav-links">
-                    {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
-                    <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
-                    <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
+                    {% if session.user_id %}
+                        {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
+                        <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
+                        <a href="{{ url_for('main.docs') }}">DOCS</a>
+                        <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
+                    {% else %}
+                        <a href="{{ url_for('main.docs') }}">DOCS</a>
+                        <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
+                    {% endif %}
                 </div>
-                {% endif %}
             </div>
             <div class="lang-toggle">
                 <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>

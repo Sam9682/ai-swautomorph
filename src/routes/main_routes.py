@@ -55,9 +55,6 @@ def set_language(language):
 
 @main_bp.route('/docs')
 def docs():
-    if 'user_id' not in session:
-        return redirect(url_for('main.index'))
-    
     # Get list of .md files in docs directory
     docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'docs')
     md_files = []
@@ -70,9 +67,6 @@ def docs():
 
 @main_bp.route('/docs/<filename>')
 def view_doc(filename):
-    if 'user_id' not in session:
-        return redirect(url_for('main.index'))
-    
     # Security check - only allow .md files
     if not filename.endswith('.md'):
         return "Invalid file type", 400
