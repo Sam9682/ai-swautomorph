@@ -192,7 +192,7 @@ If ANY step fails, explain clearly which step failed and why.
             'execution_time': round(time.time() - start_time, 2)
         }
 
-def build_qchat_prompt(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
+def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
     """Build prompt for Q Chat"""
     action_keywords = {
         'start': ['start', 'deploy', 'launch', 'run'],

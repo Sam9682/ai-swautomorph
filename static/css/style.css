@@ -332,6 +332,8 @@ body {
 
 .tab-content {
     margin-top: 1rem;
+    vertical-align: top;
+    align-self: flex-start;
 }
 
 .users-grid {
@@ -1634,7 +1636,12 @@ body {
     transform: translateY(0);
 }
 
-
+/* Virtual Agents QChat Output Styling */
+.virtual-agents-panel .message-content {
+    font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.85rem;
+    line-height: 1.3;
+}
 
 /* Dashboard Layout Styles */
 .dashboard-layout {
@@ -1664,6 +1671,22 @@ body {
     margin: 0;
     padding: 0;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-container .admin-menu,
+.dashboard-container .user-menu {
+    flex-shrink: 0;
+}
+
+.dashboard-container .tab-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 /* Update Virtual Agents Panel for new layout */

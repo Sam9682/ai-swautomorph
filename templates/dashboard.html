@@ -1286,6 +1286,24 @@ function updateApplicationButtonStatus(appName, logs) {
 }
 
 // Virtual Agents Panel functions
+function addAgentMessage(agent, type, message) {
+    const messagesDiv = document.getElementById(agent + 'Messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    const icon = agent === 'developer' ? '🤖' : '💡';
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">${icon}</span>
+            <span class="message-time">${new Date().toLocaleTimeString()}</span>
+        </div>
+        <div class="message-content">${message}</div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
 function toggleAgentsPanel() {
     const panel = document.getElementById('virtualAgentsPanel');
     const toggleBtn = document.getElementById('togglePanel');
@@ -1489,102 +1507,6 @@ function getAvailableServerId(applicationName) {
         return data.server_id;
     });
 }
-
-function sendQChatRequest(payload, agent) {
-    addAgentMessage(agent, 'system', '📤 Sending request to Virtual Developer API...');
-    
-    fetch('/api/qchat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(payload)
-    })
-    .then(response => {
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Request timeout after 25 minutes')), 25 * 60 * 1000)
-        );
-        
-        return Promise.race([response, timeoutPromise]);
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        return response.text().then(text => {
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                addAgentMessage(agent, 'error', `JSON Parse Error: ${text.substring(0, 200)}`);
-                throw new Error(`Invalid JSON response: ${e.message}`);
-            }
-        });
-    })
-    .then(data => {
-        // Remove system messages
-        const messages = document.getElementById(`${agent}Messages`);
-        const systemMessages = messages.querySelectorAll('.message.system');
-        systemMessages.forEach(msg => {
-            if (msg.textContent.includes('thinking') || msg.textContent.includes('Sending')) {
-                msg.remove();
-            }
-        });
-        
-        if (data.error) {
-            addAgentMessage(agent, 'error', `Error: ${data.error}`);
-        } else {
-            addAgentMessage(agent, 'assistant', data.response);
-            if (data.command_executed) {
-                addAgentMessage(agent, 'system', `✅ Command executed successfully`);
-                if (data.branch_name) {
-                    addAgentMessage(agent, 'system', `🌿 Branch created: ${data.branch_name}`);
-                }
-            }
-            if (data.execution_time) {
-                addAgentMessage(agent, 'system', `⏱️ Execution time: ${data.execution_time}s`);
-            }
-        }
-    })
-    .catch(error => {
-        const messages = document.getElementById(`${agent}Messages`);
-        const systemMessages = messages.querySelectorAll('.message.system');
-        systemMessages.forEach(msg => {
-            if (msg.textContent.includes('thinking') || msg.textContent.includes('Sending')) {
-                msg.remove();
-            }
-        });
-        
-        addAgentMessage(agent, 'error', `App Server error: ${error.message}`);
-        console.error('Virtual Developer error:', error);
-    });
-}
-
-function addAgentMessage(agent, type, content) {
-    const messages = document.getElementById(`${agent}Messages`);
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    
-    const timestamp = new Date().toLocaleTimeString();
-    const icon = {
-        'user': '👤',
-        'assistant': agent === 'developer' ? '🤖' : '💡',
-        'system': '⚙️',
-        'error': '❌',
-        'output': '💻'
-    }[type] || '💬';
-    
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">${icon}</span>
-            <span class="message-time">${timestamp}</span>
-        </div>
-        <div class="message-content">${content}</div>
-    `;
-    
-    messages.appendChild(messageDiv);
-    messages.scrollTop = messages.scrollHeight;
-}
-
-
 
 // Handle Enter key in agent inputs (mobile-friendly)
 document.addEventListener('keydown', function(e) {

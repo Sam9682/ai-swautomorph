@@ -734,66 +734,80 @@ def api_deployment_logs(deployment_id):
         print(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
 
-@api_bp.route('/qchat', methods=['POST'])
-def api_qchat():
-    from ..automorph_application import process_qchat_developer
+@api_bp.route('/qchat_developer', methods=['POST'])
+def api_qchat_developer():
+    from flask import Response, stream_with_context
+    import json
+    import subprocess
+    import re
     import time
     
-    # Log API call details
-    user_id = session.get('user_id', '0')
-    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-    user_agent = request.headers.get('User-Agent', 'Unknown')
-    timestamp = time.strftime('%Y-%m-%d-%H:%M:%S')
-    
-    print(f"[Q CHAT API] {timestamp} - POST /api/qchat - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
+    user_id = session.get('user_id', 'anonymous')
     
     if 'user_id' not in session:
-        print(f"[Q CHAT API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     data = request.get_json()
     message = data.get('message', '').strip()
-    auto_approve = data.get('auto_approve', True)
-    app_name = data.get('application_name', '')
-    app_folder = data.get('application_folder', '')
-    gitea_url = data.get('gitea_url', '')
-    github_url = data.get('github_url', '')
-    userid = data.get('userid', '0')
-    username = data.get('username', 'anonymous')
-    
-    print(f"[Q CHAT API] User {username} - Message length: {len(message)} chars, Auto-approve: {auto_approve}")
-    print(f"[Q CHAT API] User {username} - App: {app_name}, Folder: {app_folder}, Gitea: {gitea_url}, GitHub: {github_url}")
-    print(f"[Q CHAT API] User {username} - Message preview: {message[:100]}{'...' if len(message) > 100 else ''}")
+    application_name = data.get('application_name', '')
+    application_folder = data.get('application_folder', '')
     
     if not message:
-        print(f"[Q CHAT API] FAILED - Empty message from user {user_id}")
         return jsonify({'error': 'Message required'}), 400
     
-    try:
-        # Use automorph_application module to process the request
-        result = process_qchat_developer(message, auto_approve, app_name, app_folder, gitea_url, userid, username)
+    user_details = db_manager.execute_query(
+        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    username = user_details[0] if user_details else 'user'
+    user_email = user_details[1] if user_details else 'user@example.com'
+    user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+    description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
+    
+    def generate():
+        from ..automorph_application import process_qchat_developer, process_qchat_devops
         
-        if 'error' in result:
-            print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")
-            return jsonify(result), 500
+        prompt = process_qchat_developer(message, str(session['user_id']), user_name.strip(), user_email, description)
         
-        response_data = {
-            'response': result['response'],
-            'command_executed': result['command_executed'],
-            'branch_name': result.get('branch_name'),
-            'auto_approve_used': auto_approve,
-            'execution_time': result['execution_time'],
-            'success': result['success']
-        }
+        qchat_paths = ['/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+        qchat_cmd = None
+        for path in qchat_paths:
+            try:
+                subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                qchat_cmd = path
+                break
+            except:
+                continue
         
-        print(f"[Q CHAT API] User {user_id} - SUCCESS - Automorph processing completed")
-        return jsonify(response_data)
+        if not qchat_cmd:
+            yield f"data: {json.dumps({'error': 'Q Chat not found'})}\n\n"
+            return
         
-    except Exception as e:
-        print(f"[Q CHAT API] User {user_id} - EXCEPTION - {type(e).__name__}: {str(e)}")
-        import traceback
-        print(f"[Q CHAT API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
-        return jsonify({'error': f'Automorph Q Chat error: {str(e)}'}), 500
+        cmd_args = [qchat_cmd, 'chat', '--trust-all-tools', prompt]
+        qchat_env = os.environ.copy()
+        qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
+        
+        try:
+            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                      text=True, bufsize=1, env=qchat_env)
+            
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            
+            for line in iter(process.stdout.readline, ''):
+                if line:
+                    clean_line = ansi_escape.sub('', line.rstrip())
+                    if clean_line and 'Thinking...' not in clean_line:
+                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+            
+            process.wait()
+            yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
+            
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 @api_bp.route('/qchat_devops', methods=['POST'])
 def api_qchat_devops():
@@ -827,9 +841,9 @@ def api_qchat_devops():
     description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
     
     def generate():
-        from ..automorph_application import build_qchat_prompt
+        from ..automorph_application import process_qchat_developer, process_qchat_devops
         
-        prompt = build_qchat_prompt(message, str(session['user_id']), user_name.strip(), user_email, description)
+        prompt = process_qchat_devops(message, str(session['user_id']), user_name.strip(), user_email, description)
         
         qchat_paths = ['/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
         qchat_cmd = None
