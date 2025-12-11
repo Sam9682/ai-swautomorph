@@ -220,24 +220,29 @@ confirm_gitea_stop() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
         echo "⚠️ Gitea is currently running"
         
+        # Auto-select "No" when STOP command is used (non-interactive mode)
+        if [[ "$COMMAND" =~ ^(stop|-k|--stop)$ ]]; then
+            echo "  🔧 Auto-selecting: No, keep Gitea configuration (but nginx is stopped)"
+            CHOICE="no"
+        fi
         # Check if simple-term-menu is available
         if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
             # Use Python simple-term-menu for interactive selection
             CHOICE=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
-options = ["Yes, stop and remove Gitea configuration", "No, keep Gitea configuration (but nginx is stopped)"]
+options = ["No, keep Gitea configuration (but nginx is stopped)","Yes, stop and remove Gitea configuration"]
 terminal_menu = TerminalMenu(
-    options,
-    title="🔧 Do you want to stop Gitea service?",
-    menu_cursor="▶ ",
-    menu_cursor_style=("fg_red", "bold"),
-    menu_highlight_style=("bg_red", "fg_yellow"),
-    cycle_cursor=True
+options,
+title="🔧 Do you want to stop Gitea service?",
+menu_cursor="▶ ",
+menu_cursor_style=("fg_red", "bold"),
+menu_highlight_style=("bg_red", "fg_yellow"),
+cycle_cursor=True
 )
 
 menu_entry_index = terminal_menu.show()
-print("yes" if menu_entry_index == 0 else "no")
+print("no" if menu_entry_index == 0 else "yes")
 EOF
 )
         else

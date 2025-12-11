@@ -3,7 +3,9 @@
 {% block title %}{{ get_text('dashboard') }} - AI-SwAutoMorph{% endblock %}
 
 {% block content %}
-<div class="dashboard-container">
+<div class="dashboard-layout">
+    <div class="main-panel">
+        <div class="dashboard-container">
     {% if username == 'admin' %}
     <div class="admin-menu">
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
@@ -345,6 +347,82 @@
         </div>
     </div>
     {% endif %}
+        </div>
+    </div>
+    
+    <!-- Virtual Agents Panel -->
+    <div class="agents-panel">
+        <div id="virtualAgentsPanel" class="virtual-agents-panel">
+            <div class="panel-header">
+                <h3>Virtual Agents</h3>
+                <button id="togglePanel" class="toggle-btn" onclick="toggleAgentsPanel()">−</button>
+            </div>
+            
+            <div class="panel-content">
+                <!-- Mobile Agent Selector -->
+                <div class="mobile-agent-selector">
+                    <button class="mobile-tab-btn active" data-agent="developer">🤖 Developer</button>
+                    <button class="mobile-tab-btn" data-agent="devops">💡 DevOps</button>
+                </div>
+                
+                <!-- Developer Agent Area -->
+                <div class="agent-area" id="developerArea">
+                    <div class="agent-header">
+                        <h4>🤖 Virtual Developer</h4>
+                    </div>
+                    <div class="app-selection">
+                        <select id="developerAppSelect">
+                            <option value="">-- Select Application --</option>
+                            {% for app in applications %}
+                            <option value="{{ app[1] }}">{{ app[1] }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="developerMessages" class="messages-area"></div>
+                    <div class="input-area">
+                        <textarea id="developerInput" placeholder="Describe what changes you want the AI to make to the code..." rows="2"></textarea>
+                        <div class="input-controls">
+                            <label>
+                                <input type="checkbox" id="autoApprove" checked> Auto Approve
+                            </label>
+                            <button onclick="sendDeveloperMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DevOps Agent Area -->
+                <div class="agent-area" id="devopsArea">
+                    <div class="agent-header">
+                        <h4>💡 Virtual DevOps</h4>
+                    </div>
+                    <div class="devops-controls">
+                        <select id="devopsAppSelect">
+                            <option value="">-- Select Application --</option>
+                            {% for app in applications %}
+                            <option value="{{ app[1] }}">{{ app[1] }}</option>
+                            {% endfor %}
+                        </select>
+                        <select id="devopsAction">
+                            <option value="START" selected>START</option>
+                            <option value="STOP">STOP</option>
+                            <option value="RESTART">RESTART</option>
+                            <option value="LOGS">LOGS</option>
+                        </select>
+                    </div>
+                    <div id="devopsMessages" class="messages-area"></div>
+                    <div class="input-area">
+                        <textarea id="devopsInput" placeholder="Ask your question or describe what you need..." rows="2"></textarea>
+                        <div class="input-controls">
+                            <label>
+                                <input type="checkbox" id="devopsAutoApprove" checked> Auto Approve
+                            </label>
+                            <button onclick="sendDevOpsMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Deployment Logs Section -->
@@ -404,63 +482,7 @@
 
 
 
-<!-- Virtual Agents Panel -->
-<div id="virtualAgentsPanel" class="virtual-agents-panel">
-    <div class="panel-header">
-        <h3>Virtual Agents</h3>
-        <button id="togglePanel" class="toggle-btn" onclick="toggleAgentsPanel()">−</button>
-    </div>
-    
-    <div class="panel-content">
-        <div class="tab-buttons">
-            <button id="developerTabBtn" class="tab-btn active" onclick="switchAgentTab('developer')">🤖 Developer</button>
-            <button id="devopsTabBtn" class="tab-btn" onclick="switchAgentTab('devops')">💡 DevOps</button>
-        </div>
-        
-        <!-- Developer Tab Content -->
-        <div id="developerTab" class="tab-content active">
-            <div class="app-selection">
-                <select id="developerAppSelect">
-                    <option value="">-- Select Application --</option>
-                    {% for app in applications %}
-                    <option value="{{ app[1] }}">{{ app[1] }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div id="developerMessages" class="messages-area"></div>
-        </div>
-        
-        <!-- DevOps Tab Content -->
-        <div id="devopsTab" class="tab-content">
-            <div class="devops-controls">
-                <select id="devopsAppSelect">
-                    <option value="">-- Select Application --</option>
-                    {% for app in applications %}
-                    <option value="{{ app[1] }}">{{ app[1] }}</option>
-                    {% endfor %}
-                </select>
-                <select id="devopsAction">
-                    <option value="START" selected>START</option>
-                    <option value="STOP">STOP</option>
-                    <option value="RESTART">RESTART</option>
-                    <option value="LOGS">LOGS</option>
-                </select>
-            </div>
-            <div id="devopsMessages" class="messages-area"></div>
-        </div>
-        
-        <!-- Input Area -->
-        <div class="input-area">
-            <textarea id="agentInput" placeholder="Type your request here..." rows="3"></textarea>
-            <div class="input-controls">
-                <label id="autoApproveLabel" style="display: none;">
-                    <input type="checkbox" id="autoApprove" checked> Auto Approve
-                </label>
-                <button id="sendBtn" onclick="sendAgentMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-</div>
+
 
 <script>
 // Constants for easier maintenance
@@ -1253,8 +1275,6 @@ function updateApplicationButtonStatus(appName, logs) {
 }
 
 // Virtual Agents Panel functions
-let currentAgent = 'developer';
-
 function toggleAgentsPanel() {
     const panel = document.getElementById('virtualAgentsPanel');
     const toggleBtn = document.getElementById('togglePanel');
@@ -1269,55 +1289,25 @@ function toggleAgentsPanel() {
     }
 }
 
-function switchAgentTab(agent) {
-    currentAgent = agent;
-    
-    // Update tab buttons
-    document.getElementById('developerTabBtn').classList.toggle('active', agent === 'developer');
-    document.getElementById('devopsTabBtn').classList.toggle('active', agent === 'devops');
-    
-    // Update tab content
-    document.getElementById('developerTab').classList.toggle('active', agent === 'developer');
-    document.getElementById('devopsTab').classList.toggle('active', agent === 'devops');
-    
-    // Update input placeholder and controls
-    const input = document.getElementById('agentInput');
-    const autoApproveLabel = document.getElementById('autoApproveLabel');
-    
-    if (agent === 'developer') {
-        input.placeholder = 'Describe what changes you want the AI to make to the code...';
-        autoApproveLabel.style.display = 'block';
-        
-        // Initialize developer messages if empty
-        if (document.getElementById('developerMessages').innerHTML === '') {
-            addAgentMessage('developer', 'system', 'Virtual Developer ready. Select an application and describe your coding needs.');
-        }
-    } else {
-        input.placeholder = 'Ask your question or describe what you need...';
-        autoApproveLabel.style.display = 'none';
-        
-        // Initialize devops messages if empty
-        if (document.getElementById('devopsMessages').innerHTML === '') {
-            addAgentMessage('devops', 'system', 'Virtual DevOps Team ready. Select an application and action.');
-        }
-    }
-}
-
-function sendAgentMessage() {
-    const input = document.getElementById('agentInput');
+function sendDeveloperMessage() {
+    const input = document.getElementById('developerInput');
     const message = input.value.trim();
     if (!message) return;
     
-    if (currentAgent === 'developer') {
-        sendDeveloperMessage(message);
-    } else {
-        sendDevOpsMessage(message);
-    }
-    
+    sendDeveloperMessageWithText(message);
     input.value = '';
 }
 
-function sendDeveloperMessage(message) {
+function sendDevOpsMessage() {
+    const input = document.getElementById('devopsInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    sendDevOpsMessageWithText(message);
+    input.value = '';
+}
+
+function sendDeveloperMessageWithText(message) {
     const selectedApp = document.getElementById('developerAppSelect').value;
     if (!selectedApp) {
         addAgentMessage('developer', 'error', 'Please select an application before sending your request.');
@@ -1375,7 +1365,7 @@ function sendDeveloperMessage(message) {
     });
 }
 
-function sendDevOpsMessage(message) {
+function sendDevOpsMessageWithText(message) {
     const selectedApp = document.getElementById('devopsAppSelect').value;
     const selectedAction = document.getElementById('devopsAction').value;
     
@@ -1565,17 +1555,104 @@ function addAgentMessage(agent, type, content) {
 
 
 
-// Handle Enter key in agent input
+// Handle Enter key in agent inputs (mobile-friendly)
 document.addEventListener('keydown', function(e) {
-    if (e.target.id === 'agentInput' && e.key === 'Enter' && !e.shiftKey) {
+    if (e.target.id === 'developerInput' && e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendAgentMessage();
+        sendDeveloperMessage();
+    }
+    if (e.target.id === 'devopsInput' && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendDevOpsMessage();
+    }
+});
+
+// Touch-friendly button handling
+document.addEventListener('touchstart', function(e) {
+    if (e.target.tagName === 'BUTTON') {
+        e.target.style.transform = 'scale(0.95)';
+    }
+});
+
+document.addEventListener('touchend', function(e) {
+    if (e.target.tagName === 'BUTTON') {
+        e.target.style.transform = 'scale(1)';
+    }
+});
+
+// Auto-populate text when application is selected
+document.getElementById('developerAppSelect').addEventListener('change', function() {
+    const selectedApp = this.value;
+    if (selectedApp) {
+        document.getElementById('developerInput').value = `I need a developer specialist to modify the code of the application ${selectedApp} application. Please, hereafter is request to be coded in the application :`;
+    }
+});
+
+document.getElementById('devopsAppSelect').addEventListener('change', function() {
+    const selectedApp = this.value;
+    if (selectedApp) {
+        const selectedAction = document.getElementById('devopsAction').value;
+        document.getElementById('devopsInput').value = `I need a devops specialist to execute the ${selectedAction} action on the application ${selectedApp}`;
+    }
+});
+
+document.getElementById('devopsAction').addEventListener('change', function() {
+    const selectedApp = document.getElementById('devopsAppSelect').value;
+    if (selectedApp) {
+        const selectedAction = this.value;
+        document.getElementById('devopsInput').value = `I need a devops specialist to execute the ${selectedAction} action the application ${selectedApp}`;
+    }
+});
+
+// Mobile agent switching
+function switchMobileAgent(agent) {
+    const developerArea = document.getElementById('developerArea');
+    const devopsArea = document.getElementById('devopsArea');
+    const buttons = document.querySelectorAll('.mobile-tab-btn');
+    
+    // Update button states
+    buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.agent === agent);
+    });
+    
+    // Show/hide agent areas on mobile
+    if (window.innerWidth <= 768) {
+        developerArea.style.display = agent === 'developer' ? 'flex' : 'none';
+        devopsArea.style.display = agent === 'devops' ? 'flex' : 'none';
+    } else {
+        developerArea.style.display = 'flex';
+        devopsArea.style.display = 'flex';
+    }
+}
+
+// Handle mobile agent selector clicks
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('mobile-tab-btn')) {
+        switchMobileAgent(e.target.dataset.agent);
+    }
+});
+
+// Handle window resize
+window.addEventListener('resize', function() {
+    const activeBtn = document.querySelector('.mobile-tab-btn.active');
+    if (activeBtn) {
+        switchMobileAgent(activeBtn.dataset.agent);
     }
 });
 
 // Initialize panel on page load
 document.addEventListener('DOMContentLoaded', function() {
-    switchAgentTab('developer'); // Initialize with developer tab
+    // Initialize both agent areas
+    if (document.getElementById('developerMessages').innerHTML === '') {
+        addAgentMessage('developer', 'system', 'Virtual Developer ready. Select an application and describe your coding needs.');
+    }
+    if (document.getElementById('devopsMessages').innerHTML === '') {
+        addAgentMessage('devops', 'system', 'Virtual DevOps Team ready. Select an application and action.');
+    }
+    
+    // Initialize mobile view
+    switchMobileAgent('developer');
+    
     showTab('apps'); // Show applications tab by default
 });
 

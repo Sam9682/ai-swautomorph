@@ -27,6 +27,24 @@
                 <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
                 <a href="{{ url_for('main.set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
             </div>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+        </div>
+        <div class="mobile-nav" id="mobileNav">
+            <div class="mobile-nav-content">
+                {% if session.user_id %}
+                    {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
+                    <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
+                    <a href="{{ url_for('main.docs') }}">DOCS</a>
+                    <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
+                {% else %}
+                    <a href="{{ url_for('main.docs') }}">DOCS</a>
+                    <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
+                {% endif %}
+                <div class="lang-toggle">
+                    <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
+                    <a href="{{ url_for('main.set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
+                </div>
+            </div>
         </div>
     </nav>
     
@@ -35,5 +53,28 @@
     </main>
     
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script>
+        function toggleMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            mobileNav.classList.toggle('active');
+        }
+        
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const mobileNav = document.getElementById('mobileNav');
+            const menuBtn = document.querySelector('.mobile-menu-btn');
+            
+            if (!mobileNav.contains(e.target) && !menuBtn.contains(e.target)) {
+                mobileNav.classList.remove('active');
+            }
+        });
+        
+        // Close mobile menu when window is resized to desktop
+        window.addEventListener('resize', function() {
+            if (window.innerWidth > 768) {
+                document.getElementById('mobileNav').classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>
