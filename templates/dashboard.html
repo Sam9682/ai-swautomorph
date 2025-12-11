@@ -1191,7 +1191,7 @@ function updateApplicationButtonStatus(appName, logs) {
             const lines = logs.split('\n');
             const stdoutIndex = lines.findIndex(line => line.includes('STDOUT:'));
             const jsonLines = stdoutIndex >= 0 ? lines.slice(stdoutIndex + 1) : lines;
-            const jsonString = jsonLines.join('\n');
+            const jsonString = jsonLines.join('\n').trim();
             
             const statusData = JSON.parse(jsonString);
             if (statusData.docker_compose_ps) {
@@ -1200,9 +1200,8 @@ function updateApplicationButtonStatus(appName, logs) {
             }
         } catch (e) {
             // Fallback to old text parsing
-            const logLines = logs.toLowerCase().split('\n');
-            const isRunning = logs.includes('IS_RUNNING');
-            const isNotRunning =  logs.includes('IS_NOT_RUNNING');
+            isRunning = logs.includes('IS_RUNNING');
+            isNotRunning = logs.includes('IS_NOT_RUNNING');
         }
     }
     
