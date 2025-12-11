@@ -82,7 +82,7 @@ The platform integrates with Amazon Q Developer for automated application evolut
 
 ```python
 # Automorph application for GenAI integration
-def process_qchat_request(user_request, auto_approve=True, app_name='', app_folder='', git_url='', user_id='0', user_name='anonymous'):
+def process_qchat_developer(user_request, auto_approve=True, app_name='', app_folder='', git_url='', user_id='0', user_name='anonymous'):
     """
     Process evolution requests through Q Chat
     1. Analyze current application structure
@@ -269,8 +269,8 @@ def api_deployment_logs(deployment_id):
 def api_qchat():
     """Process Q Chat requests for code modification"""
 
-@app.route('/api/qchat_question', methods=['POST'])
-def api_qchat_question():
+@app.route('/api/qchat_devops', methods=['POST'])
+def api_qchat_devops():
     """Process Virtual Advisor questions with streaming response"""
 ```
 

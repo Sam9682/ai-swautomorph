@@ -736,7 +736,7 @@ def api_deployment_logs(deployment_id):
 
 @api_bp.route('/qchat', methods=['POST'])
 def api_qchat():
-    from ..automorph_application import process_qchat_request
+    from ..automorph_application import process_qchat_developer
     import time
     
     # Log API call details
@@ -771,7 +771,7 @@ def api_qchat():
     
     try:
         # Use automorph_application module to process the request
-        result = process_qchat_request(message, auto_approve, app_name, app_folder, gitea_url, userid, username)
+        result = process_qchat_developer(message, auto_approve, app_name, app_folder, gitea_url, userid, username)
         
         if 'error' in result:
             print(f"[Q CHAT API] User {user_id} - ERROR: {result['error']}")
@@ -795,8 +795,8 @@ def api_qchat():
         print(f"[Q CHAT API] User {user_id} - TRACEBACK: {traceback.format_exc()}")
         return jsonify({'error': f'Automorph Q Chat error: {str(e)}'}), 500
 
-@api_bp.route('/qchat_question', methods=['POST'])
-def api_qchat_question():
+@api_bp.route('/qchat_devops', methods=['POST'])
+def api_qchat_devops():
     from flask import Response, stream_with_context
     import json
     import subprocess

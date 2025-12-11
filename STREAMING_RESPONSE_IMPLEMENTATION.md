@@ -55,9 +55,9 @@ import subprocess
 import threading
 import queue
 
-@api_bp.route('/qchat_question_stream', methods=['POST'])
-def api_qchat_question_stream():
-    """Streaming version of qchat_question"""
+@api_bp.route('/qchat_devops_stream', methods=['POST'])
+def api_qchat_devops_stream():
+    """Streaming version of qchat_devops"""
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
@@ -82,11 +82,11 @@ def api_qchat_question_stream():
     
     def generate():
         """Generator function for streaming"""
-        from ..automorph_application import process_qchat_question_stream
+        from ..automorph_application import process_qchat_devops_stream
         
         try:
             # Stream chunks from Q Chat
-            for chunk in process_qchat_question_stream(
+            for chunk in process_qchat_devops_stream(
                 message,
                 user_id=str(session['user_id']),
                 user_name=user_name,
@@ -110,11 +110,11 @@ def api_qchat_question_stream():
 #### 2. Create Streaming Function (`src/automorph_application.py`)
 
 ```python
-def process_qchat_question_stream(user_question: str, user_id: str = '0', 
+def process_qchat_devops_stream(user_question: str, user_id: str = '0', 
                                    user_name: str = 'User', user_email: str = 'user@example.com', 
                                    description: str = ''):
     """
-    Streaming version of process_qchat_question
+    Streaming version of process_qchat_devops
     Yields chunks of output as they arrive
     """
     import time
@@ -298,14 +298,14 @@ function sendVirtualAdvisorMessage() {
     const streamingContent = document.getElementById('streaming-content');
     
     // Use EventSource for SSE
-    const eventSource = new EventSource('/api/qchat_question_stream?' + new URLSearchParams({
+    const eventSource = new EventSource('/api/qchat_devops_stream?' + new URLSearchParams({
         message: fullMessage,
         application_name: selectedApp,
         application_folder: appFolder
     }));
     
     // Alternative: Use fetch with streaming
-    fetch('/api/qchat_question_stream', {
+    fetch('/api/qchat_devops_stream', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -391,7 +391,7 @@ function sendVirtualAdvisorMessage() {
     }, 3000);
     
     // Send request
-    fetch('/api/qchat_question', {
+    fetch('/api/qchat_devops', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({...})

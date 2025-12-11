@@ -10,7 +10,7 @@ REPO_DIR = "/home/ubuntu/deployments/"
 GITHUB_REMOTE_URL = "git@github.com:Sam9682/"
 GITEA_REMOTE_URL = "http://gitadmin:password@localhost:3000/gitadmin/"
 
-def process_qchat_request(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = '', user_id: str = '0', user_name: str = 'anonymous'):
+def process_qchat_developer(user_request: str, auto_approve: bool = True, app_name: str = '', app_folder: str = '', git_url: str = '', user_id: str = '0', user_name: str = 'anonymous'):
     """
     Process Q Chat request using automorph application logic
     Returns dict with response, execution details, and timing
@@ -150,7 +150,7 @@ If ANY step fails, explain clearly which step failed and why.
         })
         
         # Execute Q Chat command with proper environment
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=600, env=qchat_env)
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=1500, env=qchat_env)
         execution_time = time.time() - start_time
         
         print(f"[AUTOMORPH] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
@@ -180,9 +180,9 @@ If ANY step fails, explain clearly which step failed and why.
         }
         
     except subprocess.TimeoutExpired:
-        print(f"[AUTOMORPH] Request timed out after 600s")
+        print(f"[AUTOMORPH] Request timed out after 1500s")
         return {
-            'error': 'Automorph request timed out',
+            'error': 'Automorph request timed out after 25 minutes',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
@@ -250,7 +250,7 @@ Execute all required steps and provide a clear summary of the results.
     
     return f"You are a helpful assistant. Answer: {user_question}"
 
-def process_qchat_question(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
+def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
     """
     Process Virtual Advisor question using Q Chat for simple Q&A or app management
     Returns dict with response and timing
@@ -418,7 +418,7 @@ def send_update_request_to_qchat(user_request: str):
     """
     Legacy function for backward compatibility
     """
-    result = process_qchat_request(user_request)
+    result = process_qchat_developer(user_request)
     if 'error' in result:
         raise Exception(result['error'])
     return result
@@ -426,5 +426,5 @@ def send_update_request_to_qchat(user_request: str):
 if __name__ == "__main__":
     # Exemple d'appel
     demande = "Ajoute un endpoint /healthcheck sur /health en GET qui retourne un JSON {{'status': 'ok'}}."
-    result = process_qchat_request(demande)
+    result = process_qchat_developer(demande)
     print(f"Result: {result}")

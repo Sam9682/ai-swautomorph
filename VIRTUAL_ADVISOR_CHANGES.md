@@ -8,7 +8,7 @@ The Virtual Advisor has been enhanced to handle application management actions (
 
 ### 1. `/src/automorph_application.py`
 
-**Function**: `process_qchat_question()`
+**Function**: `process_qchat_devops()`
 
 **Changes**:
 - Added parameters: `user_id`, `user_name`, `user_email`, `description`
@@ -31,11 +31,11 @@ action_keywords = {
 
 ### 2. `/src/routes/api_routes.py`
 
-**Endpoint**: `/api/qchat_question`
+**Endpoint**: `/api/qchat_devops`
 
 **Changes**:
 - Retrieves user details from database (username, email, full name)
-- Passes user context to `process_qchat_question()` function
+- Passes user context to `process_qchat_devops()` function
 - Enables proper parameter substitution in context templates
 
 ## Context Files Used
@@ -85,7 +85,7 @@ User Message → Keyword Detection → Load Context → Replace Params → Q Cha
 
 ### Via API
 ```bash
-curl -X POST https://localhost:5000/api/qchat_question \
+curl -X POST https://localhost:5000/api/qchat_devops \
   -H "Content-Type: application/json" \
   -H "Cookie: session=YOUR_SESSION" \
   -d '{"message":"Check application status"}'

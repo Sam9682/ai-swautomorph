@@ -7,7 +7,7 @@ Successfully modified the Virtual Advisor to handle application management actio
 ## Files Modified
 
 ### 1. `/src/automorph_application.py`
-**Function**: `process_qchat_question()`
+**Function**: `process_qchat_devops()`
 
 **Changes**:
 - Added parameters for user context (user_id, user_name, user_email, description)
@@ -18,11 +18,11 @@ Successfully modified the Virtual Advisor to handle application management actio
 - Falls back to Q&A mode for non-action questions
 
 ### 2. `/src/routes/api_routes.py`
-**Endpoint**: `/api/qchat_question`
+**Endpoint**: `/api/qchat_devops`
 
 **Changes**:
 - Retrieves user details from database
-- Passes user context to `process_qchat_question()`
+- Passes user context to `process_qchat_devops()`
 - Enables proper parameter substitution in context templates
 
 ### 3. `/templates/dashboard.html`

@@ -29,14 +29,14 @@ Modified `sendVirtualAdvisorMessage()` to:
 
 ### 2. Backend API (`src/routes/api_routes.py`)
 
-#### Updated `/api/qchat_question` Endpoint
+#### Updated `/api/qchat_devops` Endpoint
 - Accepts `application_name` and `application_folder` parameters
 - Builds description with application context
-- Passes to `process_qchat_question()` function
+- Passes to `process_qchat_devops()` function
 
 ### 3. Processing Function (`src/automorph_application.py`)
 
-#### Enhanced `process_qchat_question()`
+#### Enhanced `process_qchat_devops()`
 - Extracts application folder from description
 - Includes folder path in prompt for Q Chat
 - Ensures commands execute in correct application directory
@@ -89,7 +89,7 @@ Modified `sendVirtualAdvisorMessage()` to:
 ### Backend Processing
 ```python
 description = "Application: MyApp, Path: /home/ubuntu/deployments/john/myapp"
-process_qchat_question(
+process_qchat_devops(
     message=full_message,
     user_id="5",
     user_name="John Doe",

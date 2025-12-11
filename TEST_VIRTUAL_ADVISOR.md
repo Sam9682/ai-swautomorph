@@ -68,7 +68,7 @@ The Virtual Advisor now handles application management actions (STOP/START/RESTA
 
 ### Test via API
 ```bash
-curl -X POST https://localhost:5000/api/qchat_question \
+curl -X POST https://localhost:5000/api/qchat_devops \
   -H "Content-Type: application/json" \
   -H "Cookie: session=YOUR_SESSION_COOKIE" \
   -d '{"message":"Show me the application status"}'

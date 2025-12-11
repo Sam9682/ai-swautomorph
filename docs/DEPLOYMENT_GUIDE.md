@@ -154,7 +154,7 @@ Content-Type: application/json
 }
 
 # Virtual Advisor questions (streaming)
-POST /api/qchat_question
+POST /api/qchat_devops
 Content-Type: application/json
 {
   "message": "How do I restart the application?",
