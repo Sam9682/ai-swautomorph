@@ -1641,6 +1641,22 @@ body {
     font-family: 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace;
     font-size: 0.85rem;
     line-height: 1.3;
+    max-height: 300px;
+    overflow-y: auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.virtual-agents-panel .developer-assistant .message-content,
+.virtual-agents-panel .devops-assistant .message-content {
+    background: #f8f9fa !important;
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 4px !important;
+    padding: 0.5rem !important;
+    min-height: 50px !important;
+    font-family: 'Courier New', monospace !important;
+    font-size: 0.8rem !important;
+    color: #2c3e50 !important;
 }
 
 /* Dashboard Layout Styles */

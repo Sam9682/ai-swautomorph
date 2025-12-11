@@ -24,10 +24,10 @@ def process_qchat_developer(user_request: str, auto_approve: bool = True, app_na
     repo_github_url = git_url if git_url else GITHUB_REMOTE_URL + app_name
     repo_gitea_url = GITEA_REMOTE_URL + branch_name
 
-    print(f"[AUTOMORPH] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
-    print(f"[AUTOMORPH] App: {app_name}, Folder: {repo_dir}")
-    print(f"[AUTOMORPH] Github: {repo_github_url}")
-    print(f"[AUTOMORPH] Gitea: {repo_gitea_url}")
+    print(f"[VIRTUAL DEVELOPER] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
+    print(f"[VIRTUAL DEVELOPER] App: {app_name}, Folder: {repo_dir}")
+    print(f"[VIRTUAL DEVELOPER] Github: {repo_github_url}")
+    print(f"[VIRTUAL DEVELOPER] Gitea: {repo_gitea_url}")
     
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
@@ -138,7 +138,7 @@ If ANY step fails, explain clearly which step failed and why.
             cmd_args.append('--trust-all-tools')
         cmd_args.append(prompt)
         
-        print(f"[AUTOMORPH] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
+        print(f"[VIRTUAL DEVELOPER] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
         
         # Set up proper environment to avoid permission issues
         import os
@@ -153,7 +153,7 @@ If ANY step fails, explain clearly which step failed and why.
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=1500, env=qchat_env)
         execution_time = time.time() - start_time
         
-        print(f"[AUTOMORPH] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        print(f"[VIRTUAL DEVELOPER] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
         
         # Handle response from both stdout and stderr
         response_text = ''
@@ -162,7 +162,7 @@ If ANY step fails, explain clearly which step failed and why.
         elif result.stderr and result.stderr.strip():
             response_text = result.stderr.strip()
         else:
-            response_text = 'Automorph Q Chat completed but returned no output'
+            response_text = 'VIRTUAL DEVELOPER Q Chat completed but returned no output'
         
         # Strip ANSI color codes from response
         ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -180,75 +180,19 @@ If ANY step fails, explain clearly which step failed and why.
         }
         
     except subprocess.TimeoutExpired:
-        print(f"[AUTOMORPH] Request timed out after 1500s")
+        print(f"[VIRTUAL DEVELOPER] Request timed out after 1500s")
         return {
             'error': 'Automorph request timed out after 25 minutes',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
-        print(f"[AUTOMORPH] Error: {str(e)}")
+        print(f"[VIRTUAL DEVELOPER] Error: {str(e)}")
         return {
-            'error': f'Automorph error: {str(e)}',
+            'error': f'VIRTUAL DEVELOPER error: {str(e)}',
             'execution_time': round(time.time() - start_time, 2)
         }
 
-def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
-    """Build prompt for Q Chat"""
-    action_keywords = {
-        'start': ['start', 'deploy', 'launch', 'run'],
-        'stop': ['stop', 'shutdown', 'halt', 'terminate'],
-        'restart': ['restart', 'reboot', 'reload'],
-        'ps': ['status', 'ps', 'check', 'running'],
-        'logs': ['logs', 'log', 'output', 'console']
-    }
-    
-    detected_action = None
-    question_lower = user_question.lower()
-    
-    for action, keywords in action_keywords.items():
-        if any(keyword in question_lower for keyword in keywords):
-            detected_action = action
-            break
-    
-    if detected_action:
-        import os
-        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
-        
-        if os.path.exists(context_file):
-            with open(context_file, 'r') as f:
-                context_template = f.read()
-            
-            context = context_template.replace('{USER_ID}', user_id)
-            context = context.replace('{USER_NAME}', user_name)
-            context = context.replace('{USER_EMAIL}', user_email)
-            context = context.replace('{DESCRIPTION}', description)
-            context = context.replace('{TAIL_LINES}', '100')
-            
-            app_folder = ''
-            if 'Path:' in description:
-                parts = description.split('Path:')
-                if len(parts) > 1:
-                    app_folder = parts[1].strip()
-            
-            return f"""
-You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
 
-The user has requested an application management action.
-
-User Request: {user_question}
-
-{'Application Folder: ' + app_folder if app_folder else ''}
-
-Follow the instructions below to execute the {detected_action.upper()} action:
-
-{context}
-
-IMPORTANT: Execute all commands in the application folder: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-
-Execute all required steps and provide a clear summary of the results.
-"""
-    
-    return f"You are a helpful assistant. Answer: {user_question}"
 
 def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str = 'User', user_email: str = 'user@example.com', description: str = ''):
     """
@@ -257,24 +201,35 @@ def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str 
     """
     start_time = time.time()
     
-    print(f"[VIRTUAL ADVISOR] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
+    print(f"[VIRTUAL DEVOPS] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
     
     # Detect application management actions
-    action_keywords = {
-        'start': ['start', 'deploy', 'launch', 'run'],
-        'stop': ['stop', 'shutdown', 'halt', 'terminate'],
-        'restart': ['restart', 'reboot', 'reload'],
-        'ps': ['status', 'ps', 'check', 'running'],
-        'logs': ['logs', 'log', 'output', 'console']
-    }
+    # First check for bracketed actions like [START], [STOP], etc.
+    import re
+    bracket_match = re.search(r'\[(START|STOP|RESTART|PS|LOGS)\]', user_question.upper())
     
     detected_action = None
-    question_lower = user_question.lower()
     
-    for action, keywords in action_keywords.items():
-        if any(keyword in question_lower for keyword in keywords):
-            detected_action = action
-            break
+    if bracket_match:
+        # Use bracketed action with priority
+        detected_action = bracket_match.group(1).lower()
+        print(f"[VIRTUAL DEVOPS] Detected bracketed action: {detected_action.upper()}")
+    else:
+        # Fallback to keyword detection
+        action_keywords = {
+            'start': ['start', 'deploy', 'launch', 'run'],
+            'stop': ['stop', 'shutdown', 'halt', 'terminate'],
+            'restart': ['restart', 'reboot', 'reload'],
+            'ps': ['status', 'ps', 'check', 'running'],
+            'logs': ['logs', 'log', 'output', 'console']
+        }
+        
+        question_lower = user_question.lower()
+        
+        for action, keywords in action_keywords.items():
+            if any(keyword in question_lower for keyword in keywords):
+                detected_action = action
+                break
     
     # Load context from shared folder if action detected
     if detected_action:
@@ -282,7 +237,7 @@ def process_qchat_devops(user_question: str, user_id: str = '0', user_name: str 
         context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
         
         if os.path.exists(context_file):
-            print(f"[VIRTUAL ADVISOR] Detected action: {detected_action.upper()}, loading context from {context_file}")
+            print(f"[VIRTUAL DEVOPS] Detected action: {detected_action.upper()}, loading context from {context_file}")
             
             with open(context_file, 'r') as f:
                 context_template = f.read()
@@ -319,7 +274,7 @@ IMPORTANT: Execute all commands in the application folder: {app_folder if app_fo
 Execute all required steps and provide a clear summary of the results.
 """
         else:
-            print(f"[VIRTUAL ADVISOR] Context file not found: {context_file}, using default Q&A mode")
+            print(f"[VIRTUAL DEVOPS] Context file not found: {context_file}, using default Q&A mode")
             prompt = f"""
 You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
@@ -365,7 +320,7 @@ Provide a helpful and informative response.
             cmd_args.append('--trust-all-tools')
         cmd_args.append(prompt)
         
-        print(f"[VIRTUAL ADVISOR] Executing qchat command for question using: {qchat_cmd}")
+        print(f"[VIRTUAL DEVOPS] Executing qchat command for question using: {qchat_cmd}")
         
         # Set up proper environment to avoid permission issues
         import os
@@ -380,7 +335,7 @@ Provide a helpful and informative response.
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300, env=qchat_env)
         execution_time = time.time() - start_time
         
-        print(f"[VIRTUAL ADVISOR] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        print(f"[VIRTUAL DEVOPS] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
         
         # Handle response from both stdout and stderr
         response_text = ''
@@ -402,15 +357,15 @@ Provide a helpful and informative response.
         }
         
     except subprocess.TimeoutExpired:
-        print(f"[VIRTUAL ADVISOR] Question timed out after 300s")
+        print(f"[VIRTUAL DEVOPS] Question timed out after 300s")
         return {
-            'error': 'Virtual Advisor question timed out',
+            'error': 'Virtual DevOps question timed out',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
-        print(f"[VIRTUAL ADVISOR] Error: {str(e)}")
+        print(f"[VIRTUAL DEVOPS] Error: {str(e)}")
         return {
-            'error': f'Virtual Advisor error: {str(e)}',
+            'error': f'Virtual DevOps error: {str(e)}',
             'execution_time': round(time.time() - start_time, 2)
         }
 

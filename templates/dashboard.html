@@ -261,8 +261,14 @@
     <!-- Servers Section -->
     {% if username == 'admin' %}
     <div id="serversSection" class="tab-content" style="display: none;">
-        <h2>Server Management</h2>
-        <button class="btn btn-primary" onclick="showAddServerForm()">Add Server</button>
+        <div class="section-header">
+            <h2>Server Management</h2>
+            <button class="btn btn-primary" onclick="showAddServerForm()">Add Server</button>
+        </div>
+        
+        <div id="serversGrid" class="servers-grid">
+            <div class="loading">Loading servers...</div>
+        </div>
         
         <div id="addServerForm" class="server-form" style="display: none;">
             <h3>Add New Server</h3>
@@ -297,10 +303,6 @@
                 <button type="submit" class="btn btn-secondary">Update Server</button>
                 <button type="button" class="btn btn-secondary" onclick="hideEditServerForm()">Cancel</button>
             </form>
-        </div>
-        
-        <div id="serversGrid" class="servers-grid">
-            <div class="loading">Loading servers...</div>
         </div>
     </div>
     {% endif %}
@@ -1432,6 +1434,10 @@ function sendDevOpsMessageWithText(message) {
     addAgentMessage('devops', 'user', message);
     addAgentMessage('devops', 'system', `Virtual DevOps Team is processing ${selectedAction} for ${selectedApp}...`);
     
+    // Show logs tab and add header
+    showLogs();
+    appendLog(`\n=== DEVOPS ${selectedAction} ${selectedApp} ===`);
+    
     // Create streaming message container
     const messagesDiv = document.getElementById('devopsMessages');
     const streamDiv = document.createElement('div');
@@ -1441,10 +1447,13 @@ function sendDevOpsMessageWithText(message) {
             <span class="message-icon">💡</span>
             <span class="message-time">${new Date().toLocaleTimeString()}</span>
         </div>
-        <div class="message-content" style="white-space: pre-wrap;"></div>
+        <div class="message-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0; min-height: 50px; max-height: 300px; overflow-y: auto;"></div>
     `;
     messagesDiv.appendChild(streamDiv);
     const contentDiv = streamDiv.querySelector('.message-content');
+    
+    // Initialize with loading message
+    contentDiv.textContent = 'Connecting to Q Chat...\n';
     
     // Stream from API
     fetch('/api/qchat_devops', {
@@ -1457,12 +1466,22 @@ function sendDevOpsMessageWithText(message) {
         })
     })
     .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        contentDiv.textContent = 'Q Chat connected, processing request...\n';
+        
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         
         function readStream() {
             reader.read().then(({done, value}) => {
-                if (done) return;
+                if (done) {
+                    contentDiv.textContent += '\n=== Q Chat Session Completed ===\n';
+                    appendLog(`=== DEVOPS COMPLETED ===\n`);
+                    return;
+                }
                 
                 const chunk = decoder.decode(value, {stream: true});
                 const lines = chunk.split('\n');
@@ -1472,23 +1491,42 @@ function sendDevOpsMessageWithText(message) {
                         try {
                             const data = JSON.parse(line.substring(6));
                             if (data.chunk) {
+                                // Clear initial loading message on first chunk
+                                if (contentDiv.textContent.includes('processing request')) {
+                                    contentDiv.textContent = '';
+                                }
                                 contentDiv.textContent += data.chunk + '\n';
+                                // Force immediate DOM update
+                                contentDiv.scrollTop = contentDiv.scrollHeight;
                                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                // Force browser repaint
+                                contentDiv.offsetHeight;
+                                appendLog(data.chunk);
                             } else if (data.error) {
                                 contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                                appendLog(`❌ Error: ${data.error}`);
                             } else if (data.done) {
-                                contentDiv.textContent += '\n✅ Completed';
+                                contentDiv.textContent += '\n✅ Q Chat Processing Completed';
                             }
-                        } catch (e) {}
+                        } catch (e) {
+                            console.error('Error parsing SSE data:', e, 'Line:', line);
+                        }
                     }
                 }
-                readStream();
+                // Use setTimeout to ensure immediate processing
+                setTimeout(readStream, 0);
+            }).catch(error => {
+                console.error('Stream reading error:', error);
+                contentDiv.textContent += `\n❌ Stream Error: ${error.message}`;
+                appendLog(`❌ Stream Error: ${error.message}`);
             });
         }
         readStream();
     })
     .catch(error => {
-        contentDiv.textContent += `\n❌ Error: ${error.message}`;
+        console.error('Fetch error:', error);
+        contentDiv.textContent = `❌ Connection Error: ${error.message}`;
+        appendLog(`❌ Connection Error: ${error.message}`);
     });
 }
 
