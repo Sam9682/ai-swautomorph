@@ -155,12 +155,23 @@ check_flask_status() {
     if [ -f "${PID_FILE:-./conf/app.pid}" ]; then
         PID=$(cat "${PID_FILE:-./conf/app.pid}")
         if kill -0 "$PID" 2>/dev/null; then
-            echo -e "  $OK Flask application: Running (PID: $PID)"
+            PROCESS_OWNER=$(ps -o user= -p "$PID" 2>/dev/null || echo "unknown")
+            echo -e "  $OK Flask application: Running (PID: $PID, Owner: $PROCESS_OWNER)"
         else
             echo -e "  $ERROR Flask application: Not running (stale PID: $PID)"
         fi
     else
         echo -e "  $ERROR Flask application: Not running (no PID file)"
+    fi
+    
+    # Check for any other Flask processes
+    OTHER_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    if [ -n "$OTHER_PIDS" ]; then
+        echo -e "  $WARN Other Flask processes found: $OTHER_PIDS"
+        for pid in $OTHER_PIDS; do
+            OWNER=$(ps -o user= -p "$pid" 2>/dev/null || echo "unknown")
+            echo -e "    PID: $pid, Owner: $OWNER"
+        done
     fi
 }
 
@@ -193,26 +204,177 @@ check_docker_status() {
     fi
 }
 
+# Provide guidance for manual process cleanup
+provide_cleanup_guidance() {
+    echo ""
+    echo -e "${YELLOW}[CLEANUP GUIDANCE]${NC} If processes couldn't be stopped automatically:"
+    echo "  1. Check running processes: ps aux | grep 'python3 app.py'"
+    echo "  2. Kill specific PID: sudo kill -9 <PID>"
+    echo "  3. Kill all Flask processes: sudo pkill -9 -f 'python3 app.py'"
+    echo "  4. Check process ownership: ps -o pid,user,cmd -C python3"
+    echo ""
+}
+
+# Database backup function
+backup_database() {
+    echo "💾 Creating database backup..."
+    
+    # Create backup directory with timestamp
+    DATETIME=$(date +"%Y%m%d_%H%M%S")
+    BACKUP_DIR="./db/backup/$DATETIME"
+    mkdir -p "$BACKUP_DIR"
+    
+    # Database file path
+    DB_FILE="users.db"
+    
+    if [ -f "$DB_FILE" ]; then
+        echo "  📋 Backing up database tables..."
+        
+        # Get all table names
+        TABLES=$(sqlite3 "$DB_FILE" ".tables")
+        
+        # Dump each table
+        for table in $TABLES; do
+            echo "    📄 Dumping table: $table"
+            sqlite3 "$DB_FILE" ".dump $table" > "$BACKUP_DIR/${table}.sql"
+        done
+        
+        # Create complete database dump
+        echo "    💿 Creating complete database dump..."
+        sqlite3 "$DB_FILE" ".dump" > "$BACKUP_DIR/complete_database.sql"
+        
+        # Copy the database file itself
+        cp "$DB_FILE" "$BACKUP_DIR/users.db.backup"
+        
+        echo -e "  $OK Database backup completed: $BACKUP_DIR"
+        echo "    📁 Files created:"
+        ls -la "$BACKUP_DIR" | sed 's/^/      /'
+    else
+        echo -e "  $WARN Database file $DB_FILE not found - skipping backup"
+    fi
+}
+
+# Database recovery function
+recover_database() {
+    echo "🔄 Database Recovery Tool"
+    
+    BACKUP_BASE_DIR="./db/backup"
+    
+    if [ ! -d "$BACKUP_BASE_DIR" ]; then
+        echo -e "  $ERROR No backup directory found at $BACKUP_BASE_DIR"
+        exit 1
+    fi
+    
+    # List available backup dates
+    BACKUP_DATES=($(ls -1 "$BACKUP_BASE_DIR" | sort -r))
+    
+    if [ ${#BACKUP_DATES[@]} -eq 0 ]; then
+        echo -e "  $ERROR No backup folders found"
+        exit 1
+    fi
+    
+    # Use simple-term-menu for backup selection
+    if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+        # Create temporary file with backup dates
+        printf '%s\n' "${BACKUP_DATES[@]}" > /tmp/backup_dates.txt
+        
+        SELECTED_BACKUP=$(python3 << 'EOF'
+from simple_term_menu import TerminalMenu
+
+with open('/tmp/backup_dates.txt', 'r') as f:
+    backup_dates = [line.strip() for line in f if line.strip()]
+
+terminal_menu = TerminalMenu(
+    backup_dates,
+    title="📅 Select backup to restore:",
+    menu_cursor="▶ ",
+    menu_cursor_style=("fg_green", "bold"),
+    menu_highlight_style=("bg_green", "fg_black"),
+    cycle_cursor=True
+)
+
+menu_entry_index = terminal_menu.show()
+if menu_entry_index is not None:
+    print(backup_dates[menu_entry_index])
+EOF
+)
+        rm -f /tmp/backup_dates.txt
+    else
+        # Fallback to numbered selection
+        echo "📅 Available backup dates:"
+        for i in "${!BACKUP_DATES[@]}"; do
+            echo "  $((i+1))) ${BACKUP_DATES[$i]}"
+        done
+        
+        read -p "Select backup to restore (1-${#BACKUP_DATES[@]}): " choice
+        
+        if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#BACKUP_DATES[@]} ]; then
+            echo -e "  $ERROR Invalid selection"
+            exit 1
+        fi
+        
+        SELECTED_BACKUP="${BACKUP_DATES[$((choice-1))]}"
+    fi
+    
+    if [ -z "$SELECTED_BACKUP" ]; then
+        echo -e "  $WARN No backup selected - operation cancelled"
+        exit 0
+    fi
+    
+    BACKUP_DIR="$BACKUP_BASE_DIR/$SELECTED_BACKUP"
+    
+    echo "🔧 Restoring from backup: $SELECTED_BACKUP"
+    
+    # Backup current database if it exists
+    if [ -f "users.db" ]; then
+        mv "users.db" "users.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
+        echo "  💾 Current database backed up"
+    fi
+    
+    # Restore from complete dump if available
+    if [ -f "$BACKUP_DIR/complete_database.sql" ]; then
+        sqlite3 "users.db" < "$BACKUP_DIR/complete_database.sql"
+        echo -e "  $OK Database restored from complete dump"
+    elif [ -f "$BACKUP_DIR/users.db.backup" ]; then
+        cp "$BACKUP_DIR/users.db.backup" "users.db"
+        echo -e "  $OK Database restored from backup file"
+    else
+        echo -e "  $ERROR No valid backup files found in $BACKUP_DIR"
+        exit 1
+    fi
+    
+    echo -e "  $OK Database recovery completed successfully"
+}
+
 # Stop services
 stop_services() {
     echo "🛑 Stopping $NAME_OF_APPLICATION services..."
     
+    # Create database backup before stopping services
+    backup_database
+    
+    CLEANUP_NEEDED=false
+    
     if [ "$LOCAL_MODE" = "locally" ]; then
-        stop_flask_service
+        stop_flask_service || CLEANUP_NEEDED=true
         remove_nginx_config
         stop_nginx_service
         confirm_gitea_stop
     elif [ "$LOCAL_MODE" = "docker" ]; then
         stop_docker_services
     else
-        stop_flask_service
+        stop_flask_service || CLEANUP_NEEDED=true
         remove_nginx_config
         stop_nginx_service
         confirm_gitea_stop
         stop_docker_services
     fi
     
-    echo -e "  $OK Services stopped"
+    if [ "$CLEANUP_NEEDED" = "true" ]; then
+        provide_cleanup_guidance
+    fi
+    
+    echo -e "  $OK Services stop process completed"
 }
 
 # Confirm Gitea stop with user menu
@@ -295,18 +457,28 @@ remove_gitea() {
 }
 
 stop_flask_service() {
+    local success=true
+    
     # First try to stop using PID file
     if [ -f "./conf/app.pid" ]; then
         PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
-            kill "$PID" 2>/dev/null
-            sleep 2
-            # Force kill if still running
-            if kill -0 "$PID" 2>/dev/null; then
-                kill -9 "$PID" 2>/dev/null
-                echo "  ✅ Flask application force stopped (PID: $PID)"
+            if kill "$PID" 2>/dev/null; then
+                sleep 2
+                # Force kill if still running
+                if kill -0 "$PID" 2>/dev/null; then
+                    if kill -9 "$PID" 2>/dev/null; then
+                        echo "  ✅ Flask application force stopped (PID: $PID)"
+                    else
+                        echo "  ⚠️ Could not force stop Flask process (PID: $PID) - permission denied"
+                        success=false
+                    fi
+                else
+                    echo "  ✅ Flask application stopped (PID: $PID)"
+                fi
             else
-                echo "  ✅ Flask application stopped (PID: $PID)"
+                echo "  ⚠️ Could not stop Flask process (PID: $PID) - permission denied"
+                success=false
             fi
         else
             echo "  ⚠️ Flask process not running (stale PID: $PID)"
@@ -316,13 +488,40 @@ stop_flask_service() {
         echo "  ⚠️ No ./conf/app.pid file found"
     fi
     
-    # Force kill any remaining Flask processes
+    # Force kill any remaining Flask processes with better error handling
     FLASK_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
     if [ -n "$FLASK_PIDS" ]; then
-        echo "  🔥 Force stopping remaining Flask processes: $FLASK_PIDS"
-        pkill -9 -f "python3 app.py" 2>/dev/null || true
-        echo "  ✅ All Flask processes terminated"
+        echo "  🔥 Attempting to stop remaining Flask processes: $FLASK_PIDS"
+        # Try regular pkill first
+        if pkill -f "python3 app.py" 2>/dev/null; then
+            sleep 2
+            # Check if any processes are still running
+            REMAINING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+            if [ -n "$REMAINING_PIDS" ]; then
+                echo "  🔥 Force killing remaining processes: $REMAINING_PIDS"
+                # Try force kill with better error handling
+                if pkill -9 -f "python3 app.py" 2>/dev/null; then
+                    echo "  ✅ All Flask processes terminated"
+                else
+                    echo "  ⚠️ Some Flask processes could not be terminated (permission denied)"
+                    echo "  💡 Try running with sudo or kill processes manually: sudo pkill -9 -f 'python3 app.py'"
+                    success=false
+                fi
+            else
+                echo "  ✅ All Flask processes terminated"
+            fi
+        else
+            echo "  ⚠️ Could not terminate Flask processes (permission denied)"
+            echo "  💡 Try running with sudo: sudo pkill -f 'python3 app.py'"
+            success=false
+        fi
     fi
+    
+    # Return appropriate exit code
+    if [ "$success" = "false" ]; then
+        return 1
+    fi
+    return 0
 }
 
 remove_nginx_config() {
@@ -401,14 +600,37 @@ restart_services() {
 }
 
 restart_flask_service() {
-    stop_flask_service
+    echo "  🔄 Restarting Flask application..."
+    
+    # Use the improved stop function
+    if ! stop_flask_service; then
+        echo "  ⚠️ Some processes could not be stopped, but continuing with restart..."
+    fi
+    
     echo "  🚀 Starting Flask application..."
     # Create required directories
     mkdir -p logs conf
+    
     # Start Flask with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 &
-    echo $! > ./conf/app.pid
+    
+    if FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 & then
+        NEW_PID=$!
+        echo $NEW_PID > ./conf/app.pid
+        
+        # Wait a moment and check if the process started successfully
+        sleep 2
+        if kill -0 "$NEW_PID" 2>/dev/null; then
+            echo "  ✅ Flask application restarted successfully (PID: $NEW_PID)"
+        else
+            echo "  ❌ Flask application failed to restart (check logs: $LOG_FILE)"
+            rm -f ./conf/app.pid
+            return 1
+        fi
+    else
+        echo "  ❌ Failed to restart Flask application"
+        return 1
+    fi
 }
 
 reload_nginx_config() {
@@ -682,16 +904,63 @@ install_python_dependencies() {
 
 start_flask_application() {
     echo "  🚀 Starting Flask application..."
-    # Stop any existing Flask processes
-    pkill -f "python3 app.py" || true
-    sleep 2
+    
+    # Stop any existing Flask processes with better error handling
+    EXISTING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    if [ -n "$EXISTING_PIDS" ]; then
+        echo "  ⚠️ Found existing Flask processes: $EXISTING_PIDS"
+        echo "  🛑 Attempting to stop existing processes..."
+        
+        # Try graceful shutdown first
+        if pkill -f "python3 app.py" 2>/dev/null; then
+            echo "  ✅ Sent termination signal to existing processes"
+            sleep 3
+            
+            # Check if any processes are still running
+            REMAINING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+            if [ -n "$REMAINING_PIDS" ]; then
+                echo "  ⚠️ Some processes still running: $REMAINING_PIDS"
+                echo "  💀 Attempting force kill..."
+                
+                # Try force kill, but don't fail if it doesn't work
+                if pkill -9 -f "python3 app.py" 2>/dev/null; then
+                    echo "  ✅ Force killed remaining processes"
+                else
+                    echo "  ⚠️ Could not force kill some processes (permission denied)"
+                    echo "  💡 Continuing with startup - new process will use different port if needed"
+                fi
+            fi
+        else
+            echo "  ⚠️ Could not send termination signal (permission denied)"
+            echo "  💡 Continuing with startup - will try to start on available port"
+        fi
+    fi
+    
     # Create required directories
     mkdir -p logs conf
+    
     # Start Flask on port 5000 with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 &
-    echo $! > ./conf/app.pid
-    echo "  ✅ Flask application started (PID: $(cat ./conf/app.pid))"
+    echo "  🚀 Starting new Flask instance..."
+    
+    # Try to start Flask, handle port conflicts gracefully
+    if FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 & then
+        NEW_PID=$!
+        echo $NEW_PID > ./conf/app.pid
+        
+        # Wait a moment and check if the process started successfully
+        sleep 2
+        if kill -0 "$NEW_PID" 2>/dev/null; then
+            echo "  ✅ Flask application started successfully (PID: $NEW_PID)"
+        else
+            echo "  ❌ Flask application failed to start (check logs: $LOG_FILE)"
+            rm -f ./conf/app.pid
+            return 1
+        fi
+    else
+        echo "  ❌ Failed to start Flask application"
+        return 1
+    fi
 }
 
 configure_nginx() {
@@ -934,6 +1203,7 @@ help() {
     echo "  stop      - Stop all running services and clean up"
     echo "  -o        - Stop all running services and clean up (alias for stop)"
     echo "  --stop    - Stop all running services and clean up (alias for stop)"
+    echo "              • Creates database backup in ./db/backup/\$DATETIME/"
     echo "              • Stops Flask application and removes PID file"
     echo "              • Removes Nginx site configuration"
     echo "              • Optionally stops and removes Gitea (interactive)"
@@ -960,6 +1230,11 @@ help() {
     echo "              • Flask application logs (current day)"
     echo "              • Nginx error logs (last 20 lines)"
     echo "              • Docker Compose logs (if running)"
+    echo ""
+    echo "  --recover_db - Recover database from backup"
+    echo "              • Lists available backup dates for selection"
+    echo "              • Restores users.db from selected backup"
+    echo "              • Backs up current database before recovery"
     echo ""
     echo "  help      - Show this help menu"
     echo "  --help    - Show this help menu (alias for help)"
@@ -1060,6 +1335,10 @@ main() {
             ;;
         "logs"|"-l"|"--logs")
             show_logs
+            exit 0
+            ;;
+        "--recover_db")
+            recover_database
             exit 0
             ;;
         "restart"|"-r"|"--restart")

@@ -20,7 +20,7 @@ body {
 }
 
 .nav-container {
-    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     padding: 0 1rem;
     display: flex;
@@ -142,7 +142,7 @@ body {
 }
 
 .main-content {
-    max-width: 1200px;
+    width: 100%;
     margin: 2rem auto;
     padding: 0 2rem;
 }
@@ -337,6 +337,7 @@ body {
     margin-top: 1rem;
     vertical-align: top;
     align-self: flex-start;
+    width: 100%;
 }
 
 .users-grid {
@@ -1673,7 +1674,7 @@ body {
 }
 
 .main-panel {
-    flex: 0 0 70%;
+    flex: 1;
     overflow-y: auto;
     background: white;
     border-radius: 8px;
@@ -1720,6 +1721,10 @@ body {
     margin-top: 0;
     padding-top: 0;
     align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 #billingSection h2,

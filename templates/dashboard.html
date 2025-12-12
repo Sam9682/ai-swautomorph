@@ -165,7 +165,6 @@
 
         <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
     </div>
-    </div>
     
     <!-- Billing Section -->
     <div id="billingSection" class="tab-content" style="display: none;">
@@ -752,7 +751,7 @@ function hideEditAppForm() {
 function viewApp(id, name, url, description, gitUrl) {
     document.getElementById('viewAppIdentity').textContent = id;
     document.getElementById('viewAppName').textContent = name;
-    document.getElementById('viewAppUrl').textContent = url;
+    document.getElementById('viewAppUrl').innerHTML = `<a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">${url}</a>`;
     document.getElementById('viewAppDescription').textContent = description || 'No description';
     document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
     document.getElementById('viewAppForm').style.display = 'block';
