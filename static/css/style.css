@@ -245,6 +245,7 @@ body {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 2rem;
+    margin-top: 0;
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -254,6 +255,8 @@ body {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3rem;
+    margin-top: 0;
+    align-content: start;
 }
 
 .app-card {
@@ -1689,6 +1692,8 @@ body {
     height: 100%;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
 }
 
 .dashboard-container .admin-menu,
@@ -1703,6 +1708,26 @@ body {
     flex-direction: column;
     align-items: flex-start;
     justify-content: flex-start;
+    align-content: flex-start;
+}
+
+/* Ensure all tab sections start at the top */
+#billingSection,
+#usersSection,
+#serversSection,
+#databaseSection,
+#logsSection {
+    margin-top: 0;
+    padding-top: 0;
+    align-self: flex-start;
+}
+
+#billingSection h2,
+#usersSection h2,
+#serversSection h2,
+#databaseSection h2,
+#logsSection h2 {
+    margin-top: 0;
 }
 
 /* Update Virtual Agents Panel for new layout */

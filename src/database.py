@@ -204,12 +204,31 @@ def init_db():
             user_id INTEGER NOT NULL,
             application_id INTEGER NOT NULL,
             url TEXT NOT NULL,
+            http_port INTEGER,
+            https_port INTEGER,
+            others_port INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (application_id) REFERENCES applications (id),
             UNIQUE(user_id, application_id)
         )
     ''')
+    
+    # Add new columns to existing user_applications table if they don't exist
+    try:
+        cursor.execute('ALTER TABLE user_applications ADD COLUMN http_port INTEGER')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute('ALTER TABLE user_applications ADD COLUMN https_port INTEGER')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+    
+    try:
+        cursor.execute('ALTER TABLE user_applications ADD COLUMN others_port INTEGER')
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     
     # Deployments table
     cursor.execute('''
@@ -341,7 +360,7 @@ def init_db():
             HTTP_PORT, HTTPS_PORT = calculate_app_ports(admin_id, app_id)
 
             url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-            cursor.execute('INSERT INTO user_applications (user_id, application_id, url) VALUES (?, ?, ?)', (admin_id, app_id, url))
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port) VALUES (?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT))
         
         # Ensure costs exist for all applications
         cursor.execute('SELECT id FROM applications')
@@ -351,7 +370,15 @@ def init_db():
             if cursor.fetchone()[0] == 0:
                 cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
     
-        conn.commit()
+    # Update existing user_applications records with port information if missing
+    cursor.execute('SELECT id, user_id, application_id FROM user_applications WHERE http_port IS NULL OR https_port IS NULL')
+    records_to_update = cursor.fetchall()
+    for record in records_to_update:
+        record_id, user_id, app_id = record
+        HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
+        cursor.execute('UPDATE user_applications SET http_port = ?, https_port = ? WHERE id = ?', (HTTP_PORT, HTTPS_PORT, record_id))
+    
+    conn.commit()
 
 def assign_default_apps_to_user(user_id):
     """Assign default applications to a new user"""
@@ -371,9 +398,9 @@ def assign_default_apps_to_user(user_id):
         # Compose URL
         url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
-            VALUES (?, ?, ?)
-        ''', (user_id, app_id, url))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port) 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, app_id, url, HTTP_PORT, HTTPS_PORT))
     
         conn.commit()
 
@@ -394,8 +421,8 @@ def assign_app_to_all_users(app_id, app_name):
 
         url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id, url) 
-            VALUES (?, ?, ?)
-        ''', (uid, app_id, url))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port) 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (uid, app_id, url, HTTP_PORT, HTTPS_PORT))
     
         conn.commit()

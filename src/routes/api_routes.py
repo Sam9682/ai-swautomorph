@@ -330,8 +330,22 @@ def api_user_applications(user_id):
             return jsonify({'error': 'Application ID required'}), 400
         
         try:
-            cursor.execute('INSERT INTO user_applications (user_id, application_id) VALUES (?, ?)',
-                          (user_id, app_id))
+            # Calculate ports for the user and application
+            from ..database import calculate_app_ports
+            HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
+            
+            # Get application name for URL generation
+            cursor.execute('SELECT name FROM applications WHERE id = ?', (app_id,))
+            app_result = cursor.fetchone()
+            if not app_result:
+                conn.close()
+                return jsonify({'error': 'Application not found'}), 404
+            
+            app_name = app_result[0]
+            url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+            
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port) VALUES (?, ?, ?, ?, ?)',
+                          (user_id, app_id, url, HTTP_PORT, HTTPS_PORT))
             conn.commit()
             conn.close()
             return jsonify({'message': 'Application assigned successfully'})
