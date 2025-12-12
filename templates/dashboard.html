@@ -10,16 +10,16 @@
     <div class="admin-menu">
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
         <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
-        <button id="serversTab" class="tab-btn" onclick="showTab('servers')">Servers</button>
-        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
-        <button id="databaseTab" class="tab-btn" onclick="showTab('database')">Database</button>
-        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">Deployment Logs</button>
+        <button id="serversTab" class="tab-btn" onclick="showTab('servers')">{{ get_text('servers') }}</button>
+        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">{{ get_text('billing') }}</button>
+        <button id="databaseTab" class="tab-btn" onclick="showTab('database')">{{ get_text('database') }}</button>
+        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">{{ get_text('deployment_logs') }}</button>
     </div>
     {% else %}
     <div class="user-menu">
         <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
-        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">Billing</button>
-        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">Deployment Logs</button>
+        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">{{ get_text('billing') }}</button>
+        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">{{ get_text('deployment_logs') }}</button>
     </div>
     {% endif %}
     
@@ -53,7 +53,7 @@
             <h3>{{ app[1] }}</h3>
             <p>{{ app[3] or get_text('no_description') }}</p>
             <div class="app-identity">
-                <small><strong>APPLICATION IDENTITY:</strong> {{ app[0] }}</small>
+                <small><strong>{{ get_text('app_identity') }}:</strong> {{ app[0] }}</small>
             </div>
             <div class="app-buttons">
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
@@ -97,21 +97,21 @@
                 <textarea id="app_description" name="description" rows="3"></textarea>
             </div>
             <div class="form-group">
-                <label for="app_git_url">Github Official Readonly Repository URL:</label>
+                <label for="app_git_url">{{ get_text('github_repo_url') }}:</label>
                 <input type="url" id="app_git_url" name="git_url" placeholder="https://github.com/user/repo.git">
             </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
-            <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">Cancel</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">{{ get_text('cancel') }}</button>
         </form>
     </div>
     
     <div id="editAppForm" class="app-form" style="display: none;">
-        <h3>Edit Application</h3>
+        <h3>{{ get_text('edit_application') }}</h3>
         <form id="updateAppForm">
             <input type="hidden" id="editAppId">
             <div class="form-group">
-                <label>APPLICATION IDENTITY:</label>
+                <label>{{ get_text('app_identity') }}:</label>
                 <div id="editAppIdentity" class="readonly-field"></div>
             </div>
             <div class="form-group">
@@ -127,12 +127,12 @@
                 <textarea id="editAppDescription" rows="3"></textarea>
             </div>
             <div class="form-group">
-                <label for="editAppGitUrl">Github Official Readonly Repository URL:</label>
+                <label for="editAppGitUrl">{{ get_text('github_repo_url') }}:</label>
                 <input type="url" id="editAppGitUrl">
             </div>
 
-            <button type="submit" class="btn btn-secondary">Update Application</button>
-            <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">Cancel</button>
+            <button type="submit" class="btn btn-secondary">{{ get_text('update_application') }}</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">{{ get_text('cancel') }}</button>
         </form>
     </div>
     
@@ -141,9 +141,9 @@
     
     <!-- View Application Form (available for all users) -->
     <div id="viewAppForm" class="app-form" style="display: none;">
-        <h3>Application Details</h3>
+        <h3>{{ get_text('application_details') }}</h3>
         <div class="form-group">
-            <label>APPLICATION IDENTITY:</label>
+            <label>{{ get_text('app_identity') }}:</label>
             <div id="viewAppIdentity" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
@@ -159,80 +159,80 @@
             <div id="viewAppDescription" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
-            <label>Github Official Readonly Repository URL:</label>
+            <label>{{ get_text('github_repo_url') }}:</label>
             <div id="viewAppGitUrl" class="readonly-field" style="color: green;"></div>
         </div>
 
-        <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">Close</button>
+        <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">{{ get_text('close') }}</button>
     </div>
     
     <!-- Billing Section -->
     <div id="billingSection" class="tab-content" style="display: none;">
-        <h2>Billing Management</h2>
+        <h2>{{ get_text('billing_management') }}</h2>
         
         {% if username == 'admin' %}
         <!-- Admin Billing Controls -->
         <div class="billing-controls">
             <div class="period-selector">
-                <label>Period:</label>
+                <label>{{ get_text('period') }}:</label>
                 <select id="billingPeriod" onchange="loadBillingSummary()">
-                    <option value="day">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month" selected>This Month</option>
+                    <option value="day">{{ get_text('today') }}</option>
+                    <option value="week">{{ get_text('this_week') }}</option>
+                    <option value="month" selected>{{ get_text('this_month') }}</option>
                 </select>
             </div>
-            <button class="btn btn-primary" onclick="showCostManagement()">Manage Costs</button>
+            <button class="btn btn-primary" onclick="showCostManagement()">{{ get_text('manage_costs') }}</button>
         </div>
         
         <!-- Cost Management Form -->
         <div id="costManagementForm" class="cost-form" style="display: none;">
-            <h3>Application Costs</h3>
+            <h3>{{ get_text('application_costs') }}</h3>
             <div id="costsList"></div>
-            <button type="button" class="btn btn-secondary" onclick="hideCostManagement()">Close</button>
+            <button type="button" class="btn btn-secondary" onclick="hideCostManagement()">{{ get_text('close') }}</button>
         </div>
         {% endif %}
         
         <!-- Billing Summary -->
         <div class="billing-summary">
-            <h3>Usage Summary</h3>
-            <div id="billingSummaryContent">Loading...</div>
+            <h3>{{ get_text('usage_summary') }}</h3>
+            <div id="billingSummaryContent">{{ get_text('loading') }}</div>
         </div>
         
         <!-- Billing Activities -->
         <div class="billing-activities">
-            <h3>Activity Log</h3>
-            <div id="billingActivitiesContent">Loading...</div>
+            <h3>{{ get_text('activity_log') }}</h3>
+            <div id="billingActivitiesContent">{{ get_text('loading') }}</div>
         </div>
     </div>
     
     {% if username == 'admin' %}
     <div id="usersSection" class="tab-content" style="display: none;">
-        <h2>Users</h2>
-        <button class="btn btn-primary" onclick="showAddUserForm()">Add User</button>
+        <h2>{{ get_text('users') }}</h2>
+        <button class="btn btn-primary" onclick="showAddUserForm()">{{ get_text('add_user') }}</button>
         
         <div id="addUserForm" class="user-form" style="display: none;">
-            <h3>Add New User</h3>
+            <h3>{{ get_text('add_new_user') }}</h3>
             <form id="newUserForm">
-                <input type="text" id="newUsername" placeholder="Username" required>
-                <input type="email" id="newEmail" placeholder="Email" required>
-                <input type="password" id="newPassword" placeholder="Password" required>
-                <input type="text" id="newFirstName" placeholder="First Name">
-                <input type="text" id="newLastName" placeholder="Last Name">
-                <button type="submit" class="btn btn-secondary">Create User</button>
-                <button type="button" class="btn btn-secondary" onclick="hideAddUserForm()">Cancel</button>
+                <input type="text" id="newUsername" placeholder="{{ get_text('username') }}" required>
+                <input type="email" id="newEmail" placeholder="{{ get_text('email') }}" required>
+                <input type="password" id="newPassword" placeholder="{{ get_text('password') }}" required>
+                <input type="text" id="newFirstName" placeholder="{{ get_text('first_name') }}">
+                <input type="text" id="newLastName" placeholder="{{ get_text('last_name') }}">
+                <button type="submit" class="btn btn-secondary">{{ get_text('create_user') }}</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddUserForm()">{{ get_text('cancel') }}</button>
             </form>
         </div>
         
         <div id="editUserForm" class="user-form" style="display: none;">
-            <h3>Edit User</h3>
+            <h3>{{ get_text('edit_user') }}</h3>
             <form id="updateUserForm">
                 <input type="hidden" id="editUserId">
-                <input type="text" id="editUsername" placeholder="Username" required>
-                <input type="email" id="editEmail" placeholder="Email" required>
-                <input type="text" id="editFirstName" placeholder="First Name">
-                <input type="text" id="editLastName" placeholder="Last Name">
-                <button type="submit" class="btn btn-secondary">Update User</button>
-                <button type="button" class="btn btn-secondary" onclick="hideEditUserForm()">Cancel</button>
+                <input type="text" id="editUsername" placeholder="{{ get_text('username') }}" required>
+                <input type="email" id="editEmail" placeholder="{{ get_text('email') }}" required>
+                <input type="text" id="editFirstName" placeholder="{{ get_text('first_name') }}">
+                <input type="text" id="editLastName" placeholder="{{ get_text('last_name') }}">
+                <button type="submit" class="btn btn-secondary">{{ get_text('update_user') }}</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEditUserForm()">{{ get_text('cancel') }}</button>
             </form>
         </div>
         
@@ -241,18 +241,18 @@
         </div>
         
         <div id="manageAppsForm" class="user-form" style="display: none;">
-            <h3>Manage Applications for <span id="selectedUsername"></span></h3>
+            <h3>{{ get_text('manage_applications_for') }} <span id="selectedUsername"></span></h3>
             <div class="apps-management">
                 <div class="available-apps">
-                    <h4>Available Applications</h4>
+                    <h4>{{ get_text('available_applications') }}</h4>
                     <div id="availableAppsList"></div>
                 </div>
                 <div class="assigned-apps">
-                    <h4>Assigned Applications</h4>
+                    <h4>{{ get_text('assigned_applications') }}</h4>
                     <div id="assignedAppsList"></div>
                 </div>
             </div>
-            <button type="button" class="btn btn-secondary" onclick="hideManageAppsForm()">Close</button>
+            <button type="button" class="btn btn-secondary" onclick="hideManageAppsForm()">{{ get_text('close') }}</button>
         </div>
     </div>
     {% endif %}
@@ -261,46 +261,46 @@
     {% if username == 'admin' %}
     <div id="serversSection" class="tab-content" style="display: none;">
         <div class="section-header">
-            <h2>Server Management</h2>
-            <button class="btn btn-primary" onclick="showAddServerForm()">Add Server</button>
+            <h2>{{ get_text('server_management') }}</h2>
+            <button class="btn btn-primary" onclick="showAddServerForm()">{{ get_text('add_server') }}</button>
         </div>
         
         <div id="serversGrid" class="servers-grid">
-            <div class="loading">Loading servers...</div>
+            <div class="loading">{{ get_text('loading_servers') }}</div>
         </div>
         
         <div id="addServerForm" class="server-form" style="display: none;">
-            <h3>Add New Server</h3>
+            <h3>{{ get_text('add_new_server') }}</h3>
             <form id="newServerForm">
-                <input type="text" id="newServerIP" placeholder="Server IP" required>
-                <input type="text" id="newServerName" placeholder="Server Name" required>
-                <input type="number" id="newServerUserMax" placeholder="Max Users" required>
-                <input type="number" id="newServerAppliMax" placeholder="Max Applications" required>
+                <input type="text" id="newServerIP" placeholder="{{ get_text('server_ip') }}" required>
+                <input type="text" id="newServerName" placeholder="{{ get_text('server_name') }}" required>
+                <input type="number" id="newServerUserMax" placeholder="{{ get_text('max_users') }}" required>
+                <input type="number" id="newServerAppliMax" placeholder="{{ get_text('max_applications') }}" required>
                 <select id="newServerStatus" required>
                     <option value="STAND_BY">STAND_BY</option>
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
-                <input type="text" id="newServerType" placeholder="Server Type" required>
-                <button type="submit" class="btn btn-secondary">Create Server</button>
-                <button type="button" class="btn btn-secondary" onclick="hideAddServerForm()">Cancel</button>
+                <input type="text" id="newServerType" placeholder="{{ get_text('server_type') }}" required>
+                <button type="submit" class="btn btn-secondary">{{ get_text('create_server') }}</button>
+                <button type="button" class="btn btn-secondary" onclick="hideAddServerForm()">{{ get_text('cancel') }}</button>
             </form>
         </div>
         
         <div id="editServerForm" class="server-form" style="display: none;">
-            <h3>Edit Server</h3>
+            <h3>{{ get_text('edit_server') }}</h3>
             <form id="updateServerForm">
                 <input type="hidden" id="editServerId">
-                <input type="text" id="editServerIP" placeholder="Server IP" required>
-                <input type="text" id="editServerName" placeholder="Server Name" required>
-                <input type="number" id="editServerUserMax" placeholder="Max Users" required>
-                <input type="number" id="editServerAppliMax" placeholder="Max Applications" required>
+                <input type="text" id="editServerIP" placeholder="{{ get_text('server_ip') }}" required>
+                <input type="text" id="editServerName" placeholder="{{ get_text('server_name') }}" required>
+                <input type="number" id="editServerUserMax" placeholder="{{ get_text('max_users') }}" required>
+                <input type="number" id="editServerAppliMax" placeholder="{{ get_text('max_applications') }}" required>
                 <select id="editServerStatus" required>
                     <option value="STAND_BY">STAND_BY</option>
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
-                <input type="text" id="editServerType" placeholder="Server Type" required>
-                <button type="submit" class="btn btn-secondary">Update Server</button>
-                <button type="button" class="btn btn-secondary" onclick="hideEditServerForm()">Cancel</button>
+                <input type="text" id="editServerType" placeholder="{{ get_text('server_type') }}" required>
+                <button type="submit" class="btn btn-secondary">{{ get_text('update_server') }}</button>
+                <button type="button" class="btn btn-secondary" onclick="hideEditServerForm()">{{ get_text('cancel') }}</button>
             </form>
         </div>
     </div>
@@ -309,44 +309,44 @@
     <!-- Database Section -->
     {% if username == 'admin' %}
     <div id="databaseSection" class="tab-content" style="display: none;">
-        <h2>Database Management</h2>
+        <h2>{{ get_text('database_management') }}</h2>
         
         <div class="database-controls">
-            <label for="tableSelect">Select Table:</label>
+            <label for="tableSelect">{{ get_text('select_table') }}:</label>
             <select id="tableSelect" onchange="loadTableData()">
-                <option value="">-- Select Table --</option>
-                <option value="users">Users</option>
-                <option value="applications">Applications</option>
-                <option value="auth_tokens">Auth Tokens</option>
-                <option value="user_applications">User Applications (with Ports)</option>
-                <option value="deployments">Deployments</option>
-                <option value="servers">Servers</option>
-                <option value="application_costs">Application Costs</option>
-                <option value="billing_activities">Billing Activities</option>
-                <option value="users_logs">Users Logs</option>
+                <option value="">{{ get_text('select_table_option') }}</option>
+                <option value="users">{{ get_text('users') }}</option>
+                <option value="applications">{{ get_text('applications') }}</option>
+                <option value="auth_tokens">{{ get_text('auth_tokens') }}</option>
+                <option value="user_applications">{{ get_text('user_applications_ports') }}</option>
+                <option value="deployments">{{ get_text('deployments') }}</option>
+                <option value="servers">{{ get_text('servers') }}</option>
+                <option value="application_costs">{{ get_text('application_costs') }}</option>
+                <option value="billing_activities">{{ get_text('billing_activities') }}</option>
+                <option value="users_logs">{{ get_text('users_logs') }}</option>
             </select>
-            <button class="btn btn-primary" onclick="refreshTable()">Refresh</button>
-            <button class="btn btn-secondary" onclick="showAddRecordForm()">Add Record</button>
+            <button class="btn btn-primary" onclick="refreshTable()">{{ get_text('refresh') }}</button>
+            <button class="btn btn-secondary" onclick="showAddRecordForm()">{{ get_text('add_record') }}</button>
         </div>
         
         <div id="tableDataContainer" class="table-container">
-            <p>Select a table to view data</p>
+            <p>{{ get_text('select_table_view_data') }}</p>
         </div>
         
         <!-- Add Record Form -->
         <div id="addRecordForm" class="record-form" style="display: none;">
-            <h3>Add New Record</h3>
+            <h3>{{ get_text('add_new_record') }}</h3>
             <div id="addRecordFields"></div>
-            <button type="button" class="btn btn-primary" onclick="saveNewRecord()">Save</button>
-            <button type="button" class="btn btn-secondary" onclick="hideAddRecordForm()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveNewRecord()">{{ get_text('save') }}</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddRecordForm()">{{ get_text('cancel') }}</button>
         </div>
         
         <!-- Edit Record Form -->
         <div id="editRecordForm" class="record-form" style="display: none;">
-            <h3>Edit Record</h3>
+            <h3>{{ get_text('edit_record') }}</h3>
             <div id="editRecordFields"></div>
-            <button type="button" class="btn btn-primary" onclick="saveEditRecord()">Update</button>
-            <button type="button" class="btn btn-secondary" onclick="hideEditRecordForm()">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="saveEditRecord()">{{ get_text('update') }}</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditRecordForm()">{{ get_text('cancel') }}</button>
         </div>
     </div>
     {% endif %}
@@ -357,7 +357,7 @@
         <div class="logs-controls">
             <button onclick="clearLogs()" class="btn btn-secondary btn-small">{{ get_text('clear_logs') }}</button>
         </div>
-        <pre id="deploymentLogsContent" class="logs-content">Ready for deployment commands...</pre>
+        <pre id="deploymentLogsContent" class="logs-content">{{ get_text('ready_deployment_commands') }}</pre>
     </div>
         </div>
     </div>
@@ -366,25 +366,25 @@
     <div class="agents-panel">
         <div id="virtualAgentsPanel" class="virtual-agents-panel">
             <div class="panel-header">
-                <h3>Virtual Agents</h3>
+                <h3>{{ get_text('virtual_agents') }}</h3>
                 <button id="togglePanel" class="toggle-btn" onclick="toggleAgentsPanel()">−</button>
             </div>
             
             <div class="panel-content">
                 <!-- Mobile Agent Selector -->
                 <div class="mobile-agent-selector">
-                    <button class="mobile-tab-btn active" data-agent="developer">🤖 Developer</button>
-                    <button class="mobile-tab-btn" data-agent="devops">💡 DevOps</button>
+                    <button class="mobile-tab-btn active" data-agent="developer">🤖 {{ get_text('developer') }}</button>
+                    <button class="mobile-tab-btn" data-agent="devops">💡 {{ get_text('devops') }}</button>
                 </div>
                 
                 <!-- Developer Agent Area -->
                 <div class="agent-area" id="developerArea">
                     <div class="agent-header">
-                        <h4>🤖 Virtual Developer</h4>
+                        <h4>🤖 {{ get_text('virtual_developer') }}</h4>
                     </div>
                     <div class="app-selection">
                         <select id="developerAppSelect">
-                            <option value="">-- Select Application --</option>
+                            <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
                             <option value="{{ app[1] }}">{{ app[1] }}</option>
                             {% endfor %}
@@ -392,12 +392,12 @@
                     </div>
                     <div id="developerMessages" class="messages-area"></div>
                     <div class="input-area">
-                        <textarea id="developerInput" placeholder="Describe what changes you want the AI to make to the code..." rows="2"></textarea>
+                        <textarea id="developerInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="2"></textarea>
                         <div class="input-controls">
                             <label>
-                                <input type="checkbox" id="autoApprove" checked> Auto Approve
+                                <input type="checkbox" id="autoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button onclick="sendDeveloperMessage()">Send</button>
+                            <button onclick="sendDeveloperMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -405,11 +405,11 @@
                 <!-- DevOps Agent Area -->
                 <div class="agent-area" id="devopsArea">
                     <div class="agent-header">
-                        <h4>💡 Virtual DevOps</h4>
+                        <h4>💡 {{ get_text('virtual_devops') }}</h4>
                     </div>
                     <div class="devops-controls">
                         <select id="devopsAppSelect">
-                            <option value="">-- Select Application --</option>
+                            <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
                             <option value="{{ app[1] }}">{{ app[1] }}</option>
                             {% endfor %}
@@ -423,12 +423,12 @@
                     </div>
                     <div id="devopsMessages" class="messages-area"></div>
                     <div class="input-area">
-                        <textarea id="devopsInput" placeholder="Ask your question or describe what you need..." rows="2"></textarea>
+                        <textarea id="devopsInput" placeholder="{{ get_text('ask_question_placeholder') }}" rows="2"></textarea>
                         <div class="input-controls">
                             <label>
-                                <input type="checkbox" id="devopsAutoApprove" checked> Auto Approve
+                                <input type="checkbox" id="devopsAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button onclick="sendDevOpsMessage()">Send</button>
+                            <button onclick="sendDevOpsMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -443,7 +443,7 @@
 <div id="deploymentModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Deployment Status - <span id="modalAppName"></span></h3>
+            <h3>{{ get_text('deployment_status') }} - <span id="modalAppName"></span></h3>
             <span class="close" onclick="closeDeploymentModal()">&times;</span>
         </div>
         <div class="modal-body">
@@ -460,24 +460,24 @@
 <div id="automorphModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>Automorph Session - <span id="automorphAppName"></span></h3>
+            <h3>{{ get_text('automorph_session') }} - <span id="automorphAppName"></span></h3>
             <span class="close" onclick="closeAutomorphModal()">&times;</span>
         </div>
         <div class="modal-body">
             <form id="automorphForm">
                 <div class="form-group">
-                    <label for="automorphInstructions">Instructions for AI Agent:</label>
-                    <textarea id="automorphInstructions" rows="6" placeholder="Describe what changes you want the AI to make to the code..." required></textarea>
+                    <label for="automorphInstructions">{{ get_text('instructions_ai_agent') }}:</label>
+                    <textarea id="automorphInstructions" rows="6" placeholder="{{ get_text('describe_changes_ai_placeholder') }}" required></textarea>
                 </div>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="automorphInteractive"> Interactive Session
+                        <input type="checkbox" id="automorphInteractive"> {{ get_text('interactive_session') }}
                     </label>
-                    <small>Check this for step-by-step interaction with the AI agent</small>
+                    <small>{{ get_text('step_by_step_interaction') }}</small>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Start Automorph</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeAutomorphModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">{{ get_text('start_automorph') }}</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeAutomorphModal()">{{ get_text('cancel') }}</button>
                 </div>
             </form>
         </div>

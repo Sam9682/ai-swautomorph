@@ -8,23 +8,26 @@
         <h1>🚀 AI-SwAutoMorph</h1>
         <h3>{{ get_text('platform_subtitle') }}</h3>
         <p class="mission-statement">
-            {{ get_text('mission_statement') | safe }}
+            {{ get_text('mission_statement') }}
         </p>
         <div class="target-audience">
-            <h4>🎯 {{ get_text('target_title') }}</h4>
+            <h4>🎯 {{ get_text('built_for_title') }}</h4>
             <ul>
-                <li> <strong>{{ get_text('restaurants_title') }}:</strong> {{ get_text('restaurants_desc') }}</li>
-                <li> <strong>{{ get_text('small_business_title') }}:</strong> {{ get_text('small_business_desc') }}</li>
-                <li> <strong>{{ get_text('entrepreneurs_title') }}:</strong> {{ get_text('entrepreneurs_desc') }}</li>
+                <li><strong>{{ get_text('genai_agents') }}:</strong> {{ get_text('genai_agents_desc') }}</li>
+                <li><strong>{{ get_text('developers') }}:</strong> {{ get_text('developers_desc') }}</li>
+                <li><strong>{{ get_text('devops_teams') }}:</strong> {{ get_text('devops_teams_desc') }}</li>
             </ul>
         </div>
         <div class="platform-features">
-            <h4>⚡ {{ get_text('features_title') }}</h4>
+            <h4>⚡ {{ get_text('key_features') }}</h4>
             <ul>
-                <li>🤖 <strong>{{ get_text('virtual_devs_title') }}:</strong> {{ get_text('virtual_devs_desc') }}</li>
-                <li>🔄 <strong>{{ get_text('realtime_updates_title') }}:</strong> {{ get_text('realtime_updates_desc') }}</li>
-                <li>🚀 <strong>{{ get_text('auto_deploy_title') }}:</strong> {{ get_text('auto_deploy_desc') }}</li>
-                <li>📱 <strong>{{ get_text('multi_app_title') }}:</strong> {{ get_text('multi_app_desc') }}</li>
+                <li>🤖 <strong>{{ get_text('virtual_agents') }}:</strong> {{ get_text('virtual_agents_desc') }}</li>
+                <li>🚀 <strong>{{ get_text('app_lifecycle') }}:</strong> {{ get_text('app_lifecycle_desc') }}</li>
+                <li>🔐 <strong>{{ get_text('sso_auth') }}:</strong> {{ get_text('sso_auth_desc') }}</li>
+                <li>🌐 <strong>{{ get_text('multi_server') }}:</strong> {{ get_text('multi_server_desc') }}</li>
+                <li>💰 <strong>{{ get_text('billing_tracking') }}:</strong> {{ get_text('billing_tracking_desc') }}</li>
+                <li>🛡️ <strong>{{ get_text('security') }}:</strong> {{ get_text('security_desc') }}</li>
+                <li>🔌 <strong>{{ get_text('multiple_interfaces') }}:</strong> {{ get_text('multiple_interfaces_desc') }}</li>
             </ul>
         </div>
         <div class="revolution-message">
@@ -55,10 +58,13 @@
 <footer class="legal-footer">
     <div class="legal-content">
         <p class="copyright">
-            © {{ moment().year }} AI-SwAutoMorph. {{ get_text('all_rights_reserved') }}
+            © 2024 AI-SwAutoMorph. {{ get_text('all_rights_reserved') }}
         </p>
         <p class="team-credits">
             {{ get_text('developed_by') }}: <strong>Samuel LEPETRE</strong>, {{ get_text('with_help_of') }} <strong>Nizar</strong> {{ get_text('and') }} <strong>Tibo</strong>
+        </p>
+        <p class="platform-info">
+            🌐 {{ get_text('multi_server_short') }} | 🔐 {{ get_text('sso_short') }} | 🤖 {{ get_text('virtual_agents_short') }} | 💰 {{ get_text('billing_short') }} | 🛡️ {{ get_text('waf_protected') }}
         </p>
     </div>
 </footer>
