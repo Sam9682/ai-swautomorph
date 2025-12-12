@@ -18,20 +18,35 @@ ai-swautomorph/
 │   ├── main.py                   # Application entry point with timestamped logging
 │   ├── automorph_application.py  # GenAI integration for code modification
 │   ├── db_health.py              # Database health monitoring utilities
+│   ├── create_gitea_repo.py      # Gitea repository management
+│   ├── gitea_config.py           # Gitea configuration utilities
 │   └── routes/                   # Route handlers (blueprints)
 │       ├── main_routes.py        # Dashboard & main pages
 │       ├── auth_routes.py        # User authentication
 │       ├── sso_routes.py         # Single Sign-On functionality
 │       ├── api_routes.py         # REST API endpoints with streaming support
 │       └── billing_routes.py     # Billing and cost management
-├── app.py                        # Legacy entry point (redirects to src/main.py)
-├── scripts/
+├── app.py                        # Legacy entry point (redirects to src/app.py)
+├── deployControlPlan.sh          # Main deployment control script
+├── scripts/                      # CLI tools and utilities
 │   ├── cli.py                    # Command-line interface
-│   └── mcp_server.py             # Model Context Protocol server
+│   ├── mcp_server.py             # Model Context Protocol server
+│   ├── generate_ssl.sh           # SSL certificate generation
+│   ├── fix_ssl_chain.sh          # SSL certificate chain fixing
+│   ├── mount_s3fs.py             # S3 filesystem mounting
+│   └── test_*.py                 # Testing utilities
 ├── shared/                       # Shared deployment resources
 │   ├── deployApp.sh              # Universal deployment script
 │   └── *_context.md              # Context templates for GenAI operations
-└── templates/                    # HTML templates with multi-language support
+├── templates/                    # HTML templates with multi-language support
+├── static/                       # CSS, JS, and static files
+├── ssl/                          # SSL certificates
+├── logs/                         # Application logs with daily rotation
+├── softfluid/db/                 # Database and backups
+├── conf/                         # Configuration files
+│   ├── deploy.ini                # Deployment configuration
+│   └── app.pid                   # Application process ID
+└── docker-compose.yml            # Docker containerization
 ```
 
 ### 2. Database Schema
@@ -40,7 +55,7 @@ ai-swautomorph/
 -- Core entities for application management
 Users: id, username, email, password_hash, first_name, last_name, suspended, created_at
 Applications: id, name, description, git_url, created_at
-User_Applications: id, user_id, application_id, url, created_at
+User_Applications: id, user_id, application_id, url, http_port, https_port, created_at
 Deployments: id, user_id, application_name, status, deployment_path, git_url, server_id, created_at, updated_at
 Servers: id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
 Auth_Tokens: id, user_id, token_hash, expires_at, created_at
@@ -81,26 +96,40 @@ def allocate_server(application_name):
 The platform integrates with Amazon Q Developer for automated application evolution:
 
 ```python
-# Automorph application for GenAI integration
-def process_qchat_developer(user_request, auto_approve=True, app_name='', app_folder='', git_url='', user_id='0', user_name='anonymous'):
+# Q Chat Developer API endpoint
+@api_bp.route('/qchat_developer', methods=['POST'])
+def api_qchat_developer():
     """
-    Process evolution requests through Q Chat
+    Process evolution requests through Q Chat with streaming response
     1. Analyze current application structure
-    2. Generate code modifications
-    3. Create new Git branch with timestamp
-    4. Test deployment
-    5. Apply changes and redeploy
+    2. Generate code modifications using Q Chat
+    3. Create new Git branch with timestamp: {user_id}-automorph-{app_name}-{timestamp}
+    4. Test deployment with deployApp.sh
+    5. Apply changes and redeploy automatically
     """
-    return result_with_branch_name_and_execution_details
+    return streaming_response_with_real_time_updates
+
+# Q Chat DevOps API endpoint
+@api_bp.route('/qchat_devops', methods=['POST'])
+def api_qchat_devops():
+    """
+    Process DevOps operations through Q Chat
+    - Detects bracketed actions: [START], [STOP], [RESTART], [PS], [LOGS]
+    - Uses context templates from shared/*_context.md
+    - Provides streaming responses for real-time feedback
+    """
+    return streaming_devops_response
 ```
 
 ### 2. Virtual DevOps Team
 
 The platform includes context-aware virtual assistants:
 
-- **Virtual Developer**: Code modification and feature development
-- **Virtual DevOps Team**: Application lifecycle management (START/STOP/PS/RESTART/LOGS)
+- **Q Chat Developer**: Code modification and feature development with Git branch management
+- **Q Chat DevOps**: Application lifecycle management (START/STOP/PS/RESTART/LOGS)
 - **Context Templates**: Pre-built templates for common operations in `/shared/*_context.md`
+- **Streaming Responses**: Real-time feedback using Server-Sent Events
+- **Action Detection**: Automatic detection of bracketed commands like [START], [STOP]
 
 ### 3. Automated Evolution Process
 
@@ -174,15 +203,34 @@ The platform uses a multi-service Docker Compose setup for scalability and isola
 ```yaml
 # docker-compose.yml structure
 services:
-  app:                    # Main Flask application
+  ai-swautomorph:         # Main Flask application
     build: .
-    ports: ["5000:5000"]
-    volumes: ["/deployments:/deployments"]
+    ports: ["${HTTP_PORT:-6000}:80"]
+    volumes: 
+      - app_data:/app/data
+      - ~/.ssh:/home/ubuntu/.ssh:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
     
   nginx:                  # Reverse proxy & SSL termination
     image: nginx:alpine
-    ports: ["80:80", "443:443"]
-    volumes: ["./conf/nginx.conf:/etc/nginx/nginx.conf"]
+    ports: ["${HTTPS_PORT:-6001}:443"]
+    volumes: 
+      - ./conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    
+  gitea:                  # Git repository server
+    image: gitea/gitea:1.21.3
+    ports: ["3000:3000"]
+    volumes:
+      - gitea_data:/data
+      - gitea_repos:/home/ubuntu/admin/data/gitea-repositories
+    environment:
+      - GITEA__database__DB_TYPE=sqlite3
+      - GITEA__server__DOMAIN=localhost
+      - GITEA__server__ROOT_URL=http://localhost:3000/
 ```
 
 ## Universal Deployment System
@@ -193,10 +241,11 @@ All applications follow the same deployment pattern:
 
 ```bash
 # Universal workflow for any application
-1. Clone repository → User-specific directory
-2. Allocate server → Based on capacity constraints
-3. Execute deployApp.sh → Start/stop/status operations
-4. Monitor status → Health checks & logging
+1. Server Allocation → Automatic selection based on capacity constraints
+2. Clone repository → User-specific directory with SSL certificate sync
+3. Execute deployApp.sh → Start/stop/status/restart/logs operations
+4. Monitor status → Real-time health checks & streaming logs
+5. Billing tracking → Automatic cost calculation and recording
 ```
 
 ### 2. Deploy Configuration (deploy.ini)
@@ -208,8 +257,12 @@ NAME_OF_APPLICATION=ai-swautomorph
 APPLICATION_IDENTITY_NUMBER=0
 RANGE_START=8100
 RANGE_RESERVED=100
-RANGE_START_CONTROLPLAN=8000
-RANGE_RESERVED_CONTROLPLAN=100
+RANGE_START_CONTROLPLAN=80
+RANGE_RESERVED_CONTROLPLAN=0
+DOMAIN=www.swautomorph.com
+EMAIL=admin@swautomorph.com
+GITEA_VERSION=1.21.3
+MODSECURITY_CONF_DIR=/etc/nginx/modsec
 ```
 
 ### 3. Port Allocation System
@@ -219,6 +272,10 @@ Automatic port calculation based on user and application IDs:
 ```python
 def calculate_app_ports(user_id, app_id):
     """Calculate HTTP and HTTPS ports using deployControlPlan.sh logic"""
+    # Load configuration from deploy.ini
+    RANGE_START = int(config.get('RANGE_START', 8100))
+    RANGE_RESERVED = int(config.get('RANGE_RESERVED', 100))
+    
     PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
     HTTP_PORT = PORT_RANGE_BEGIN + app_id * 2
     HTTPS_PORT = HTTP_PORT + 1
@@ -257,21 +314,29 @@ def calculate_app_ports(user_id, app_id):
 
 ```python
 # REST API for deployment management
-@app.route('/api/deployments', methods=['POST'])
+@api_bp.route('/deployments', methods=['GET', 'POST'])
 def api_deployments():
-    """Handle clone, start, stop, restart, ps, logs actions"""
+    """Handle clone, start, stop, restart, ps, logs actions with streaming support"""
     
-@app.route('/api/deployments/<int:deployment_id>/logs', methods=['GET'])
+@api_bp.route('/deployments/<int:deployment_id>/logs')
 def api_deployment_logs(deployment_id):
-    """Get deployment logs"""
+    """Get deployment logs for specific deployment"""
     
-@app.route('/api/qchat', methods=['POST'])
-def api_qchat():
-    """Process Q Chat requests for code modification"""
+@api_bp.route('/qchat_developer', methods=['POST'])
+def api_qchat_developer():
+    """Process Q Chat Developer requests for code modification with streaming"""
 
-@app.route('/api/qchat_devops', methods=['POST'])
+@api_bp.route('/qchat_devops', methods=['POST'])
 def api_qchat_devops():
-    """Process Virtual Advisor questions with streaming response"""
+    """Process Q Chat DevOps operations with context templates and streaming"""
+
+@api_bp.route('/server/allocate', methods=['POST'])
+def api_server_allocate():
+    """Allocate optimal server based on capacity constraints"""
+
+@api_bp.route('/servers', methods=['GET', 'POST'])
+def api_servers():
+    """Server management for admin users"""
 ```
 
 ### Streaming Support
@@ -304,11 +369,13 @@ Billing_Activities: duration_seconds, cost_amount
 
 ### 1. Multi-Layer Security
 
-- **SSL/TLS**: HTTPS encryption for all communications
+- **SSL/TLS**: HTTPS encryption with automatic certificate distribution
+- **ModSecurity WAF**: OWASP CRS rules for web application firewall protection
 - **Authentication**: User-based access control with suspension capability
-- **SSO Tokens**: Secure token-based application access
-- **Container Isolation**: Docker container security
-- **Network Segmentation**: Internal service communication
+- **SSO Tokens**: Secure token-based application access with automatic cleanup
+- **Container Isolation**: Docker container security with volume mounting
+- **Network Segmentation**: Internal service communication with firewall rules
+- **Gitea Integration**: Secure Git repository management with user isolation
 
 ### 2. Token Management
 
@@ -349,39 +416,59 @@ TRANSLATIONS = {
 
 ```python
 # Health check endpoints for all applications
-@app.route('/health')
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.now()}
+@api_bp.route('/auth/status')
+def auth_status():
+    return jsonify({
+        'authenticated': 'user_id' in session,
+        'sso_token': session.get('sso_token', '')
+    })
 
-# Database health monitoring
-@app.route('/api/health/database')
+# Database health monitoring (admin only)
+@api_bp.route('/health/database')
 def database_health():
-    return health_status_and_statistics
+    health_status = check_database_health()
+    db_stats = get_database_stats()
+    return jsonify({'health': health_status, 'statistics': db_stats})
 ```
 
 ### 2. Deployment Monitoring
 
-- **Status Tracking**: Real-time deployment status
-- **Log Aggregation**: Centralized logging from all containers
-- **Error Reporting**: Automatic error detection and reporting
-- **Performance Metrics**: Database and application performance tracking
+- **Status Tracking**: Real-time deployment status with database persistence
+- **Log Aggregation**: Daily log rotation with centralized storage in logs/ directory
+- **Streaming Logs**: Real-time log streaming using Server-Sent Events
+- **Error Reporting**: Automatic error detection with detailed stack traces
+- **Performance Metrics**: Database health monitoring with WAL mode statistics
+- **Backup Monitoring**: Automated hourly database backups with S3 sync
+- **Service Status**: Comprehensive service monitoring via deployControlPlan.sh ps
 
-## Future Enhancements
+## Current Advanced Features
 
-### 1. Advanced GenAI Integration
+### 1. Implemented GenAI Integration
 
-- **Automated Testing**: AI-generated test cases
-- **Performance Optimization**: AI-driven performance improvements
-- **Security Scanning**: Automated vulnerability detection
+- **Q Chat Developer**: Real-time code modification with Git branch management
+- **Q Chat DevOps**: Context-aware deployment operations with streaming responses
+- **Automated Branch Creation**: Timestamped branches for code evolution tracking
+- **Context Templates**: Pre-built operation templates in shared/ directory
 
-### 2. Enhanced Deployment Features
+### 2. Current Deployment Features
 
-- **Blue-Green Deployments**: Zero-downtime deployments
-- **Rollback Capabilities**: Automatic rollback on failure
-- **Multi-Environment Support**: Development, staging, production
+- **Multi-Server Support**: Automatic server allocation based on capacity
+- **Real-time Streaming**: Live deployment logs and status updates
+- **SSL Certificate Sync**: Automatic certificate distribution to all deployments
+- **Billing Integration**: Automatic cost tracking and usage monitoring
+- **Database Backups**: Automated hourly backups with S3 synchronization
+- **Health Monitoring**: Comprehensive database and application health checks
 
 ## Conclusion
 
-The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management. By standardizing the deployment process through configuration-driven deployment, combined with Docker Compose containerization, multi-server support, and GenAI integration, the platform enables rapid application development and evolution while maintaining security and isolation.
+The AI-SwAutoMorph architecture provides a robust, scalable, and automated platform for application management with advanced GenAI integration. By combining standardized deployment processes through deployControlPlan.sh, multi-server capacity management, real-time streaming capabilities, and Q Chat integration, the platform enables rapid application development and evolution while maintaining security and isolation.
 
-The modular design ensures maintainability and extensibility, while the automation features reduce manual intervention and improve reliability. This architecture serves as a foundation for building and managing modern containerized applications with AI-assisted evolution capabilities.
+Key architectural strengths include:
+- **Thread-safe database operations** with WAL mode and automatic retry logic
+- **Multi-server deployment** with automatic capacity-based allocation
+- **Real-time streaming** for deployment logs and AI assistant responses
+- **Comprehensive security** with ModSecurity WAF and SSL certificate management
+- **Automated billing** with precise usage tracking and cost calculation
+- **GenAI integration** for code evolution and DevOps operations
+
+The modular Flask blueprint architecture ensures maintainability and extensibility, while the automation features reduce manual intervention and improve reliability. This architecture serves as a foundation for building and managing modern containerized applications with AI-assisted evolution capabilities and enterprise-grade monitoring and security features.

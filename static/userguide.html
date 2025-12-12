@@ -5,27 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI-SwAutoMorph User Guide</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 2rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; max-width: 1000px; margin: 0 auto; padding: 2rem; }
         h1, h2, h3 { color: #2c3e50; }
         .code { background: #f4f4f4; padding: 0.5rem; border-radius: 4px; font-family: monospace; }
         .endpoint { background: #e8f5e8; padding: 1rem; border-left: 4px solid #27ae60; margin: 1rem 0; }
         .warning { background: #fff3cd; padding: 1rem; border-left: 4px solid #ffc107; margin: 1rem 0; }
+        .feature { background: #f8f9fa; padding: 1rem; border-left: 4px solid #007bff; margin: 1rem 0; }
+        .action-btn { background: #e3f2fd; padding: 0.5rem; border-radius: 4px; margin: 0.2rem; display: inline-block; }
+        .toc { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+        .toc ul { list-style-type: none; padding-left: 1rem; }
+        .toc a { text-decoration: none; color: #007bff; }
+        .toc a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
     <h1>AI-SwAutoMorph User Guide</h1>
     
-    <h2>Overview</h2>
-    <p>AI-SwAutoMorph is a centralized application management platform that provides user authentication and access to multiple AI applications through a unified interface.</p>
+    <div class="toc">
+        <h3>Table of Contents</h3>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#getting-started">Getting Started</a></li>
+            <li><a href="#application-management">Application Management</a></li>
+            <li><a href="#deployment-actions">Deployment Actions</a></li>
+            <li><a href="#virtual-agents">Virtual Agents</a></li>
+            <li><a href="#api-access">API Access</a></li>
+            <li><a href="#troubleshooting">Troubleshooting</a></li>
+        </ul>
+    </div>
     
-    <h2>Getting Started</h2>
+    <h2 id="overview">Overview</h2>
+    <p>AI-SwAutoMorph is a centralized application deployment and management platform designed for GenAI agents. It provides automated deployment, lifecycle management, and SSO authentication for web applications through multiple interfaces (Web, CLI, API, MCP).</p>
+    
+    <div class="feature">
+        <strong>Core Purpose:</strong> Enable GenAI agents to autonomously deploy, manage, and access web applications without human intervention.
+    </div>
+    
+    <h2 id="getting-started">Getting Started</h2>
     
     <h3>1. Web Interface</h3>
-    <p>Access the web interface at <code class="code">http://www.swautomorph.com</code> (or your domain)</p>
+    <p>Access the web interface at <code class="code">https://www.swautomorph.com</code> (or your domain)</p>
     <ul>
-        <li><strong>Registration:</strong> Create a new account with username, email, and password</li>
+        <li><strong>Registration:</strong> Create a new account with username, email, password, first name, and last name</li>
         <li><strong>Login:</strong> Access your dashboard with existing credentials</li>
-        <li><strong>Dashboard:</strong> View and access available applications</li>
+        <li><strong>Dashboard:</strong> View and manage available applications with deployment controls</li>
+        <li><strong>Multi-language:</strong> Switch between English (EN) and French (FR)</li>
     </ul>
     
     <h3>2. Command Line Interface (CLI)</h3>
@@ -33,16 +57,25 @@
     
     <div class="code">
 # Register a new user<br>
-python3 ./scripts/cli.py register --username myuser --email user@example.com<br><br>
+python3 ./scripts/cli.py register --username myuser --email user@example.com --password secure_pass<br><br>
 
 # List available applications<br>
 python3 ./scripts/cli.py list-apps<br><br>
 
-# Add a new application<br>
-python3 ./scripts/cli.py add-app --name "My App" --url "http://myapp.swautomorph.com"<br><br>
+# Add a new application (admin only)<br>
+python3 ./scripts/cli.py add-app --name "My App" --url "https://myapp.swautomorph.com" --description "My Application"<br><br>
 
 # Initialize database<br>
-python3 ./scripts/cli.py init-db
+python3 ./scripts/cli.py init-db<br><br>
+
+# Check database health<br>
+python3 ./scripts/cli.py db-health<br><br>
+
+# Validate SSO token<br>
+python3 ./scripts/cli.py validate-token --token your-sso-token<br><br>
+
+# Mount S3 storage<br>
+python3 ./scripts/cli.py mount-s3fs softfluid /mnt/s3
     </div>
     
     <h3>3. REST API</h3>
@@ -63,19 +96,37 @@ python3 ./scripts/cli.py init-db
     <div class="endpoint">
         <strong>GET /api/applications</strong><br>
         List all applications<br>
-        Returns: Array of application objects
+        Returns: Array of application objects with git_url
     </div>
     
     <div class="endpoint">
         <strong>POST /api/applications</strong><br>
-        Add new application (requires authentication)<br>
-        Body: <code class="code">{"name": "App Name", "url": "http://app.swautomorph.com", "description": "Description"}</code>
+        Add new application (admin only)<br>
+        Body: <code class="code">{"name": "App Name", "description": "Description", "git_url": "https://github.com/user/repo.git"}</code>
     </div>
     
     <div class="endpoint">
         <strong>GET /api/auth/status</strong><br>
         Check authentication status<br>
-        Returns: <code class="code">{"authenticated": true/false}</code>
+        Returns: <code class="code">{"authenticated": true/false, "sso_token": "token"}</code>
+    </div>
+    
+    <div class="endpoint">
+        <strong>POST /api/deployments</strong><br>
+        Deploy and manage applications<br>
+        Body: <code class="code">{"action": "clone|start|stop|restart|ps|logs", "application_name": "MyApp", "git_url": "...", "server_id": 1, "stream": true}</code>
+    </div>
+    
+    <div class="endpoint">
+        <strong>GET /api/servers</strong><br>
+        List available servers<br>
+        Returns: Array of server objects with capacity info
+    </div>
+    
+    <div class="endpoint">
+        <strong>POST /api/server/allocate</strong><br>
+        Allocate server for deployment<br>
+        Body: <code class="code">{"application_name": "MyApp"}</code>
     </div>
     
     <h3>4. MCP (Model Context Protocol)</h3>
@@ -83,94 +134,304 @@ python3 ./scripts/cli.py init-db
     
     <div class="code">
 # Start MCP server<br>
-python3 mcp_server.py<br><br>
+python3 ./scripts/mcp_server.py<br><br>
 
 # Available MCP tools:<br>
 # - list_applications: Get all applications<br>
 # - add_application: Add new application<br>
-# - list_users: Get all users (admin only)
+# - list_users: Get all users (admin only)<br>
+# - deploy_application: Deploy applications<br>
+# - manage_servers: Server management
     </div>
     
-    <h2>Application Management</h2>
+    <h2 id="application-management">Application Management</h2>
     
     <h3>Adding Applications</h3>
     <p>Applications can be added through:</p>
     <ul>
-        <li>Web dashboard form</li>
-        <li>CLI command</li>
-        <li>REST API endpoint</li>
-        <li>MCP protocol</li>
+        <li><strong>Web dashboard form</strong> (admin only)</li>
+        <li><strong>CLI command</strong></li>
+        <li><strong>REST API endpoint</strong></li>
+        <li><strong>MCP protocol</strong></li>
     </ul>
     
-    <h3>Application URL Format</h3>
-    <p>Applications should follow the pattern: <code class="code">http://[app-name].swautomorph.com</code></p>
-    <p>Examples:</p>
+    <div class="feature">
+        <strong>Application Fields:</strong>
+        <ul>
+            <li><strong>Name:</strong> Display name for the application</li>
+            <li><strong>Description:</strong> Brief description of the application</li>
+            <li><strong>Git URL:</strong> GitHub repository URL for deployment</li>
+            <li><strong>Application Identity:</strong> Unique ID assigned automatically</li>
+        </ul>
+    </div>
+    
+    <h3>Application Access</h3>
+    <p>Each user gets assigned applications with unique ports:</p>
     <ul>
-        <li><code class="code">http://ai-foodflow.swautomorph.com</code></li>
-        <li><code class="code">http://ai-haccp.swautomorph.com</code></li>
-        <li><code class="code">http://ai-inventory.swautomorph.com</code></li>
+        <li><strong>HTTP Port:</strong> Calculated based on user ID and app ID</li>
+        <li><strong>HTTPS Port:</strong> HTTP port + 1</li>
+        <li><strong>URL Format:</strong> <code class="code">https://www.swautomorph.com:[HTTPS_PORT]</code></li>
     </ul>
     
-    <h2>Deployment</h2>
+    <h2 id="deployment-actions">Deployment Actions</h2>
     
-    <h3>Production Deployment</h3>
+    <p>AI-SwAutoMorph provides comprehensive application lifecycle management through deployment actions:</p>
+    
+    <h3>Available Actions</h3>
+    
+    <div class="action-btn">📥 <strong>CLONE</strong></div>
+    <p><strong>Purpose:</strong> Download and prepare application from Git repository</p>
+    <ul>
+        <li>Clones the Git repository to deployment directory</li>
+        <li>Copies SSL certificates to application</li>
+        <li>Prepares application for deployment</li>
+        <li>Requires Git URL and server allocation</li>
+    </ul>
+    
+    <div class="action-btn">▶️ <strong>START</strong></div>
+    <p><strong>Purpose:</strong> Start the application services</p>
+    <ul>
+        <li>Executes <code class="code">deployApp.sh start</code></li>
+        <li>Starts Docker containers</li>
+        <li>Records billing activity</li>
+        <li>Updates application status to "running"</li>
+    </ul>
+    
+    <div class="action-btn">⏹️ <strong>STOP</strong></div>
+    <p><strong>Purpose:</strong> Stop the application services</p>
+    <ul>
+        <li>Executes <code class="code">deployApp.sh stop</code></li>
+        <li>Stops Docker containers</li>
+        <li>Records billing activity</li>
+        <li>Updates application status to "stopped"</li>
+    </ul>
+    
+    <div class="action-btn">🔄 <strong>RESTART</strong></div>
+    <p><strong>Purpose:</strong> Restart application services</p>
+    <ul>
+        <li>Executes <code class="code">deployApp.sh restart</code></li>
+        <li>Restarts Docker containers</li>
+        <li>Useful for applying configuration changes</li>
+    </ul>
+    
+    <div class="action-btn">📊 <strong>PS (Status)</strong></div>
+    <p><strong>Purpose:</strong> Check application status</p>
+    <ul>
+        <li>Executes <code class="code">deployApp.sh ps</code></li>
+        <li>Returns JSON with container status</li>
+        <li>Shows port information and running state</li>
+    </ul>
+    
+    <div class="action-btn">📋 <strong>LOGS</strong></div>
+    <p><strong>Purpose:</strong> View application logs</p>
+    <ul>
+        <li>Executes <code class="code">deployApp.sh logs</code></li>
+        <li>Shows container logs and output</li>
+        <li>Useful for debugging and monitoring</li>
+    </ul>
+    
+    <h3>Deployment Flow</h3>
     <div class="code">
-# Run the deployment script<br>
-./deployApp.sh
+1. CLONE → Download application from Git<br>
+2. START → Launch application services<br>
+3. PS → Verify application is running<br>
+4. LOGS → Monitor application output<br>
+5. STOP → Stop when needed<br>
+6. RESTART → Reload after changes
     </div>
     
-    <h3>Manual Docker Commands</h3>
-    <div class="code">
-# Build and start<br>
-docker-compose up -d<br><br>
-
-# View logs<br>
-docker-compose logs -f<br><br>
-
-# Stop services<br>
-docker-compose down
+    <h2 id="virtual-agents">Virtual Agents</h2>
+    
+    <p>AI-SwAutoMorph includes AI-powered virtual agents to assist with development and operations:</p>
+    
+    <h3>🤖 Virtual Developer</h3>
+    <p><strong>Purpose:</strong> Autonomous code modifications and development tasks</p>
+    <ul>
+        <li><strong>Code Changes:</strong> Modify application source code based on natural language requests</li>
+        <li><strong>Git Integration:</strong> Creates branches, commits changes, and pushes to Gitea</li>
+        <li><strong>Testing:</strong> Runs test suites before committing changes</li>
+        <li><strong>Deployment:</strong> Rebuilds and redeploys applications after changes</li>
+    </ul>
+    
+    <div class="feature">
+        <strong>Example Usage:</strong><br>
+        "Add a new API endpoint for user management to the MyApp application"
     </div>
+    
+    <h3>💡 Virtual DevOps</h3>
+    <p><strong>Purpose:</strong> Application deployment and infrastructure management</p>
+    <ul>
+        <li><strong>Deployment Actions:</strong> START, STOP, RESTART, PS, LOGS</li>
+        <li><strong>Context-Aware:</strong> Uses application-specific deployment contexts</li>
+        <li><strong>Natural Language:</strong> Understands deployment requests in plain English</li>
+        <li><strong>Automated Execution:</strong> Executes commands with proper user context</li>
+    </ul>
+    
+    <div class="feature">
+        <strong>Example Usage:</strong><br>
+        "[START] Start the MyApp application" or "Show me the logs for the last 100 lines"
+    </div>
+    
+    <h3>Using Virtual Agents</h3>
+    <ol>
+        <li><strong>Access:</strong> Click on the Virtual Agents panel (right side of dashboard)</li>
+        <li><strong>Select Application:</strong> Choose the application from dropdown</li>
+        <li><strong>Choose Agent:</strong> Developer for code changes, DevOps for deployment</li>
+        <li><strong>Send Request:</strong> Type your request in natural language</li>
+        <li><strong>Monitor Progress:</strong> Watch real-time streaming output</li>
+    </ol>
+    
+    <h3>Virtual Agent Features</h3>
+    <ul>
+        <li><strong>Streaming Output:</strong> Real-time progress updates</li>
+        <li><strong>Auto-Approval:</strong> Optional automatic execution of commands</li>
+        <li><strong>Mobile-Friendly:</strong> Responsive design for mobile devices</li>
+        <li><strong>Context Injection:</strong> Automatically includes user and application context</li>
+    </ul>
+    
+    <h2 id="api-access">API Access for GenAI Agents</h2>
+    
+    <h3>AI Assistant Integration</h3>
+    <div class="endpoint">
+        <strong>POST /api/qchat_developer</strong><br>
+        Q Chat Developer (code modifications)<br>
+        Body: <code class="code">{"message": "Add a new API endpoint", "application_name": "MyApp", "application_folder": "/path/to/app"}</code>
+    </div>
+    
+    <div class="endpoint">
+        <strong>POST /api/qchat_devops</strong><br>
+        Q Chat DevOps (deployment operations)<br>
+        Body: <code class="code">{"message": "[START] Start the application", "application_name": "MyApp", "application_folder": "/path/to/app"}</code>
+    </div>
+    
+    <h3>Billing and Cost Management</h3>
+    <div class="endpoint">
+        <strong>GET /api/billing/summary?period=month</strong><br>
+        Get billing summary for period (day/week/month)<br>
+        Returns: Usage and cost data
+    </div>
+    
+    <div class="endpoint">
+        <strong>GET /api/billing/activities</strong><br>
+        Get billing activities log<br>
+        Returns: Start/stop activities with duration and costs
+    </div>
+    
+    <h3>Database Management</h3>
+    <div class="endpoint">
+        <strong>GET /api/database/tables/[table_name]</strong><br>
+        View database table data (admin only)<br>
+        Returns: Table columns and rows
+    </div>
+    
+    <div class="endpoint">
+        <strong>GET /api/health/database</strong><br>
+        Database health check (admin only)<br>
+        Returns: Health status and statistics
+    </div>
+    
+    <h2>Database Structure</h2>
+    <p>The application uses SQLite database with comprehensive tables:</p>
+    <ul>
+        <li><strong>users:</strong> User accounts with authentication and profile info</li>
+        <li><strong>applications:</strong> Available applications with Git URLs</li>
+        <li><strong>user_applications:</strong> User-specific app assignments with ports</li>
+        <li><strong>deployments:</strong> Deployment tracking with status and paths</li>
+        <li><strong>servers:</strong> Multi-server deployment support</li>
+        <li><strong>billing_activities:</strong> Usage tracking for cost management</li>
+        <li><strong>application_costs:</strong> Cost configuration per application</li>
+        <li><strong>auth_tokens:</strong> SSO token management</li>
+        <li><strong>users_logs:</strong> User activity logging</li>
+    </ul>
     
     <h2>Security</h2>
     
     <div class="warning">
         <strong>Important Security Notes:</strong>
         <ul>
-            <li>Change the default SECRET_KEY in production</li>
-            <li>Use HTTPS in production environments</li>
-            <li>Regularly backup the database</li>
-            <li>Implement proper firewall rules</li>
+            <li>Auto-generated SECRET_KEY for session security</li>
+            <li>HTTPS with SSL certificates (auto-generated or production)</li>
+            <li>ModSecurity WAF protection with OWASP CRS rules</li>
+            <li>Automated database backups with S3 sync</li>
+            <li>Session-based authentication with SSO token support</li>
+            <li>Admin-only access for sensitive operations</li>
         </ul>
     </div>
     
-    <h2>Database</h2>
-    <p>The application uses SQLite database with two main tables:</p>
-    <ul>
-        <li><strong>users:</strong> User accounts and authentication</li>
-        <li><strong>applications:</strong> Available applications and their URLs</li>
-    </ul>
-    
-    <h2>Troubleshooting</h2>
+    <h2 id="troubleshooting">Troubleshooting</h2>
     
     <h3>Common Issues</h3>
+    
+    <h4>Application Deployment</h4>
     <ul>
-        <li><strong>Database not found:</strong> Run <code class="code">python3 ./scripts/cli.py init-db</code></li>
-        <li><strong>Permission denied:</strong> Check file permissions and Docker access</li>
-        <li><strong>Port conflicts:</strong> Ensure ports 80 and 443 are available</li>
-        <li><strong>Service not starting:</strong> Check logs with <code class="code">docker-compose logs</code></li>
+        <li><strong>"Application not deployed. Clone first":</strong> Run CLONE action before START</li>
+        <li><strong>"deployApp.sh not found":</strong> Application needs to be cloned first</li>
+        <li><strong>"No standby servers available":</strong> All servers at capacity, contact admin</li>
+        <li><strong>Git clone failed:</strong> Check Git URL and repository access</li>
     </ul>
     
-    <h3>Support</h3>
-    <p>For additional support:</p>
+    <h4>Virtual Agents</h4>
     <ul>
-        <li>Check application logs</li>
-        <li>Verify Docker and Docker Compose installation</li>
-        <li>Ensure proper network connectivity</li>
-        <li>Review environment configuration</li>
+        <li><strong>"Q Chat not found":</strong> Install qchat: <code class="code">pip install qchat</code></li>
+        <li><strong>No response from agent:</strong> Check network connection and qchat installation</li>
+        <li><strong>Permission errors:</strong> Ensure proper deployment directory permissions</li>
+    </ul>
+    
+    <h4>System Issues</h4>
+    <ul>
+        <li><strong>Database not found:</strong> Run <code class="code">python3 ./scripts/cli.py init-db</code></li>
+        <li><strong>Permission denied:</strong> Check file permissions: <code class="code">sudo chown -R ubuntu:ubuntu /home/ubuntu/deployments/</code></li>
+        <li><strong>Port conflicts:</strong> Check port usage: <code class="code">sudo netstat -tulpn | grep -E ':(80|443|3000|5000)'</code></li>
+        <li><strong>SSL certificate issues:</strong> Run <code class="code">./scripts/generate_ssl.sh</code></li>
+    </ul>
+    
+    <h3>Diagnostic Commands</h3>
+    <div class="code">
+# Check service status<br>
+./deployControlPlan.sh ps<br><br>
+
+# View detailed logs<br>
+./deployControlPlan.sh logs<br><br>
+
+# Database health check<br>
+python3 ./scripts/cli.py db-health<br><br>
+
+# Test API endpoints<br>
+curl https://www.swautomorph.com/api/auth/status<br><br>
+
+# Check Q Chat installation<br>
+which qchat && qchat --version
+    </div>
+    
+    <h3>Reset and Recovery</h3>
+    <div class="code">
+# Stop all services<br>
+./deployControlPlan.sh stop<br><br>
+
+# Complete reset (Docker)<br>
+docker-compose down -v<br>
+docker system prune -f<br><br>
+
+# Database recovery<br>
+./deployControlPlan.sh --recover_db<br><br>
+
+# Restart deployment<br>
+./deployControlPlan.sh start
+    </div>
+    
+    <h3>Support Resources</h3>
+    <ul>
+        <li><strong>Application Logs:</strong> <code class="code">logs/</code> directory with daily rotation</li>
+        <li><strong>Database Backups:</strong> <code class="code">softfluid/db/backup/</code> with S3 sync</li>
+        <li><strong>Documentation:</strong> <code class="code">docs/</code> directory with guides</li>
+        <li><strong>Health Monitoring:</strong> Database health checks and statistics</li>
+        <li><strong>Debug Mode:</strong> Set <code class="code">FLASK_DEBUG=1</code> for verbose output</li>
     </ul>
     
     <footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #eee; color: #666;">
-        <p>AI-SwAutoMorph - Centralized Application Management Platform</p>
+        <p><strong>AI-SwAutoMorph</strong> - Centralized Application Deployment and Management Platform</p>
+        <p>Features: 🔐 SSO Authentication | 🚀 Application Deployment | 🤖 Virtual Agents | 💰 Billing Management | 🛡️ ModSecurity WAF | 🌐 Multi-Server Support</p>
+        <p>Interfaces: Web Dashboard | CLI | REST API | MCP Protocol</p>
     </footer>
 </body>
 </html>

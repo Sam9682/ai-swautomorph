@@ -16,9 +16,11 @@
                         {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
                         <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
                         <a href="{{ url_for('main.docs') }}">DOCS</a>
+                        <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
                         <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                     {% else %}
                         <a href="{{ url_for('main.docs') }}">DOCS</a>
+                        <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
                         <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                     {% endif %}
                 </div>
@@ -35,9 +37,11 @@
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
                     <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
+                    <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
                     <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 {% else %}
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
+                    <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
                     <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                 {% endif %}
                 <div class="lang-toggle">

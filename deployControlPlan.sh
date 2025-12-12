@@ -225,7 +225,7 @@ backup_database() {
     mkdir -p "$BACKUP_DIR"
     
     # Database file path
-    DB_FILE="softfluid/db/ai-swautomorph.db"
+    DB_FILE="./softfluid/db/ai_swautomorph.db"
     
     if [ -f "$DB_FILE" ]; then
         echo "  📋 Backing up database tables..."
@@ -244,7 +244,7 @@ backup_database() {
         sqlite3 "$DB_FILE" ".dump" > "$BACKUP_DIR/complete_database.sql"
         
         # Copy the database file itself
-        cp "$DB_FILE" "$BACKUP_DIR/ai-swautomorph.db.backup"
+        cp "$DB_FILE" "$BACKUP_DIR/ai_swautomorph.db.backup"
         
         echo -e "  $OK Database backup completed: $BACKUP_DIR"
         echo "    📁 Files created:"
@@ -330,17 +330,17 @@ EOF
     echo "🔧 Restoring from backup: $SELECTED_BACKUP"
     
     # Backup current database if it exists
-    if [ -f "softfluid/db/ai-swautomorph.db" ]; then
-        mv "softfluid/db/ai-swautomorph.db" "softfluid/db/ai-swautomorph.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
+    if [ -f "softfluid/db/ai_swautomorph.db" ]; then
+        mv "softfluid/db/ai_swautomorph.db" "softfluid/db/ai_swautomorph.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
         echo "  💾 Current database backed up"
     fi
     
     # Restore from complete dump if available
     if [ -f "$BACKUP_DIR/complete_database.sql" ]; then
-        sqlite3 "softfluid/db/ai-swautomorph.db" < "$BACKUP_DIR/complete_database.sql"
+        sqlite3 "softfluid/db/ai_swautomorph.db" < "$BACKUP_DIR/complete_database.sql"
         echo -e "  $OK Database restored from complete dump"
-    elif [ -f "$BACKUP_DIR/ai-swautomorph.db.backup" ]; then
-        cp "$BACKUP_DIR/ai-swautomorph.db.backup" "softfluid/db/ai-swautomorph.db"
+    elif [ -f "$BACKUP_DIR/ai_swautomorph.db.backup" ]; then
+        cp "$BACKUP_DIR/ai_swautomorph.db.backup" "softfluid/db/ai_swautomorph.db"
         echo -e "  $OK Database restored from backup file"
     else
         echo -e "  $ERROR No valid backup files found in $BACKUP_DIR"
@@ -1242,7 +1242,7 @@ help() {
     echo ""
     echo "  --recover_db - Recover database from backup"
     echo "              • Lists available backup dates for selection"
-    echo "              • Restores softfluid/db/ai-swautomorph.db from selected backup"
+    echo "              • Restores softfluid/db/ai_swautomorph.db from selected backup"
     echo "              • Backs up current database before recovery"
     echo ""
     echo "  backup_db    - Create database backup manually"

@@ -40,6 +40,8 @@ CREATE TABLE user_applications (
     user_id INTEGER NOT NULL,
     application_id INTEGER NOT NULL,
     url TEXT NOT NULL,                  -- Calculated URL with port
+    http_port INTEGER,                  -- Calculated HTTP port
+    https_port INTEGER,                 -- Calculated HTTPS port
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (application_id) REFERENCES applications (id),
@@ -309,8 +311,11 @@ From `conf/deploy.ini`:
 ```ini
 RANGE_START=8100                    # Starting port range
 RANGE_RESERVED=100                  # Ports reserved per user
-RANGE_START_CONTROLPLAN=8000        # Control plan port range
-RANGE_RESERVED_CONTROLPLAN=100      # Control plan ports per user
+RANGE_START_CONTROLPLAN=80          # Control plan port range (HTTP)
+RANGE_RESERVED_CONTROLPLAN=0        # Control plan ports per user
+DOMAIN=www.swautomorph.com          # Primary domain
+EMAIL=admin@swautomorph.com         # Admin email
+GITEA_VERSION=1.21.3                # Gitea version
 ```
 
 ### URL Generation
@@ -319,6 +324,12 @@ URLs are automatically generated and stored in `user_applications`:
 ```python
 HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
 url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+
+# Store both URL and individual ports for flexibility
+db_manager.execute_query(
+    'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port) VALUES (?, ?, ?, ?, ?)',
+    (user_id, app_id, url, HTTP_PORT, HTTPS_PORT)
+)
 ```
 
 ## Data Initialization
@@ -476,21 +487,27 @@ CREATE INDEX idx_billing_dates ON billing_activities(started_at, stopped_at);
 # Check database health (CLI)
 python3 ./scripts/cli.py db-health
 
-# Vacuum database (optimize storage)
-python3 ./scripts/cli.py db-vacuum
+# Mount S3 storage for backups
+python3 ./scripts/cli.py mount-s3fs softfluid /mnt/s3
 
-# Analyze database (update statistics)
-python3 ./scripts/cli.py db-analyze
+# Initialize database
+python3 ./scripts/cli.py init-db
 ```
 
 ### Backup and Recovery
 
 ```bash
-# Backup database
-cp db/ai_swautomorph.db db/ai_swautomorph.db.backup.$(date +%Y%m%d)
+# Manual database backup
+./deployControlPlan.sh backup_db
 
-# Restore from backup
-cp db/ai_swautomorph.db.backup.20231201 db/ai_swautomorph.db
+# Automated hourly backups (configured via cron)
+# Backups stored in ./softfluid/db/backup/YYYYMMDD_HHMMSS/
+
+# Recover from backup (interactive menu)
+./deployControlPlan.sh --recover_db
+
+# S3 sync for backups
+aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH
 ```
 
 ### Database Reset

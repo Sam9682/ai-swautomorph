@@ -84,6 +84,12 @@ def view_doc(filename):
     except Exception as e:
         return f"Error reading file: {str(e)}", 500
 
+@main_bp.route('/userguide')
+def userguide():
+    """Serve the user guide"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
+    return send_from_directory(static_dir, 'userguide.html')
+
 @main_bp.route('/.well-known/pki-validation/<filename>')
 def ssl_validation(filename):
     """Serve SSL certificate validation files"""
