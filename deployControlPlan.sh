@@ -1206,11 +1206,13 @@ help() {
     echo "              • Installs dependencies and configures services"
     echo "              • Opens firewall ports (80, 443, 3000)"
     echo "              • Creates deployment directories and logs"
+    echo "              • Sets up hourly database backup cron job"
     echo ""
     echo "  stop      - Stop all running services and clean up"
     echo "  -o        - Stop all running services and clean up (alias for stop)"
     echo "  --stop    - Stop all running services and clean up (alias for stop)"
-    echo "              • Creates database backup in ./softfluid/db/backup/\$DATETIME/"
+    echo "              • Removes hourly database backup cron job"
+    echo "              • Creates final database backup in ./softfluid/db/backup/\$DATETIME/"
     echo "              • Stops Flask application and removes PID file"
     echo "              • Removes Nginx site configuration"
     echo "              • Optionally stops and removes Gitea (interactive)"
@@ -1242,6 +1244,13 @@ help() {
     echo "              • Lists available backup dates for selection"
     echo "              • Restores softfluid/db/ai-swautomorph.db from selected backup"
     echo "              • Backs up current database before recovery"
+    echo ""
+    echo "  backup_db    - Create database backup manually"
+    echo "  --backup_database - Create database backup manually (alias for backup_db)"
+    echo "              • Creates timestamped backup in ./softfluid/db/backup/"
+    echo "              • Dumps all database tables individually"
+    echo "              • Creates complete database dump"
+    echo "              • Syncs backup to S3 using OVH-SWAUTOMORPH profile"
     echo ""
     echo "  help      - Show this help menu"
     echo "  --help    - Show this help menu (alias for help)"
@@ -1371,7 +1380,7 @@ main() {
             show_logs
             exit 0
             ;;
-        "--recover_db")
+        "recover_db"|"--recover_db")
             recover_database
             exit 0
             ;;
