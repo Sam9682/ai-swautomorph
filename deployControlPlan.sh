@@ -249,6 +249,10 @@ backup_database() {
         echo -e "  $OK Database backup completed: $BACKUP_DIR"
         echo "    📁 Files created:"
         ls -la "$BACKUP_DIR" | sed 's/^/      /'
+        
+        # Sync to S3
+        echo "  ☁️ Syncing to S3..."
+        aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH
     else
         echo -e "  $WARN Database file $DB_FILE not found - skipping backup"
     fi
@@ -1339,6 +1343,10 @@ main() {
             ;;
         "--recover_db")
             recover_database
+            exit 0
+            ;;
+        "backup_db")
+            backup_database
             exit 0
             ;;
         "restart"|"-r"|"--restart")
