@@ -3,6 +3,8 @@ import click
 import requests
 import json
 import sqlite3
+import subprocess
+import os
 from werkzeug.security import generate_password_hash
 
 BASE_URL = 'http://www.swautomorph.com:80'
@@ -72,7 +74,7 @@ def add_app(name, url, description):
     try:
         # Note: For CLI, we'd need to implement session handling or token-based auth
         # For now, this is a direct database operation
-        conn = sqlite3.connect('ai_swautomorph.db')
+        conn = sqlite3.connect('softfluid/db/ai_swautomorph.db')
         cursor = conn.cursor()
         cursor.execute('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)',
                       (name, url, description or ''))
@@ -138,6 +140,27 @@ def db_health():
         
     except Exception as e:
         click.echo(f'Error checking database health: {str(e)}')
+
+@cli.command()
+@click.argument('bucket_name')
+@click.argument('mount_point')
+@click.option('--passwd-file', default='.passwd-s3fs', help='S3FS password file')
+def mount_s3fs(bucket_name, mount_point, passwd_file):
+    """Mount OVH Cloud S3 storage using s3fs"""
+    os.makedirs(mount_point, exist_ok=True)
+    
+    cmd = [
+        "s3fs", bucket_name, mount_point,
+        "-o", f"passwd_file={passwd_file}",
+        "-o", "url=https://s3.gra.cloud.ovh.net",
+        "-o", "use_path_request_style"
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True)
+        click.echo(f"Successfully mounted {bucket_name} to {mount_point}")
+    except subprocess.CalledProcessError as e:
+        click.echo(f"Mount failed: {e}")
 
 if __name__ == '__main__':
     cli()

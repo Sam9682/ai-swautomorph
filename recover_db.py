@@ -9,7 +9,7 @@ from datetime import datetime
 def recover_database():
     """Recover corrupted database by creating a new one"""
     
-    db_path = "/home/ubuntu/ai-swautomorph/db/ai_swautomorph.db"
+    db_path = "/home/ubuntu/ai-swautomorph/softfluid/db/ai_swautomorph.db"
     backup_path = f"{db_path}.backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     print("Starting database recovery...")

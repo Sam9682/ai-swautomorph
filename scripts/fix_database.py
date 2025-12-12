@@ -65,7 +65,7 @@ def recover_with_dump(db_path):
     return None
 
 def main():
-    db_path = "/home/ubuntu/ai-swautomorph/users.db"
+    db_path = "/home/ubuntu/ai-swautomorph/softfluid/db/ai-swautomorph.db"
     
     if not os.path.exists(db_path):
         print("Database file not found!")

@@ -2,7 +2,7 @@
 import os
 
 # Database configuration
-DB_PATH = 'db/ai_swautomorph.db'
+DB_PATH = 'softfluid/db/ai_swautomorph.db'
 
 # Flask configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')

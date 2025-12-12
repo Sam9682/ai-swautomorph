@@ -96,7 +96,7 @@ Follow these steps EXACTLY:
 9. Push the new branch to the 'gitea' remote:
      git push gitea --all
 
-10. Update table Application from swautomorph.db localted in ~/swautomorph/db/ folder, 
+10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
     set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
 
 11. Rebuild and redeploy the running application by executing:

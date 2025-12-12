@@ -1,7 +1,7 @@
 #!/bin/bash
 # Quick SQLite Database Recovery for AI-SwAutoMorph
 
-DB_PATH="/home/ubuntu/ai-swautomorph/users.db"
+DB_PATH="/home/ubuntu/ai-swautomorph/softfluid/db/ai-swautomorph.db"
 BACKUP_PATH="${DB_PATH}.backup_$(date +%Y%m%d_%H%M%S)"
 
 echo "=== SQLite Database Recovery ==="

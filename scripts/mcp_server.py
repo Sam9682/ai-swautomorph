@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 import asyncio
 
 class MCPServer:
-    def __init__(self, db_path: str = 'ai_swautomorph.db'):
+    def __init__(self, db_path: str = 'softfluid/db/ai_swautomorph.db'):
         self.db_path = db_path
         self.tools = {
             'list_applications': self.list_applications,

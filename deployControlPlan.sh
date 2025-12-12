@@ -221,11 +221,11 @@ backup_database() {
     
     # Create backup directory with timestamp
     DATETIME=$(date +"%Y%m%d_%H%M%S")
-    BACKUP_DIR="./db/backup/$DATETIME"
+    BACKUP_DIR="./softfluid/db/backup/$DATETIME"
     mkdir -p "$BACKUP_DIR"
     
     # Database file path
-    DB_FILE="users.db"
+    DB_FILE="softfluid/db/ai-swautomorph.db"
     
     if [ -f "$DB_FILE" ]; then
         echo "  📋 Backing up database tables..."
@@ -244,7 +244,7 @@ backup_database() {
         sqlite3 "$DB_FILE" ".dump" > "$BACKUP_DIR/complete_database.sql"
         
         # Copy the database file itself
-        cp "$DB_FILE" "$BACKUP_DIR/users.db.backup"
+        cp "$DB_FILE" "$BACKUP_DIR/ai-swautomorph.db.backup"
         
         echo -e "  $OK Database backup completed: $BACKUP_DIR"
         echo "    📁 Files created:"
@@ -258,7 +258,7 @@ backup_database() {
 recover_database() {
     echo "🔄 Database Recovery Tool"
     
-    BACKUP_BASE_DIR="./db/backup"
+    BACKUP_BASE_DIR="./softfluid/db/backup"
     
     if [ ! -d "$BACKUP_BASE_DIR" ]; then
         echo -e "  $ERROR No backup directory found at $BACKUP_BASE_DIR"
@@ -326,17 +326,17 @@ EOF
     echo "🔧 Restoring from backup: $SELECTED_BACKUP"
     
     # Backup current database if it exists
-    if [ -f "users.db" ]; then
-        mv "users.db" "users.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
+    if [ -f "softfluid/db/ai-swautomorph.db" ]; then
+        mv "softfluid/db/ai-swautomorph.db" "softfluid/db/ai-swautomorph.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
         echo "  💾 Current database backed up"
     fi
     
     # Restore from complete dump if available
     if [ -f "$BACKUP_DIR/complete_database.sql" ]; then
-        sqlite3 "users.db" < "$BACKUP_DIR/complete_database.sql"
+        sqlite3 "softfluid/db/ai-swautomorph.db" < "$BACKUP_DIR/complete_database.sql"
         echo -e "  $OK Database restored from complete dump"
-    elif [ -f "$BACKUP_DIR/users.db.backup" ]; then
-        cp "$BACKUP_DIR/users.db.backup" "users.db"
+    elif [ -f "$BACKUP_DIR/ai-swautomorph.db.backup" ]; then
+        cp "$BACKUP_DIR/ai-swautomorph.db.backup" "softfluid/db/ai-swautomorph.db"
         echo -e "  $OK Database restored from backup file"
     else
         echo -e "  $ERROR No valid backup files found in $BACKUP_DIR"
@@ -1163,8 +1163,8 @@ setup_environment() {
 
 create_directories() {
     echo "📁 Creating directories..."
-    mkdir -p data ssl logs db
-    chmod 755 data ssl logs db
+    mkdir -p data ssl logs softfluid/db
+    chmod 755 data ssl logs softfluid/db
 }
 
 setup_ssl_certificates() {
@@ -1203,7 +1203,7 @@ help() {
     echo "  stop      - Stop all running services and clean up"
     echo "  -o        - Stop all running services and clean up (alias for stop)"
     echo "  --stop    - Stop all running services and clean up (alias for stop)"
-    echo "              • Creates database backup in ./db/backup/\$DATETIME/"
+    echo "              • Creates database backup in ./softfluid/db/backup/\$DATETIME/"
     echo "              • Stops Flask application and removes PID file"
     echo "              • Removes Nginx site configuration"
     echo "              • Optionally stops and removes Gitea (interactive)"
@@ -1233,7 +1233,7 @@ help() {
     echo ""
     echo "  --recover_db - Recover database from backup"
     echo "              • Lists available backup dates for selection"
-    echo "              • Restores users.db from selected backup"
+    echo "              • Restores softfluid/db/ai-swautomorph.db from selected backup"
     echo "              • Backs up current database before recovery"
     echo ""
     echo "  help      - Show this help menu"
