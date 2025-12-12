@@ -354,6 +354,9 @@ EOF
 stop_services() {
     echo "🛑 Stopping $NAME_OF_APPLICATION services..."
     
+    # Remove backup cron job
+    remove_backup_cron
+    
     # Create database backup before stopping services
     backup_database
     
@@ -1304,12 +1307,39 @@ help() {
     echo "  • Local:    https://localhost (with SSL certificates)"
 }
 
+# Setup crontab for automatic backups
+setup_backup_cron() {
+    echo "⏰ Setting up hourly database backup cron job..."
+    SCRIPT_PATH=$(realpath "$0")
+    CRON_JOB="0 * * * * $SCRIPT_PATH --backup_db >/dev/null 2>&1"
+    
+    # Remove existing backup job if any
+    (crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH --backup_db") | crontab -
+    
+    # Add new backup job
+    (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
+    
+    echo "  ✅ Hourly backup cron job added"
+}
+
+# Remove backup cron job
+remove_backup_cron() {
+    echo "⏰ Removing database backup cron job..."
+    SCRIPT_PATH=$(realpath "$0")
+    
+    # Remove backup job
+    (crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH --backup_db") | crontab -
+    
+    echo "  ✅ Backup cron job removed"
+}
+
 # Start env
 start() {
     validate_user_id
     check_requirements
     setup_environment
     start_services
+    setup_backup_cron
     echo "🎉 Deployment completed successfully!"
 }
 
@@ -1345,7 +1375,7 @@ main() {
             recover_database
             exit 0
             ;;
-        "backup_db")
+        "backup_db"|"--backup_db")
             backup_database
             exit 0
             ;;
