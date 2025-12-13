@@ -162,7 +162,10 @@
         
         // Close navbar dropdown when clicking outside
         document.addEventListener('click', function(event) {
-            if (!event.target.matches('.nav-dropdown-btn')) {
+            // Don't close if clicking on dropdown button or dropdown content
+            if (!event.target.matches('.nav-dropdown-btn') && 
+                !event.target.closest('.nav-dropdown-content') &&
+                !event.target.closest('.nav-dropdown')) {
                 const configDropdown = document.getElementById('navConfigDropdown');
                 const helpDropdown = document.getElementById('navHelpDropdown');
                 if (configDropdown) configDropdown.style.display = 'none';
@@ -172,7 +175,8 @@
         
         // Update navbar active states
         function updateNavActive(activeTab) {
-            document.querySelectorAll('.nav-links a').forEach(link => {
+            // Only remove nav-active from main navigation links, not dropdown buttons
+            document.querySelectorAll('.nav-links > a:not(.nav-dropdown-btn)').forEach(link => {
                 link.classList.remove('nav-active');
             });
             

@@ -520,11 +520,14 @@ function showTab(tab) {
         updateNavActive(tab);
     }
     
-    // Close all navbar dropdowns
-    const configDropdown = document.getElementById('navConfigDropdown');
-    const helpDropdown = document.getElementById('navHelpDropdown');
-    if (configDropdown) configDropdown.style.display = 'none';
-    if (helpDropdown) helpDropdown.style.display = 'none';
+    // Only close dropdowns if we're actually switching tabs within the dashboard
+    // Don't close dropdowns for Help menu navigation since those are external links
+    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'servers' || tab === 'database') {
+        const configDropdown = document.getElementById('navConfigDropdown');
+        const helpDropdown = document.getElementById('navHelpDropdown');
+        if (configDropdown) configDropdown.style.display = 'none';
+        if (helpDropdown) helpDropdown.style.display = 'none';
+    }
 }
 
 function loadUsers() {
@@ -872,7 +875,10 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
         }
     }
     
-    showLogs();
+    // Only show logs tab for actions that need it, not for status checks, logs viewing, stop, start, or clone
+    if (action !== 'ps' && action !== 'logs' && action !== 'stop' && action !== 'start' && action !== 'clone') {
+        showLogs();
+    }
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
     
     getAvailableServerId(appName).then(serverId => {
@@ -918,10 +924,21 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
                                 const data = JSON.parse(line.substring(6));
                                 if (data.chunk) {
                                     appendLog(data.chunk);
+                                    // For status checks, logs, stop, start, and clone, also collect output to show in alert
+                                    if (action === 'ps' || action === 'logs' || action === 'stop' || action === 'start' || action === 'clone') {
+                                        if (!window.statusOutput) window.statusOutput = '';
+                                        window.statusOutput += data.chunk + '\n';
+                                    }
                                 } else if (data.error) {
                                     appendLog(`ERROR: ${data.error}`);
                                 } else if (data.done) {
                                     if (!data.success) appendLog('Operation failed');
+                                    // Show results in alert for ps, logs, stop, start, and clone actions
+                                    if ((action === 'ps' || action === 'logs' || action === 'stop' || action === 'start' || action === 'clone') && window.statusOutput) {
+                                        const title = action === 'ps' ? 'Status' : action === 'logs' ? 'Logs' : action === 'stop' ? 'Stop Result' : action === 'start' ? 'Start Result' : 'Clone Result';
+                                        alert(`${title} for ${appName}:\n\n${window.statusOutput}`);
+                                        window.statusOutput = '';
+                                    }
                                 }
                             } catch (e) {}
                         }
@@ -1406,8 +1423,7 @@ function sendOperationsMessageWithText(message) {
     addAgentMessage('operations', 'user', message);
     addAgentMessage('operations', 'system', `Virtual Operations Team is processing ${selectedAction} for ${selectedApp}...`);
     
-    // Show logs tab and add header
-    showLogs();
+    // Add header to logs without switching tabs
     appendLog(`\n=== OPERATIONS ${selectedAction} ${selectedApp} ===`);
     
     // Create streaming message container

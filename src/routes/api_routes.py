@@ -1128,6 +1128,16 @@ Provide a helpful and informative response.
                         yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
             
             process.wait()
+            
+            # Record billing activity for START actions if successful
+            if detected_action == 'start' and process.returncode == 0 and application_name:
+                try:
+                    from .billing_routes import record_billing_activity
+                    record_billing_activity(session['user_id'], application_name, 'start')
+                    yield f"data: {json.dumps({'chunk': f'Billing activity recorded for START action on {application_name}'})}\n\n"
+                except Exception as billing_error:
+                    yield f"data: {json.dumps({'chunk': f'Warning: Failed to record billing activity: {str(billing_error)}'})}\n\n"
+            
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
             
         except Exception as e:
