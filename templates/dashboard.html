@@ -402,7 +402,6 @@
                         <select id="operationsAction">
                             <option value="START" selected>START</option>
                             <option value="STOP">STOP</option>
-                            <option value="RESTART">RESTART</option>
                             <option value="LOGS">LOGS</option>
                         </select>
                     </div>
@@ -1660,18 +1659,18 @@ function loadBillingSummary() {
                 const hours = Math.floor(item.total_duration_seconds / 3600);
                 const minutes = Math.floor((item.total_duration_seconds % 3600) / 60);
                 const duration = `${hours}h ${minutes}m`;
-                const cost = parseFloat(item.total_cost || 0).toFixed(4);
-                totalCost += parseFloat(cost);
+                const cost = parseFloat(item.total_cost || 0);
+                totalCost += cost;
                 
                 html += `<tr>
                     <td>${item.username}</td>
                     <td>${item.application}</td>
                     <td>${duration}</td>
-                    <td>$${cost}</td>
+                    <td>$${cost.toFixed(4)}</td>
                 </tr>`;
             });
             
-            html += `</tbody><tfoot><tr><th colspan="3">Total</th><th>$${totalCost.toFixed(2)}</th></tr></tfoot></table>`;
+            html += `</tbody><tfoot><tr><th colspan="3">Total</th><th>$${totalCost.toFixed(4)}</th></tr></tfoot></table>`;
             content.innerHTML = html;
         })
         .catch(error => {
