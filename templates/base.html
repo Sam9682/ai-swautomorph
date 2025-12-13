@@ -162,6 +162,12 @@
         
         // Close navbar dropdown when clicking outside
         document.addEventListener('click', function(event) {
+            // Allow normal link navigation for Help menu items
+            if (event.target.closest('.nav-dropdown-content') && event.target.tagName === 'A' && event.target.href) {
+                // This is a navigation link in dropdown, allow it to work normally
+                return;
+            }
+            
             // Don't close if clicking on dropdown button or dropdown content
             if (!event.target.matches('.nav-dropdown-btn') && 
                 !event.target.closest('.nav-dropdown-content') &&
