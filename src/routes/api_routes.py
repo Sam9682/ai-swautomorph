@@ -834,7 +834,7 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             prompt = f"""
-You are an autonomous DevOps/code agent running on a Linux server
+You are an autonomous Operations/code agent running on a Linux server
 with access to the local filesystem and shell commands.
 
 The application source code is located in the following git repository:
@@ -960,8 +960,8 @@ If ANY step fails, explain clearly which step failed and why.
     return Response(stream_with_context(generate()), mimetype='text/event-stream',
                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
-@api_bp.route('/qchat_devops', methods=['POST'])
-def api_qchat_devops():
+@api_bp.route('/qchat_operations', methods=['POST'])
+def api_qchat_operations():
     from flask import Response, stream_with_context
     import json
     import subprocess

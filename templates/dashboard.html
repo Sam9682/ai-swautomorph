@@ -374,7 +374,7 @@
                 <!-- Mobile Agent Selector -->
                 <div class="mobile-agent-selector">
                     <button class="mobile-tab-btn active" data-agent="developer">🤖 {{ get_text('developer') }}</button>
-                    <button class="mobile-tab-btn" data-agent="devops">💡 {{ get_text('devops') }}</button>
+                    <button class="mobile-tab-btn" data-agent="operations">💡 {{ get_text('operations') }}</button>
                 </div>
                 
                 <!-- Developer Agent Area -->
@@ -402,33 +402,33 @@
                     </div>
                 </div>
                 
-                <!-- DevOps Agent Area -->
-                <div class="agent-area" id="devopsArea">
+                <!-- Operations Agent Area -->
+                <div class="agent-area" id="operationsArea">
                     <div class="agent-header">
-                        <h4>💡 {{ get_text('virtual_devops') }}</h4>
+                        <h4>💡 {{ get_text('virtual_operations') }}</h4>
                     </div>
-                    <div class="devops-controls">
-                        <select id="devopsAppSelect">
+                    <div class="operations-controls">
+                        <select id="operationsAppSelect">
                             <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
                             <option value="{{ app[1] }}">{{ app[1] }}</option>
                             {% endfor %}
                         </select>
-                        <select id="devopsAction">
+                        <select id="operationsAction">
                             <option value="START" selected>START</option>
                             <option value="STOP">STOP</option>
                             <option value="RESTART">RESTART</option>
                             <option value="LOGS">LOGS</option>
                         </select>
                     </div>
-                    <div id="devopsMessages" class="messages-area"></div>
+                    <div id="operationsMessages" class="messages-area"></div>
                     <div class="input-area">
-                        <textarea id="devopsInput" placeholder="{{ get_text('ask_question_placeholder') }}" rows="2"></textarea>
+                        <textarea id="operationsInput" placeholder="{{ get_text('ask_question_placeholder') }}" rows="2"></textarea>
                         <div class="input-controls">
                             <label>
-                                <input type="checkbox" id="devopsAutoApprove" checked> {{ get_text('auto_approve') }}
+                                <input type="checkbox" id="operationsAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button onclick="sendDevOpsMessage()">{{ get_text('send') }}</button>
+                            <button onclick="sendOperationsMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -1327,12 +1327,12 @@ function sendDeveloperMessage() {
     input.value = '';
 }
 
-function sendDevOpsMessage() {
-    const input = document.getElementById('devopsInput');
+function sendOperationsMessage() {
+    const input = document.getElementById('operationsInput');
     const message = input.value.trim();
     if (!message) return;
     
-    sendDevOpsMessageWithText(message);
+    sendOperationsMessageWithText(message);
     input.value = '';
 }
 
@@ -1414,12 +1414,12 @@ function sendDeveloperMessageWithText(message) {
     });
 }
 
-function sendDevOpsMessageWithText(message) {
-    const selectedApp = document.getElementById('devopsAppSelect').value;
-    const selectedAction = document.getElementById('devopsAction').value;
+function sendOperationsMessageWithText(message) {
+    const selectedApp = document.getElementById('operationsAppSelect').value;
+    const selectedAction = document.getElementById('operationsAction').value;
     
     if (!selectedApp) {
-        addAgentMessage('devops', 'error', 'Please select an application before sending your request.');
+        addAgentMessage('operations', 'error', 'Please select an application before sending your request.');
         return;
     }
     
@@ -1429,18 +1429,18 @@ function sendDevOpsMessageWithText(message) {
     
     const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
     
-    addAgentMessage('devops', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
-    addAgentMessage('devops', 'user', message);
-    addAgentMessage('devops', 'system', `Virtual DevOps Team is processing ${selectedAction} for ${selectedApp}...`);
+    addAgentMessage('operations', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
+    addAgentMessage('operations', 'user', message);
+    addAgentMessage('operations', 'system', `Virtual Operations Team is processing ${selectedAction} for ${selectedApp}...`);
     
     // Show logs tab and add header
     showLogs();
-    appendLog(`\n=== DEVOPS ${selectedAction} ${selectedApp} ===`);
+    appendLog(`\n=== OPERATIONS ${selectedAction} ${selectedApp} ===`);
     
     // Create streaming message container
-    const messagesDiv = document.getElementById('devopsMessages');
+    const messagesDiv = document.getElementById('operationsMessages');
     const streamDiv = document.createElement('div');
-    streamDiv.className = 'message devops-assistant';
+    streamDiv.className = 'message operations-assistant';
     streamDiv.innerHTML = `
         <div class="message-header">
             <span class="message-icon">💡</span>
@@ -1455,7 +1455,7 @@ function sendDevOpsMessageWithText(message) {
     contentDiv.textContent = 'Connecting to Q Chat...\n';
     
     // Stream from API
-    fetch('/api/qchat_devops', {
+    fetch('/api/qchat_operations', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -1478,7 +1478,7 @@ function sendDevOpsMessageWithText(message) {
             reader.read().then(({done, value}) => {
                 if (done) {
                     contentDiv.textContent += '\n=== Q Chat Session Completed ===\n';
-                    appendLog(`=== DEVOPS COMPLETED ===\n`);
+                    appendLog(`=== OPERATIONS COMPLETED ===\n`);
                     return;
                 }
                 
@@ -1550,9 +1550,9 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         sendDeveloperMessage();
     }
-    if (e.target.id === 'devopsInput' && e.key === 'Enter' && !e.shiftKey) {
+    if (e.target.id === 'operationsInput' && e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendDevOpsMessage();
+        sendOperationsMessage();
     }
 });
 
@@ -1577,26 +1577,26 @@ document.getElementById('developerAppSelect').addEventListener('change', functio
     }
 });
 
-document.getElementById('devopsAppSelect').addEventListener('change', function() {
+document.getElementById('operationsAppSelect').addEventListener('change', function() {
     const selectedApp = this.value;
     if (selectedApp) {
-        const selectedAction = document.getElementById('devopsAction').value;
-        document.getElementById('devopsInput').value = `I need a devops specialist to execute the ${selectedAction} action on the application ${selectedApp}`;
+        const selectedAction = document.getElementById('operationsAction').value;
+        document.getElementById('operationsInput').value = `I need an operations specialist to execute the ${selectedAction} action on the application ${selectedApp}`;
     }
 });
 
-document.getElementById('devopsAction').addEventListener('change', function() {
-    const selectedApp = document.getElementById('devopsAppSelect').value;
+document.getElementById('operationsAction').addEventListener('change', function() {
+    const selectedApp = document.getElementById('operationsAppSelect').value;
     if (selectedApp) {
         const selectedAction = this.value;
-        document.getElementById('devopsInput').value = `I need a devops specialist to execute the ${selectedAction} action the application ${selectedApp}`;
+        document.getElementById('operationsInput').value = `I need an operations specialist to execute the ${selectedAction} action the application ${selectedApp}`;
     }
 });
 
 // Mobile agent switching
 function switchMobileAgent(agent) {
     const developerArea = document.getElementById('developerArea');
-    const devopsArea = document.getElementById('devopsArea');
+    const operationsArea = document.getElementById('operationsArea');
     const buttons = document.querySelectorAll('.mobile-tab-btn');
     
     // Update button states
@@ -1607,10 +1607,10 @@ function switchMobileAgent(agent) {
     // Show/hide agent areas on mobile
     if (window.innerWidth <= 768) {
         developerArea.style.display = agent === 'developer' ? 'flex' : 'none';
-        devopsArea.style.display = agent === 'devops' ? 'flex' : 'none';
+        operationsArea.style.display = agent === 'operations' ? 'flex' : 'none';
     } else {
         developerArea.style.display = 'flex';
-        devopsArea.style.display = 'flex';
+        operationsArea.style.display = 'flex';
     }
 }
 
@@ -1635,8 +1635,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (document.getElementById('developerMessages').innerHTML === '') {
         addAgentMessage('developer', 'system', 'Virtual Developer ready. Select an application and describe your coding needs.');
     }
-    if (document.getElementById('devopsMessages').innerHTML === '') {
-        addAgentMessage('devops', 'system', 'Virtual DevOps Team ready. Select an application and action.');
+    if (document.getElementById('operationsMessages').innerHTML === '') {
+        addAgentMessage('operations', 'system', 'Virtual Operations Team ready. Select an application and action.');
     }
     
     // Initialize mobile view
