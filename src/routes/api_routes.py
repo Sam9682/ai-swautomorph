@@ -1129,12 +1129,12 @@ Provide a helpful and informative response.
             
             process.wait()
             
-            # Record billing activity for START actions if successful
-            if detected_action == 'start' and process.returncode == 0 and application_name:
+            # Record billing activity for START and STOP actions if successful
+            if (detected_action == 'start' or detected_action == 'stop') and process.returncode == 0 and application_name:
                 try:
                     from .billing_routes import record_billing_activity
-                    record_billing_activity(session['user_id'], application_name, 'start')
-                    yield f"data: {json.dumps({'chunk': f'Billing activity recorded for START action on {application_name}'})}\n\n"
+                    record_billing_activity(session['user_id'], application_name, detected_action)
+                    yield f"data: {json.dumps({'chunk': f'Billing activity recorded for {detected_action.upper()} action on {application_name}'})}\n\n"
                 except Exception as billing_error:
                     yield f"data: {json.dumps({'chunk': f'Warning: Failed to record billing activity: {str(billing_error)}'})}\n\n"
             
