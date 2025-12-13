@@ -86,9 +86,18 @@ def view_doc(filename):
 
 @main_bp.route('/userguide')
 def userguide():
-    """Serve the user guide"""
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
-    return send_from_directory(static_dir, 'userguide.html')
+    """Serve the user guide with language support"""
+    docs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'docs')
+    file_path = os.path.join(docs_dir, 'USER_GUIDE.md')
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        return render_template('doc_viewer.html', filename='USER_GUIDE.md', content=content)
+    except Exception as e:
+        return f"Error reading file: {str(e)}", 500
+
+
 
 @main_bp.route('/.well-known/pki-validation/<filename>')
 def ssl_validation(filename):

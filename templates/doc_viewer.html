@@ -1,129 +1,114 @@
 {% extends "base.html" %}
 
-{% block title %}{{ filename }} - Documentation{% endblock %}
+{% block title %}{{ filename }} - AI-SwAutoMorph{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="doc-header">
-        <a href="{{ url_for('main.docs') }}" class="back-link">← Back to Documentation</a>
-        <h1>{{ filename.replace('.md', '').replace('_', ' ').title() }}</h1>
-    </div>
-    
-    <div class="doc-content" id="markdown-content">
-        {{ content }}
+<div class="doc-viewer">
+    <div class="doc-content" id="docContent">
+        <div class="lang-content active" id="content-en">
+            <div id="english-content"></div>
+        </div>
+        <div class="lang-content" id="content-fr">
+            <div id="french-content"></div>
+        </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const content = document.getElementById('markdown-content');
-    const markdownText = content.textContent;
-    content.innerHTML = marked.parse(markdownText);
-});
-</script>
-
 <style>
-.container {
+.doc-viewer {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
 }
 
-.doc-header {
-    margin-bottom: 30px;
+.lang-content {
+    display: none;
 }
 
-.back-link {
-    display: inline-block;
-    color: #007bff;
-    text-decoration: none;
-    margin-bottom: 10px;
-    font-size: 14px;
+.lang-content.active {
+    display: block;
 }
 
-.back-link:hover {
-    text-decoration: underline;
-}
-
-.doc-content {
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 30px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    line-height: 1.6;
-}
-
-.doc-content h1, .doc-content h2, .doc-content h3, .doc-content h4 {
+.doc-content h1, .doc-content h2, .doc-content h3 {
     color: #333;
     margin-top: 30px;
     margin-bottom: 15px;
 }
 
-.doc-content h1 {
-    border-bottom: 2px solid #eee;
-    padding-bottom: 10px;
-}
-
-.doc-content h2 {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-}
-
 .doc-content pre {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
+    background: #f5f5f5;
     padding: 15px;
+    border-radius: 5px;
     overflow-x: auto;
-    font-size: 14px;
 }
 
 .doc-content code {
-    background: #f8f9fa;
-    padding: 2px 4px;
+    background: #f0f0f0;
+    padding: 2px 5px;
     border-radius: 3px;
-    font-size: 14px;
-}
-
-.doc-content pre code {
-    background: none;
-    padding: 0;
-}
-
-.doc-content blockquote {
-    border-left: 4px solid #007bff;
-    margin: 20px 0;
-    padding: 10px 20px;
-    background: #f8f9fa;
 }
 
 .doc-content table {
-    width: 100%;
     border-collapse: collapse;
+    width: 100%;
     margin: 20px 0;
 }
 
-.doc-content table th,
-.doc-content table td {
+.doc-content th, .doc-content td {
     border: 1px solid #ddd;
-    padding: 8px 12px;
+    padding: 12px;
     text-align: left;
 }
 
-.doc-content table th {
-    background: #f8f9fa;
-    font-weight: bold;
-}
-
-.doc-content ul, .doc-content ol {
-    margin: 15px 0;
-    padding-left: 30px;
-}
-
-.doc-content li {
-    margin: 5px 0;
+.doc-content th {
+    background-color: #f2f2f2;
 }
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+const markdownContent = {{ content|tojson }};
+
+function parseMarkdownSections(content) {
+    const sections = { en: '', fr: '' };
+    
+    // Split by language sections
+    const englishMatch = content.match(/## English\s*([\s\S]*?)(?=---|\n## Français|$)/);
+    const frenchMatch = content.match(/## Français\s*([\s\S]*?)$/);
+    
+    if (englishMatch) {
+        sections.en = englishMatch[1].trim();
+    } else {
+        // If no language sections, show all content in current language
+        sections.en = content;
+        sections.fr = content;
+    }
+    
+    if (frenchMatch) {
+        sections.fr = frenchMatch[1].trim();
+    }
+    
+    return sections;
+}
+
+function updateContent() {
+    // Get current language from session or default to 'en'
+    const currentLang = '{{ session.language or "en" }}';
+    const sections = parseMarkdownSections(markdownContent);
+    
+    // Convert markdown to HTML
+    document.getElementById('english-content').innerHTML = marked.parse(sections.en);
+    document.getElementById('french-content').innerHTML = marked.parse(sections.fr);
+    
+    // Show appropriate language content
+    document.querySelectorAll('.lang-content').forEach(el => el.classList.remove('active'));
+    document.getElementById(`content-${currentLang}`).classList.add('active');
+    
+    // Update document language
+    document.documentElement.lang = currentLang;
+}
+
+// Update content when page loads
+document.addEventListener('DOMContentLoaded', updateContent);
+</script>
 {% endblock %}

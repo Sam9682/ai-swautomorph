@@ -1,23 +1,24 @@
-# 🤖 AI-SwAutoMorph Agent Guide
+# 🤖 AI-SwAutoMorph Agent Guide / Guide des Agents AI-SwAutoMorph
 
-## Table of Contents
+## English
+
+### Table of Contents
 - [Overview for AI Agents](#overview-for-ai-agents)
 - [AI Agent Types](#ai-agent-types)
 - [Q Chat Developer Agent](#q-chat-developer-agent)
 - [Q Chat Operations Agent](#q-chat-operations-agent)
 - [Agent Workflows](#agent-workflows)
-
 - [Troubleshooting](#troubleshooting)
 
-## Overview for AI Agents
+### Overview for AI Agents
 
 AI-SwAutoMorph is specifically designed to enable GenAI agents to autonomously deploy, manage, and modify web applications without human intervention. The platform provides two specialized AI agents for complete application lifecycle management.
 
 **Agent-Centric Design:** Built for autonomous AI agents to handle development, deployment, and operations tasks through intelligent automation.
 
-## AI Agent Types
+### AI Agent Types
 
-### 🔧 Q Chat Developer Agent
+#### 🔧 Q Chat Developer Agent
 **Purpose:** Code modification, feature development, and application enhancement
 
 - Modifies source code based on natural language requests
@@ -25,7 +26,7 @@ AI-SwAutoMorph is specifically designed to enable GenAI agents to autonomously d
 - Refactors and optimizes existing code
 - Handles bug fixes and code improvements
 
-### 🚀 Q Chat Operations Agent
+#### 🚀 Q Chat Operations Agent
 **Purpose:** Deployment operations, infrastructure management, and application lifecycle
 
 - Handles deployment commands (START, STOP, RESTART)
@@ -33,75 +34,134 @@ AI-SwAutoMorph is specifically designed to enable GenAI agents to autonomously d
 - Performs infrastructure operations
 - Executes deployment scripts and configurations
 
-![alt text](VirtualOperations.png)
+![Virtual Operations](https://www.swautomorph.com/static/VirtualOperations.png)
 
-## Q Chat Developer Agent
+### Q Chat Developer Agent
 
-### Agent Capabilities
+#### Agent Capabilities
 - **Code Analysis:** Understands existing codebase structure
 - **Feature Development:** Adds new functionality based on requirements
 - **API Creation:** Generates new REST endpoints and handlers
 - **Code Refactoring:** Improves code quality and performance
 - **Bug Resolution:** Identifies and fixes code issues
 
+#### API Endpoint
+```
+POST /api/qchat_developer
+```
 
-## Q Chat Operations Agent
+**Request Body:**
+```json
+{
+  "message": "Add a new API endpoint for user management",
+  "application_name": "MyApp",
+  "application_folder": "/path/to/app"
+}
+```
 
-### Agent Capabilities
+### Q Chat Operations Agent
+
+#### Agent Capabilities
 - **Deployment Management:** Handles START, STOP, RESTART operations
 - **Infrastructure Operations:** Manages servers and resources
 - **Monitoring:** Checks application status and logs
 - **Scaling:** Manages application capacity and performance
 - **Troubleshooting:** Diagnoses and resolves deployment issues
 
+#### API Endpoint
+```
+POST /api/qchat_operations
+```
 
-## Agent Workflows
+**Request Body:**
+```json
+{
+  "message": "[START] Start the application",
+  "application_name": "MyApp",
+  "application_folder": "/path/to/app"
+}
+```
 
-### 1. Application Setup
-- Register agent user account
-- Add application with Git repository
-- Clone application to deployment directory
+---
 
-### 2. Development Phase (Developer Agent)
-- Analyze existing codebase
-- Implement new features or fixes
-- Modify configuration files
-- Update dependencies
+## Français
 
-### 3. Deployment Phase (Operations Agent)
-- Start application services
-- Monitor deployment status
-- Check application logs
-- Manage application lifecycle
+### Table des Matières
+- [Aperçu pour les Agents IA](#aperçu-pour-les-agents-ia)
+- [Types d'Agents IA](#types-dagents-ia)
+- [Agent Développeur Q Chat](#agent-développeur-q-chat)
+- [Agent Opérations Q Chat](#agent-opérations-q-chat)
+- [Flux de Travail des Agents](#flux-de-travail-des-agents)
+- [Dépannage](#dépannage)
 
-## Troubleshooting
+### Aperçu pour les Agents IA
 
-### Authentication Failures
-- Verify session cookies are included in requests
-- Check if agent account has appropriate permissions
-- Ensure SSO token is valid
+AI-SwAutoMorph est spécifiquement conçu pour permettre aux agents GenAI de déployer, gérer et modifier de manière autonome des applications web sans intervention humaine. La plateforme fournit deux agents IA spécialisés pour une gestion complète du cycle de vie des applications.
 
-### Developer Agent Issues
-- Verify application folder path exists
-- Check if application has proper file permissions
-- Ensure Git repository is accessible
+**Conception Axée sur les Agents:** Conçu pour les agents IA autonomes pour gérer les tâches de développement, déploiement et opérations grâce à l'automatisation intelligente.
 
-### Operations Agent Issues
-- Check if deployment scripts are executable
-- Verify Docker services are running
-- Ensure server has sufficient resources
+### Types d'Agents IA
 
-### Debug Commands
-```bash
-# Check agent authentication status
-curl https://www.swautomorph.com/api/auth/status
+#### 🔧 Agent Développeur Q Chat
+**Objectif:** Modification de code, développement de fonctionnalités et amélioration d'applications
 
-# Verify application exists
-curl https://www.swautomorph.com/api/applications
+- Modifie le code source basé sur des demandes en langage naturel
+- Ajoute de nouvelles fonctionnalités et points de terminaison API
+- Refactorise et optimise le code existant
+- Gère les corrections de bugs et améliorations de code
 
-# Check server capacity
-curl https://www.swautomorph.com/api/servers
+#### 🚀 Agent Opérations Q Chat
+**Objectif:** Opérations de déploiement, gestion d'infrastructure et cycle de vie des applications
 
-# Test agent communication
-curl -X POST /api/qchat_developer -d '{"message":"test connection","application_name":"test"}'
+- Gère les commandes de déploiement (START, STOP, RESTART)
+- Gère le cycle de vie et la surveillance des applications
+- Effectue les opérations d'infrastructure
+- Exécute les scripts et configurations de déploiement
+
+![Virtual Operations](https://www.swautomorph.com/static/VirtualOperations.png)
+
+### Agent Développeur Q Chat
+
+#### Capacités de l'Agent
+- **Analyse de Code:** Comprend la structure de la base de code existante
+- **Développement de Fonctionnalités:** Ajoute de nouvelles fonctionnalités basées sur les exigences
+- **Création d'API:** Génère de nouveaux points de terminaison REST et gestionnaires
+- **Refactorisation de Code:** Améliore la qualité et les performances du code
+- **Résolution de Bugs:** Identifie et corrige les problèmes de code
+
+#### Point de Terminaison API
+```
+POST /api/qchat_developer
+```
+
+**Corps de Requête:**
+```json
+{
+  "message": "Ajouter un nouveau point de terminaison API pour la gestion des utilisateurs",
+  "application_name": "MonApp",
+  "application_folder": "/chemin/vers/app"
+}
+```
+
+### Agent Opérations Q Chat
+
+#### Capacités de l'Agent
+- **Gestion de Déploiement:** Gère les opérations START, STOP, RESTART
+- **Opérations d'Infrastructure:** Gère les serveurs et ressources
+- **Surveillance:** Vérifie le statut et les journaux des applications
+- **Mise à l'Échelle:** Gère la capacité et les performances des applications
+- **Dépannage:** Diagnostique et résout les problèmes de déploiement
+
+#### Point de Terminaison API
+```
+POST /api/qchat_operations
+```
+
+**Corps de Requête:**
+```json
+{
+  "message": "[START] Démarrer l'application",
+  "application_name": "MonApp",
+  "application_folder": "/chemin/vers/app"
+}
 ```

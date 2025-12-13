@@ -69,9 +69,9 @@
                         <div class="nav-dropdown">
                             <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('help')">Help ▼</a>
                             <div class="nav-dropdown-content" id="navHelpDropdown">
-                                <a href="{{ url_for('static', filename='../docs/ARCHITECTURE_GUIDE.md') }}" target="_blank">Architecture Guide</a>
-                                <a href="{{ url_for('static', filename='../docs/DEPLOYMENT_GUIDE.md') }}" target="_blank">Deployment Guide</a>
-                                <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">User Guide</a>
+                                <a href="{{ url_for('main.view_doc', filename='ARCHITECTURE_GUIDE.md') }}">Architecture Guide</a>
+                                <a href="{{ url_for('main.view_doc', filename='DEPLOYMENT_GUIDE.md') }}">Deployment Guide</a>
+                                <a href="{{ url_for('main.userguide') }}">User Guide</a>
                             </div>
                         </div>
                         <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
@@ -79,9 +79,9 @@
                         <div class="nav-dropdown">
                             <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('help')">Help ▼</a>
                             <div class="nav-dropdown-content" id="navHelpDropdown">
-                                <a href="{{ url_for('static', filename='../docs/ARCHITECTURE_GUIDE.md') }}" target="_blank">Architecture Guide</a>
-                                <a href="{{ url_for('static', filename='../docs/DEPLOYMENT_GUIDE.md') }}" target="_blank">Deployment Guide</a>
-                                <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">User Guide</a>
+                                <a href="{{ url_for('main.view_doc', filename='ARCHITECTURE_GUIDE.md') }}">Architecture Guide</a>
+                                <a href="{{ url_for('main.view_doc', filename='DEPLOYMENT_GUIDE.md') }}">Deployment Guide</a>
+                                <a href="{{ url_for('main.userguide') }}">User Guide</a>
                             </div>
                         </div>
                         <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
@@ -100,11 +100,11 @@
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
                     <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">USER GUIDE</a>
+                    <a href="{{ url_for('main.userguide') }}">USER GUIDE</a>
                     <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 {% else %}
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">USER GUIDE</a>
+                    <a href="{{ url_for('main.userguide') }}">USER GUIDE</a>
                     <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                 {% endif %}
                 <div class="lang-toggle">
