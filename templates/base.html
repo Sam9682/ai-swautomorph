@@ -5,6 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AI-SwAutoMorph{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+    .nav-dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    
+    .nav-dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: #fff;
+        min-width: 200px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 1000;
+        border-radius: 4px;
+        top: 100%;
+        left: 0;
+        border: 1px solid #ddd;
+    }
+    
+    .nav-dropdown-content a {
+        color: #333 !important;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .nav-dropdown-content a:hover {
+        background-color: #f1f1f1;
+    }
+    
+    .nav-dropdown-content a:last-child {
+        border-bottom: none;
+    }
+    
+    .nav-active {
+        font-weight: bold;
+        color: #007bff !important;
+    }
+    </style>
 </head>
 <body>
     <nav class="navbar">
@@ -14,13 +54,36 @@
                 <div class="nav-links">
                     {% if session.user_id %}
                         {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
-                        <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
-                        <a href="{{ url_for('main.docs') }}">DOCS</a>
-                        <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
+                        <a href="javascript:void(0)" onclick="showTab('apps')" id="navApps" class="nav-active">{{ get_text('applications') }}</a>
+                        <a href="javascript:void(0)" onclick="showTab('billing')" id="navBilling">{{ get_text('billing') }}</a>
+                        {% if username == 'admin' %}
+                        <div class="nav-dropdown">
+                            <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('config')">{{ get_text('configuration') }} ▼</a>
+                            <div class="nav-dropdown-content" id="navConfigDropdown">
+                                <a href="javascript:void(0)" onclick="showTab('users')">{{ get_text('user_management') }}</a>
+                                <a href="javascript:void(0)" onclick="showTab('servers')">{{ get_text('server_management') }}</a>
+                                <a href="javascript:void(0)" onclick="showTab('database')">{{ get_text('database_management') }}</a>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="nav-dropdown">
+                            <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('help')">Help ▼</a>
+                            <div class="nav-dropdown-content" id="navHelpDropdown">
+                                <a href="{{ url_for('static', filename='../docs/ARCHITECTURE_GUIDE.md') }}" target="_blank">Architecture Guide</a>
+                                <a href="{{ url_for('static', filename='../docs/DEPLOYMENT_GUIDE.md') }}" target="_blank">Deployment Guide</a>
+                                <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">User Guide</a>
+                            </div>
+                        </div>
                         <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                     {% else %}
-                        <a href="{{ url_for('main.docs') }}">DOCS</a>
-                        <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
+                        <div class="nav-dropdown">
+                            <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('help')">Help ▼</a>
+                            <div class="nav-dropdown-content" id="navHelpDropdown">
+                                <a href="{{ url_for('static', filename='../docs/ARCHITECTURE_GUIDE.md') }}" target="_blank">Architecture Guide</a>
+                                <a href="{{ url_for('static', filename='../docs/DEPLOYMENT_GUIDE.md') }}" target="_blank">Deployment Guide</a>
+                                <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">User Guide</a>
+                            </div>
+                        </div>
                         <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                     {% endif %}
                 </div>
@@ -37,11 +100,11 @@
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
                     <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
+                    <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">USER GUIDE</a>
                     <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 {% else %}
                     <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('main.userguide') }}" target="_blank">USER GUIDE</a>
+                    <a href="{{ url_for('static', filename='../docs/USER_GUIDE.md') }}" target="_blank">USER GUIDE</a>
                     <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                 {% endif %}
                 <div class="lang-toggle">
@@ -79,6 +142,46 @@
                 document.getElementById('mobileNav').classList.remove('active');
             }
         });
+        
+        // Navbar dropdown functionality
+        function toggleNavDropdown(dropdownType) {
+            const configDropdown = document.getElementById('navConfigDropdown');
+            const helpDropdown = document.getElementById('navHelpDropdown');
+            
+            // Close all dropdowns first
+            if (configDropdown) configDropdown.style.display = 'none';
+            if (helpDropdown) helpDropdown.style.display = 'none';
+            
+            // Open the requested dropdown
+            if (dropdownType === 'config' && configDropdown) {
+                configDropdown.style.display = 'block';
+            } else if (dropdownType === 'help' && helpDropdown) {
+                helpDropdown.style.display = 'block';
+            }
+        }
+        
+        // Close navbar dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.matches('.nav-dropdown-btn')) {
+                const configDropdown = document.getElementById('navConfigDropdown');
+                const helpDropdown = document.getElementById('navHelpDropdown');
+                if (configDropdown) configDropdown.style.display = 'none';
+                if (helpDropdown) helpDropdown.style.display = 'none';
+            }
+        });
+        
+        // Update navbar active states
+        function updateNavActive(activeTab) {
+            document.querySelectorAll('.nav-links a').forEach(link => {
+                link.classList.remove('nav-active');
+            });
+            
+            if (activeTab === 'apps') {
+                document.getElementById('navApps').classList.add('nav-active');
+            } else if (activeTab === 'billing') {
+                document.getElementById('navBilling').classList.add('nav-active');
+            }
+        }
     </script>
 </body>
 </html>

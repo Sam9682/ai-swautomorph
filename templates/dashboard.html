@@ -6,22 +6,7 @@
 <div class="dashboard-layout">
     <div class="main-panel">
         <div class="dashboard-container">
-    {% if username == 'admin' %}
-    <div class="admin-menu">
-        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
-        <button id="usersTab" class="tab-btn" onclick="showTab('users')">{{ get_text('users') }}</button>
-        <button id="serversTab" class="tab-btn" onclick="showTab('servers')">{{ get_text('servers') }}</button>
-        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">{{ get_text('billing') }}</button>
-        <button id="databaseTab" class="tab-btn" onclick="showTab('database')">{{ get_text('database') }}</button>
-        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">{{ get_text('deployment_logs') }}</button>
-    </div>
-    {% else %}
-    <div class="user-menu">
-        <button id="appsTab" class="tab-btn active" onclick="showTab('apps')">{{ get_text('applications') }}</button>
-        <button id="billingTab" class="tab-btn" onclick="showTab('billing')">{{ get_text('billing') }}</button>
-        <button id="logsTab" class="tab-btn" onclick="showTab('logs')">{{ get_text('deployment_logs') }}</button>
-    </div>
-    {% endif %}
+
     
     <div id="appsSection" class="tab-content">
         <div class="section-header">
@@ -493,65 +478,53 @@
 const APP_NOT_DEPLOYED_MESSAGE = 'Application not deployed. Clone first';
 
 function showTab(tab) {
-    document.getElementById('appsSection').style.display = tab === 'apps' ? 'block' : 'none';
-    document.getElementById('billingSection').style.display = tab === 'billing' ? 'block' : 'none';
+    // Hide all sections
+    document.getElementById('appsSection').style.display = 'none';
+    document.getElementById('billingSection').style.display = 'none';
     
     const usersSection = document.getElementById('usersSection');
-    if (usersSection) {
-        usersSection.style.display = tab === 'users' ? 'block' : 'none';
-    }
+    if (usersSection) usersSection.style.display = 'none';
     
     const serversSection = document.getElementById('serversSection');
-    if (serversSection) {
-        serversSection.style.display = tab === 'servers' ? 'block' : 'none';
-    }
+    if (serversSection) serversSection.style.display = 'none';
     
     const databaseSection = document.getElementById('databaseSection');
-    if (databaseSection) {
-        databaseSection.style.display = tab === 'database' ? 'block' : 'none';
-    }
+    if (databaseSection) databaseSection.style.display = 'none';
     
-    const logsSection = document.getElementById('logsSection');
-    if (logsSection) {
-        logsSection.style.display = tab === 'logs' ? 'block' : 'none';
-    }
-    
-
-    
-    document.getElementById('appsTab').classList.toggle('active', tab === 'apps');
-    document.getElementById('billingTab').classList.toggle('active', tab === 'billing');
-    
-    const usersTab = document.getElementById('usersTab');
-    if (usersTab) {
-        usersTab.classList.toggle('active', tab === 'users');
-    }
-    
-    const serversTab = document.getElementById('serversTab');
-    if (serversTab) {
-        serversTab.classList.toggle('active', tab === 'servers');
-    }
-    
-    const databaseTab = document.getElementById('databaseTab');
-    if (databaseTab) {
-        databaseTab.classList.toggle('active', tab === 'database');
-    }
-    
-    const logsTab = document.getElementById('logsTab');
-    if (logsTab) {
-        logsTab.classList.toggle('active', tab === 'logs');
-    }
-    
-    if (tab === 'users') {
-        loadUsers();
-    } else if (tab === 'servers') {
-        loadServers();
+    // Show selected section
+    if (tab === 'apps') {
+        document.getElementById('appsSection').style.display = 'block';
     } else if (tab === 'billing') {
+        document.getElementById('billingSection').style.display = 'block';
         loadBillingData();
+    } else if (tab === 'users') {
+        if (usersSection) {
+            usersSection.style.display = 'block';
+            loadUsers();
+        }
+    } else if (tab === 'servers') {
+        if (serversSection) {
+            serversSection.style.display = 'block';
+            loadServers();
+        }
     } else if (tab === 'database') {
-        // Reset table selection when switching to database tab
-        document.getElementById('tableSelect').value = '';
-        document.getElementById('tableDataContainer').innerHTML = '<p>Select a table to view data</p>';
+        if (databaseSection) {
+            databaseSection.style.display = 'block';
+            document.getElementById('tableSelect').value = '';
+            document.getElementById('tableDataContainer').innerHTML = '<p>Select a table to view data</p>';
+        }
     }
+    
+    // Update navbar active states
+    if (typeof updateNavActive === 'function') {
+        updateNavActive(tab);
+    }
+    
+    // Close all navbar dropdowns
+    const configDropdown = document.getElementById('navConfigDropdown');
+    const helpDropdown = document.getElementById('navHelpDropdown');
+    if (configDropdown) configDropdown.style.display = 'none';
+    if (helpDropdown) helpDropdown.style.display = 'none';
 }
 
 function loadUsers() {
