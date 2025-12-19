@@ -468,6 +468,19 @@
     </div>
 </div>
 
+<!-- Action Result Modal -->
+<div id="actionModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><span id="actionTitle"></span> - <span id="actionAppName"></span></h3>
+            <span class="close" onclick="closeActionModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <pre id="actionContent" style="font-family: 'Courier New', monospace; white-space: pre-wrap; background: #2c3e50; color: #ecf0f1; padding: 1rem; border-radius: 4px; max-height: 70vh; overflow-y: auto;"></pre>
+        </div>
+    </div>
+</div>
+
 
 
 
@@ -475,6 +488,9 @@
 <script>
 // Constants for easier maintenance
 const APP_NOT_DEPLOYED_MESSAGE = 'Application not deployed. Clone first';
+
+// Make showTab available globally for base template
+window.showDashboardTab = showTab;
 
 function showTab(tab) {
     // Hide all sections
@@ -932,10 +948,10 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
                                     appendLog(`ERROR: ${data.error}`);
                                 } else if (data.done) {
                                     if (!data.success) appendLog('Operation failed');
-                                    // Show results in alert for ps, logs, stop, start, and clone actions
+                                    // Show results in modal for ps, logs, stop, start, and clone actions
                                     if ((action === 'ps' || action === 'logs' || action === 'stop' || action === 'start' || action === 'clone') && window.statusOutput) {
                                         const title = action === 'ps' ? 'Status' : action === 'logs' ? 'Logs' : action === 'stop' ? 'Stop Result' : action === 'start' ? 'Start Result' : 'Clone Result';
-                                        alert(`${title} for ${appName}:\n\n${window.statusOutput}`);
+                                        showActionModal(title, appName, window.statusOutput);
                                         window.statusOutput = '';
                                     }
                                 }
@@ -1022,6 +1038,17 @@ function showAutomorphModal(appName) {
 
 function closeAutomorphModal() {
     document.getElementById('automorphModal').style.display = 'none';
+}
+
+function showActionModal(title, appName, content) {
+    document.getElementById('actionTitle').textContent = title;
+    document.getElementById('actionAppName').textContent = appName;
+    document.getElementById('actionContent').textContent = content;
+    document.getElementById('actionModal').style.display = 'block';
+}
+
+function closeActionModal() {
+    document.getElementById('actionModal').style.display = 'none';
 }
 
 document.getElementById('automorphForm').addEventListener('submit', function(e) {
@@ -2163,12 +2190,16 @@ deploy_sh_executionCmdInApp = function(appName, gitUrl, action) {
 window.onclick = function(event) {
     const deploymentModal = document.getElementById('deploymentModal');
     const automorphModal = document.getElementById('automorphModal');
+    const actionModal = document.getElementById('actionModal');
     
     if (event.target === deploymentModal) {
         deploymentModal.style.display = 'none';
     }
     if (event.target === automorphModal) {
         automorphModal.style.display = 'none';
+    }
+    if (event.target === actionModal) {
+        actionModal.style.display = 'none';
     }
 }
 </script>

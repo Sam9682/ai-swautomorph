@@ -17,7 +17,7 @@
         background-color: #fff;
         min-width: 200px;
         box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-        z-index: 1000;
+        z-index: 9999;
         border-radius: 4px;
         top: 100%;
         left: 0;
@@ -98,13 +98,21 @@
             <div class="mobile-nav-content">
                 {% if session.user_id %}
                     {% if username %}<span class="nav-user">{{ get_text('welcome') }}, {{ username }}</span>{% endif %}
-                    <a href="{{ url_for('main.dashboard') }}">{{ get_text('dashboard') }}</a>
-                    <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('main.userguide') }}">USER GUIDE</a>
+                    <a href="javascript:void(0)" onclick="showTab('apps')">{{ get_text('applications') }}</a>
+                    <a href="javascript:void(0)" onclick="showTab('billing')">{{ get_text('billing') }}</a>
+                    {% if username == 'admin' %}
+                    <a href="javascript:void(0)" onclick="showTab('users')">{{ get_text('user_management') }}</a>
+                    <a href="javascript:void(0)" onclick="showTab('servers')">{{ get_text('server_management') }}</a>
+                    <a href="javascript:void(0)" onclick="showTab('database')">{{ get_text('database_management') }}</a>
+                    {% endif %}
+                    <a href="{{ url_for('main.view_doc', filename='ARCHITECTURE_GUIDE.md') }}">Architecture Guide</a>
+                    <a href="{{ url_for('main.view_doc', filename='DEPLOYMENT_GUIDE.md') }}">Deployment Guide</a>
+                    <a href="{{ url_for('main.userguide') }}">User Guide</a>
                     <a href="{{ url_for('auth.logout') }}">{{ get_text('logout') }}</a>
                 {% else %}
-                    <a href="{{ url_for('main.docs') }}">DOCS</a>
-                    <a href="{{ url_for('main.userguide') }}">USER GUIDE</a>
+                    <a href="{{ url_for('main.view_doc', filename='ARCHITECTURE_GUIDE.md') }}">Architecture Guide</a>
+                    <a href="{{ url_for('main.view_doc', filename='DEPLOYMENT_GUIDE.md') }}">Deployment Guide</a>
+                    <a href="{{ url_for('main.userguide') }}">User Guide</a>
                     <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                 {% endif %}
                 <div class="lang-toggle">
@@ -190,6 +198,29 @@
                 document.getElementById('navApps').classList.add('nav-active');
             } else if (activeTab === 'billing') {
                 document.getElementById('navBilling').classList.add('nav-active');
+            }
+        }
+        
+        // Show tab function for navigation
+        function showTab(tabName) {
+            // Close mobile menu if open
+            document.getElementById('mobileNav').classList.remove('active');
+            
+            // Close any open dropdowns
+            const configDropdown = document.getElementById('navConfigDropdown');
+            const helpDropdown = document.getElementById('navHelpDropdown');
+            if (configDropdown) configDropdown.style.display = 'none';
+            if (helpDropdown) helpDropdown.style.display = 'none';
+            
+            // Update navbar active state
+            updateNavActive(tabName);
+            
+            // Trigger tab change if on dashboard page
+            if (typeof window.showDashboardTab === 'function') {
+                window.showDashboardTab(tabName);
+            } else {
+                // If not on dashboard, redirect to dashboard with tab
+                window.location.href = '/dashboard#' + tabName;
             }
         }
     </script>
