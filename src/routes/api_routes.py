@@ -1035,12 +1035,55 @@ def api_qchat_operations():
                     with open(context_file, 'r') as f:
                         context_template = f.read()
                     
+                    # Get application ID from database for APPLICATION_IDENTITY_NUMBER
+                    application_id = 0  # Default fallback
+                    if application_name:
+                        app_data = db_manager.execute_query(
+                            'SELECT id FROM applications WHERE name = ?', 
+                            (application_name,), fetch_one=True
+                        )
+                        if app_data:
+                            application_id = app_data[0]
+                            yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
+                    
+                    # Load configuration values from database.py
+                    from ..database import load_deploy_config
+                    NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN = load_deploy_config()
+                    
                     # Replace placeholders
                     context = context_template.replace('{USER_ID}', str(session['user_id']))
                     context = context.replace('{USER_NAME}', user_name)
                     context = context.replace('{USER_EMAIL}', user_email)
                     context = context.replace('{DESCRIPTION}', description)
                     context = context.replace('{TAIL_LINES}', '100')
+                    
+                    # Add configuration variables to context
+                    config_vars = f"""
+**Configuration Variables:**
+- NAME_OF_APPLICATION: {NAME_OF_APPLICATION}
+- APPLICATION_IDENTITY_NUMBER: {application_id}
+- RANGE_START: {RANGE_START}
+- RANGE_RESERVED: {RANGE_RESERVED}
+- RANGE_START_CONTROLPLAN: {RANGE_START_CONTROLPLAN}
+- RANGE_RESERVED_CONTROLPLAN: {RANGE_RESERVED_CONTROLPLAN}
+
+**Port Calculation (for verification):**
+```bash
+USER_ID={session['user_id']}
+RANGE_START={RANGE_START}
+RANGE_RESERVED={RANGE_RESERVED}
+APPLICATION_IDENTITY_NUMBER={application_id}
+PORT_RANGE_BEGIN=$((RANGE_START + USER_ID * RANGE_RESERVED))
+HTTP_PORT=$((PORT_RANGE_BEGIN + APPLICATION_IDENTITY_NUMBER * 2))
+HTTPS_PORT=$((HTTP_PORT + 1))
+echo "PORT_RANGE_BEGIN: $PORT_RANGE_BEGIN"
+echo "HTTP_PORT: $HTTP_PORT"
+echo "HTTPS_PORT: $HTTPS_PORT"
+```
+
+"""
                     
                     # Extract application folder from description if present
                     app_folder = ''
@@ -1057,6 +1100,8 @@ The user has requested an application management action.
 User Request: {message}
 
 {'Application Folder: ' + app_folder if app_folder else ''}
+
+{config_vars}
 
 Follow the instructions below to execute the {detected_action.upper()} action:
 
