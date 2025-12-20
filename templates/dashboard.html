@@ -379,7 +379,7 @@
                             <label>
                                 <input type="checkbox" id="autoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button onclick="sendDeveloperMessage()">{{ get_text('send') }}</button>
+                            <button class="send-btn" onclick="sendDeveloperMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -406,7 +406,7 @@
                             <label>
                                 <input type="checkbox" id="operationsAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button onclick="sendOperationsMessage()">{{ get_text('send') }}</button>
+                            <button class="send-btn" onclick="sendOperationsMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -876,6 +876,9 @@ function unassignApp(userId, appId) {
 
 // Deployment functions
 function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
+    // Set loading state for all buttons
+    setButtonLoadingState(appName, action, true);
+    
     if (action === 'start') {
         const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         if (startBtn) {
@@ -921,6 +924,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
                         setTimeout(() => checkApplicationStatus(appName), 1000);
                         if (action === 'start') startPeriodicStatusCheck(appName);
+                        // Reset button loading state
+                        setButtonLoadingState(appName, action, false);
                         return;
                     }
                     
@@ -948,6 +953,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
                                         showActionModal(title, appName, window.statusOutput);
                                         window.statusOutput = '';
                                     }
+                                    // Reset button loading state
+                                    setButtonLoadingState(appName, action, false);
                                 }
                             } catch (e) {}
                         }
@@ -961,6 +968,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
             appendLog(`ERROR: ${error.message}`);
             appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
             setTimeout(() => checkApplicationStatus(appName), 1000);
+            // Reset button loading state on error
+            setButtonLoadingState(appName, action, false);
             if (action === 'start') {
                 const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
                 if (startBtn) {
@@ -2190,6 +2199,197 @@ function startPeriodicStatusCheck(appName) {
     setTimeout(() => {
         clearInterval(checkInterval);
     }, 300000);
+}
+
+// Button loading state management
+function setButtonLoadingState(appName, action, isLoading) {
+    const appId = appName.replace(/\s+/g, '-').toLowerCase();
+    const buttonMap = {
+        'clone': `cloneBtn-${appId}`,
+        'start': `startBtn-${appId}`,
+        'stop': `stopBtn-${appId}`,
+        'restart': `restartBtn-${appId}`,
+        'ps': `psBtn-${appId}`,
+        'logs': `logsBtn-${appId}`
+    };
+    
+    const buttonId = buttonMap[action];
+    const button = document.getElementById(buttonId);
+    
+    if (!button) return;
+    
+    if (isLoading) {
+        // Store original content
+        button.dataset.originalContent = button.innerHTML;
+        button.disabled = true;
+        button.style.opacity = '0.7';
+        button.style.cursor = 'wait';
+        
+        // Set loading content based on action
+        const loadingMap = {
+            'clone': '⏳ CLONING...',
+            'start': '⏳ STARTING...',
+            'stop': '⏳ STOPPING...',
+            'restart': '⏳ RESTARTING...',
+            'ps': '⏳ CHECKING...',
+            'logs': '⏳ LOADING...'
+        };
+        
+        button.innerHTML = loadingMap[action] || '⏳ PROCESSING...';
+        button.title = 'Please wait, action in progress...';
+        
+        // Show loading message for actions that don't show modal immediately
+        if (action === 'clone' || action === 'start' || action === 'stop' || action === 'restart') {
+            showLoadingMessage(action, appName);
+        } else if (action === 'ps' || action === 'logs') {
+            // For status and logs, show a brief loading indicator without overlay
+            showBriefLoadingIndicator(action, appName);
+        }
+    } else {
+        // Restore original state
+        if (button.dataset.originalContent) {
+            button.innerHTML = button.dataset.originalContent;
+            delete button.dataset.originalContent;
+        }
+        button.disabled = false;
+        button.style.opacity = '1';
+        button.style.cursor = 'pointer';
+        button.title = '';
+        
+        // Hide loading message
+        hideLoadingMessage();
+        hideBriefLoadingIndicator();
+    }
+}
+
+// Brief loading indicator for quick actions
+function showBriefLoadingIndicator(action, appName) {
+    const actionText = {
+        'ps': 'Checking status',
+        'logs': 'Loading logs'
+    }[action] || 'Processing';
+    
+    // Create a small toast-like indicator
+    const indicator = document.createElement('div');
+    indicator.id = 'briefLoadingIndicator';
+    indicator.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(102, 126, 234, 0.9);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        z-index: 9999;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        backdrop-filter: blur(5px);
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    // Add small spinner
+    const spinner = document.createElement('div');
+    spinner.style.cssText = `
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top: 2px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    `;
+    
+    indicator.appendChild(spinner);
+    indicator.appendChild(document.createTextNode(`${actionText}...`));
+    
+    // Add slide-in animation
+    if (!document.getElementById('slideAnimationStyle')) {
+        const style = document.createElement('style');
+        style.id = 'slideAnimationStyle';
+        style.textContent = `
+            @keyframes slideInRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(indicator);
+}
+
+function hideBriefLoadingIndicator() {
+    const indicator = document.getElementById('briefLoadingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
+}
+
+// Loading message functions
+function showLoadingMessage(action, appName) {
+    const actionText = {
+        'clone': 'Cloning',
+        'start': 'Starting',
+        'stop': 'Stopping',
+        'restart': 'Restarting'
+    }[action] || 'Processing';
+    
+    const message = `${actionText} ${appName}... Please wait.`;
+    
+    // Remove existing loading message
+    hideLoadingMessage();
+    
+    // Create loading overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.className = 'loading-overlay';
+    
+    // Create loading message element
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading-message';
+    
+    // Add spinner
+    const spinner = document.createElement('div');
+    spinner.className = 'loading-spinner';
+    
+    // Add message text
+    const messageText = document.createElement('span');
+    messageText.textContent = message;
+    
+    loadingDiv.appendChild(spinner);
+    loadingDiv.appendChild(messageText);
+    overlay.appendChild(loadingDiv);
+    
+    document.body.appendChild(overlay);
+    
+    // Add click to dismiss (optional)
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            // Don't dismiss on overlay click to prevent accidental dismissal
+            // hideLoadingMessage();
+        }
+    });
+}
+
+function hideLoadingMessage() {
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+    }
+    // Also remove old style loading message if exists
+    const loadingMessage = document.getElementById('loadingMessage');
+    if (loadingMessage) {
+        loadingMessage.remove();
+    }
 }
 
 // Override the original deploy function to handle STOP action
