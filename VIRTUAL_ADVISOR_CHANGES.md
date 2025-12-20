@@ -96,7 +96,7 @@ curl -X POST https://localhost:5000/api/qchat_devops \
 Run the application and test:
 ```bash
 cd /home/ubuntu/ai-swautomorph
-python3 app.py
+python3 ControlPlanFlaskApp.py
 ```
 
 Monitor logs:

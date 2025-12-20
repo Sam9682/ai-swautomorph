@@ -20,7 +20,7 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 │   ├── ⚙️ config.py                 # Configuration & multi-language support
 │   ├── 🗄️ database.py               # Thread-safe database manager with WAL mode
 │   ├── 🔐 auth.py                   # Authentication & SSO management
-│   ├── 🌐 app.py                    # Flask application factory
+│   ├── 🌐 ControlPlanFlaskApp.py                    # Flask application factory
 │   ├── 🤖 automorph_application.py  # Q Chat integration for code modification
 │   └── 📁 routes/                   # Route handlers (blueprints)
 │       ├── 🏠 main_routes.py        # Dashboard & documentation viewer
@@ -122,7 +122,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 │   ├── ⚙️ config.py                 # Configuration et support multi-langues
 │   ├── 🗄️ database.py               # Gestionnaire de base de données thread-safe avec mode WAL
 │   ├── 🔐 auth.py                   # Authentification et gestion SSO
-│   ├── 🌐 app.py                    # Factory d'application Flask
+│   ├── 🌐 ControlPlanFlaskApp.py                    # Factory d'application Flask
 │   ├── 🤖 automorph_application.py  # Intégration Q Chat pour modification de code
 │   └── 📁 routes/                   # Gestionnaires de routes (blueprints)
 │       ├── 🏠 main_routes.py        # Tableau de bord et visualiseur de documentation

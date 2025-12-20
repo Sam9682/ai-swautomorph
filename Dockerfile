@@ -35,7 +35,7 @@ USER ubuntu
 EXPOSE "${HTTP_PORT:-6000}:80"
 
 # Set environment variables
-ENV FLASK_APP=app.py
+ENV FLASK_APP=ControlPlanFlaskApp.py
 ENV FLASK_ENV=production
 ENV SECRET_KEY=change-this-in-production
 
@@ -50,4 +50,4 @@ done\n\
 exec "$@"' > /app/start.sh && chmod +x /app/start.sh
 
 # Initialize database and start application
-CMD ["/app/start.sh", "python3", "app.py"]
+CMD ["/app/start.sh", "python3", "ControlPlanFlaskApp.py"]

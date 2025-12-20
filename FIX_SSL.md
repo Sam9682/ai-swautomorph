@@ -20,7 +20,7 @@ chmod 600 key.pem
 3. **Restart application:**
 ```bash
 cd /home/ubuntu/ai-swautomorph
-docker-compose restart || python3 app.py
+docker-compose restart || python3 ControlPlanFlaskApp.py
 ```
 
 ## Identify Your CA

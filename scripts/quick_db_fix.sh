@@ -8,7 +8,7 @@ echo "=== SQLite Database Recovery ==="
 
 # Stop the application first
 echo "Stopping application..."
-pkill -f "python.*app.py" 2>/dev/null || true
+pkill -f "python.*ControlPlanFlaskApp.py" 2>/dev/null || true
 
 # Create backup
 echo "Creating backup..."
@@ -24,7 +24,7 @@ if [ -f "${DB_PATH}.recovered" ]; then
     mv "$DB_PATH" "${DB_PATH}.corrupted"
     mv "${DB_PATH}.recovered" "$DB_PATH"
     echo "Database restored. Starting application..."
-    cd /home/ubuntu/ai-swautomorph && python3 app.py &
+    cd /home/ubuntu/ai-swautomorph && python3 ControlPlanFlaskApp.py &
     exit 0
 fi
 
@@ -36,7 +36,7 @@ if [ -s "${DB_PATH}.sql" ]; then
     mv "$DB_PATH" "${DB_PATH}.corrupted"
     mv "${DB_PATH}.new" "$DB_PATH"
     echo "Database recovered with dump method!"
-    cd /home/ubuntu/ai-swautomorph && python3 app.py &
+    cd /home/ubuntu/ai-swautomorph && python3 ControlPlanFlaskApp.py &
     exit 0
 fi
 
@@ -46,4 +46,4 @@ mv "$DB_PATH" "${DB_PATH}.corrupted"
 cd /home/ubuntu/ai-swautomorph
 python3 ./scripts/cli.py init-db
 echo "Database reinitialized. You'll need to re-register users."
-python3 app.py &
+python3 ControlPlanFlaskApp.py &

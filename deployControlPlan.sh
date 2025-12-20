@@ -165,7 +165,7 @@ check_flask_status() {
     fi
     
     # Check for any other Flask processes
-    OTHER_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    OTHER_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
     if [ -n "$OTHER_PIDS" ]; then
         echo -e "  $WARN Other Flask processes found: $OTHER_PIDS"
         for pid in $OTHER_PIDS; do
@@ -208,9 +208,9 @@ check_docker_status() {
 provide_cleanup_guidance() {
     echo ""
     echo -e "${YELLOW}[CLEANUP GUIDANCE]${NC} If processes couldn't be stopped automatically:"
-    echo "  1. Check running processes: ps aux | grep 'python3 app.py'"
+    echo "  1. Check running processes: ps aux | grep 'python3 ControlPlanFlaskApp.py'"
     echo "  2. Kill specific PID: sudo kill -9 <PID>"
-    echo "  3. Kill all Flask processes: sudo pkill -9 -f 'python3 app.py'"
+    echo "  3. Kill all Flask processes: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
     echo "  4. Check process ownership: ps -o pid,user,cmd -C python3"
     echo ""
 }
@@ -496,22 +496,22 @@ stop_flask_service() {
     fi
     
     # Force kill any remaining Flask processes with better error handling
-    FLASK_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
     if [ -n "$FLASK_PIDS" ]; then
         echo "  🔥 Attempting to stop remaining Flask processes: $FLASK_PIDS"
         # Try regular pkill first
-        if pkill -f "python3 app.py" 2>/dev/null; then
+        if pkill -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
             sleep 2
             # Check if any processes are still running
-            REMAINING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+            REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
             if [ -n "$REMAINING_PIDS" ]; then
                 echo "  🔥 Force killing remaining processes: $REMAINING_PIDS"
                 # Try force kill with better error handling
-                if pkill -9 -f "python3 app.py" 2>/dev/null; then
+                if pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
                     echo "  ✅ All Flask processes terminated"
                 else
                     echo "  ⚠️ Some Flask processes could not be terminated (permission denied)"
-                    echo "  💡 Try running with sudo or kill processes manually: sudo pkill -9 -f 'python3 app.py'"
+                    echo "  💡 Try running with sudo or kill processes manually: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
                     success=false
                 fi
             else
@@ -519,7 +519,7 @@ stop_flask_service() {
             fi
         else
             echo "  ⚠️ Could not terminate Flask processes (permission denied)"
-            echo "  💡 Try running with sudo: sudo pkill -f 'python3 app.py'"
+            echo "  💡 Try running with sudo: sudo pkill -f 'python3 ControlPlanFlaskApp.py'"
             success=false
         fi
     fi
@@ -621,7 +621,7 @@ restart_flask_service() {
     # Start Flask with date-based log file
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     
-    if FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 & then
+    if FLASK_RUN_PORT=5000 nohup python3 ControlPlanFlaskApp.py > "$LOG_FILE" 2>&1 & then
         NEW_PID=$!
         echo $NEW_PID > ./conf/app.pid
         
@@ -913,24 +913,24 @@ start_flask_application() {
     echo "  🚀 Starting Flask application..."
     
     # Stop any existing Flask processes with better error handling
-    EXISTING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+    EXISTING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
     if [ -n "$EXISTING_PIDS" ]; then
         echo "  ⚠️ Found existing Flask processes: $EXISTING_PIDS"
         echo "  🛑 Attempting to stop existing processes..."
         
         # Try graceful shutdown first
-        if pkill -f "python3 app.py" 2>/dev/null; then
+        if pkill -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
             echo "  ✅ Sent termination signal to existing processes"
             sleep 3
             
             # Check if any processes are still running
-            REMAINING_PIDS=$(pgrep -f "python3 app.py" 2>/dev/null || true)
+            REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
             if [ -n "$REMAINING_PIDS" ]; then
                 echo "  ⚠️ Some processes still running: $REMAINING_PIDS"
                 echo "  💀 Attempting force kill..."
                 
                 # Try force kill, but don't fail if it doesn't work
-                if pkill -9 -f "python3 app.py" 2>/dev/null; then
+                if pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
                     echo "  ✅ Force killed remaining processes"
                 else
                     echo "  ⚠️ Could not force kill some processes (permission denied)"
@@ -951,7 +951,7 @@ start_flask_application() {
     echo "  🚀 Starting new Flask instance..."
     
     # Try to start Flask, handle port conflicts gracefully
-    if FLASK_RUN_PORT=5000 nohup python3 app.py > "$LOG_FILE" 2>&1 & then
+    if FLASK_RUN_PORT=5000 nohup python3 ControlPlanFlaskApp.py > "$LOG_FILE" 2>&1 & then
         NEW_PID=$!
         echo $NEW_PID > ./conf/app.pid
         

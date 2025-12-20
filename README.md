@@ -70,7 +70,7 @@ pip install -r requirements.txt
 python3 ./scripts/cli.py init-db
 
 # 3. Start application
-python3 src/app.py
+python3 src/ControlPlanFlaskApp.py
 ```
 
 ## Configuration
@@ -260,7 +260,7 @@ python3 ./scripts/cli.py db-health
 ai-swautomorph/
 ├── src/                    # Main application source
 │   ├── routes/            # Flask route blueprints
-│   ├── app.py            # Main Flask application
+│   ├── ControlPlanFlaskApp.py            # Main Flask application
 │   ├── database.py       # Database management
 │   └── config.py         # Configuration settings
 ├── scripts/               # CLI tools and utilities
