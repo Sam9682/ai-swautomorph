@@ -27,7 +27,8 @@ def dashboard():
     
     # Get applications based on user role
     applications_raw = db_manager.execute_query('''
-        SELECT a.id, a.name, ua.url, a.description, a.git_url 
+        SELECT a.id, a.name, ua.url, a.description, a.git_url, a.git_repo_size, 
+               a.docker_start_duration, a.docker_stop_duration
         FROM applications a
         JOIN user_applications ua ON a.id = ua.application_id
         WHERE ua.user_id = ?
@@ -37,10 +38,10 @@ def dashboard():
     # Use URLs directly from the database table user_applications
     applications = []
     for app in applications_raw:
-        app_id, app_name, db_url, description, git_url = app
+        app_id, app_name, db_url, description, git_url, git_repo_size, docker_start_duration, docker_stop_duration = app
         
         # Use the URL stored in the database instead of calculating it
-        applications.append((app_id, app_name, db_url, description, git_url))
+        applications.append((app_id, app_name, db_url, description, git_url, git_repo_size or 50, docker_start_duration or 30, docker_stop_duration or 10))
     
     # Get SSO token for the user
     sso_token = session.get('sso_token', '')

@@ -21,7 +21,7 @@
         <div class="app-card">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}')" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[5] or 50 }})" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
@@ -44,10 +44,10 @@
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone')" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone', {{ app[5] or 50 }})" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
                     {% if username == 'admin' %}
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start')" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop')" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start', null, {{ app[6] or 30 }})" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop', null, null, {{ app[7] or 10 }})" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
                     {% endif %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
@@ -85,6 +85,11 @@
                 <label for="app_git_url">{{ get_text('github_repo_url') }}:</label>
                 <input type="url" id="app_git_url" name="git_url" placeholder="https://github.com/user/repo.git">
             </div>
+            <div class="form-group">
+                <label for="app_git_size">Repository Size (MB):</label>
+                <input type="number" id="app_git_size" name="git_repo_size" min="1" max="10000" value="50" placeholder="50">
+                <small>Estimated repository size in MB (used for clone time estimation)</small>
+            </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('add_application') }}</button>
             <button type="button" class="btn btn-secondary" onclick="hideAddAppForm()">{{ get_text('cancel') }}</button>
@@ -114,6 +119,11 @@
             <div class="form-group">
                 <label for="editAppGitUrl">{{ get_text('github_repo_url') }}:</label>
                 <input type="url" id="editAppGitUrl">
+            </div>
+            <div class="form-group">
+                <label for="editAppGitSize">Repository Size (MB):</label>
+                <input type="number" id="editAppGitSize" min="1" max="10000" value="50">
+                <small>Estimated repository size in MB (used for clone time estimation)</small>
             </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('update_application') }}</button>
@@ -718,13 +728,14 @@ function hideAddAppForm() {
     document.getElementById('addAppForm').reset();
 }
 
-function editApp(id, name, url, description, gitUrl) {
+function editApp(id, name, url, description, gitUrl, gitSize) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
     document.getElementById('editAppUrl').value = url;
     document.getElementById('editAppDescription').value = description;
     document.getElementById('editAppGitUrl').value = gitUrl || '';
+    document.getElementById('editAppGitSize').value = gitSize || 50;
     document.getElementById('editAppForm').style.display = 'block';
 }
 
@@ -768,7 +779,8 @@ if (addAppForm) {
             name: document.getElementById('app_name').value,
             url: document.getElementById('app_url').value,
             description: document.getElementById('app_description').value,
-            git_url: document.getElementById('app_git_url').value
+            git_url: document.getElementById('app_git_url').value,
+            git_repo_size: parseInt(document.getElementById('app_git_size').value) || 50
         };
         
         fetch('/api/applications', {
@@ -797,7 +809,8 @@ if (updateAppForm) {
             name: document.getElementById('editAppName').value,
             url: document.getElementById('editAppUrl').value,
             description: document.getElementById('editAppDescription').value,
-            git_url: document.getElementById('editAppGitUrl').value
+            git_url: document.getElementById('editAppGitUrl').value,
+            git_repo_size: parseInt(document.getElementById('editAppGitSize').value) || 50
         };
         
         fetch(`/api/applications/${appId}`, {
@@ -875,9 +888,9 @@ function unassignApp(userId, appId) {
 }
 
 // Deployment functions
-function deploy_sh_executionCmdInApp(appName, gitUrl, action) {
+function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDuration, stopDuration) {
     // Set loading state for all buttons
-    setButtonLoadingState(appName, action, true);
+    setButtonLoadingState(appName, action, true, repoSize, startDuration, stopDuration);
     
     if (action === 'start') {
         const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
@@ -2202,7 +2215,7 @@ function startPeriodicStatusCheck(appName) {
 }
 
 // Button loading state management
-function setButtonLoadingState(appName, action, isLoading) {
+function setButtonLoadingState(appName, action, isLoading, repoSize, startDuration, stopDuration) {
     const appId = appName.replace(/\s+/g, '-').toLowerCase();
     const buttonMap = {
         'clone': `cloneBtn-${appId}`,
@@ -2240,7 +2253,7 @@ function setButtonLoadingState(appName, action, isLoading) {
         
         // Show loading message for actions that don't show modal immediately
         if (action === 'clone' || action === 'start' || action === 'stop' || action === 'restart') {
-            showLoadingMessage(action, appName);
+            showLoadingMessage(action, appName, repoSize, startDuration, stopDuration);
         } else if (action === 'ps' || action === 'logs') {
             // For status and logs, show a brief loading indicator without overlay
             showBriefLoadingIndicator(action, appName);
@@ -2335,15 +2348,13 @@ function hideBriefLoadingIndicator() {
 }
 
 // Loading message functions
-function showLoadingMessage(action, appName) {
+function showLoadingMessage(action, appName, repoSize, startDuration, stopDuration) {
     const actionText = {
         'clone': 'Cloning',
         'start': 'Starting',
         'stop': 'Stopping',
         'restart': 'Restarting'
     }[action] || 'Processing';
-    
-    const message = `${actionText} ${appName}... Please wait.`;
     
     // Remove existing loading message
     hideLoadingMessage();
@@ -2357,30 +2368,389 @@ function showLoadingMessage(action, appName) {
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'loading-message';
     
-    // Add spinner
-    const spinner = document.createElement('div');
-    spinner.className = 'loading-spinner';
+    if (action === 'clone') {
+        // Enhanced clone loading with progress and time estimation
+        loadingDiv.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-content">
+                <h3>🔄 Cloning ${appName}</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="cloneProgress"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing clone...</div>
+                </div>
+                <div class="time-estimation" id="timeEstimation">
+                    <div class="estimate-item">
+                        <span class="estimate-label">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime">Calculating...</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">📦 Repository size:</span>
+                        <span class="estimate-value" id="repoSize">${formatRepoSize(repoSize || 50)}</span>
+                    </div>
+                </div>
+                <div class="loading-tips">
+                    <p>💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
+                    <p>📋 Typical times: Small repos (1-30s), Medium repos (30s-2min), Large repos (2-10min)</p>
+                </div>
+            </div>
+        `;
+        
+        // Start progress simulation and timer with actual repo size
+        startCloneProgressSimulation(repoSize || 50);
+    } else if (action === 'start') {
+        // Enhanced start loading with progress and time estimation
+        loadingDiv.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-content">
+                <h3>▶️ Starting ${appName}</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="startProgress"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing containers...</div>
+                </div>
+                <div class="time-estimation" id="timeEstimation">
+                    <div class="estimate-item">
+                        <span class="estimate-label">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime">${startDuration || 30}s</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">🐳 Docker operation:</span>
+                        <span class="estimate-value">Starting containers</span>
+                    </div>
+                </div>
+                <div class="loading-tips">
+                    <p>💡 <strong>Tip:</strong> Start time depends on container complexity and system resources</p>
+                    <p>📋 Docker will pull images, create networks, and start all services</p>
+                </div>
+            </div>
+        `;
+        
+        // Start progress simulation for docker start
+        startDockerProgressSimulation('start', startDuration || 30);
+    } else if (action === 'stop') {
+        // Enhanced stop loading with progress and time estimation
+        loadingDiv.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div class="loading-content">
+                <h3>⏹️ Stopping ${appName}</h3>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="stopProgress"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Stopping containers...</div>
+                </div>
+                <div class="time-estimation" id="timeEstimation">
+                    <div class="estimate-item">
+                        <span class="estimate-label">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime">${stopDuration || 10}s</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    </div>
+                    <div class="estimate-item">
+                        <span class="estimate-label">🐳 Docker operation:</span>
+                        <span class="estimate-value">Stopping containers</span>
+                    </div>
+                </div>
+                <div class="loading-tips">
+                    <p>💡 <strong>Tip:</strong> Stop time depends on graceful shutdown procedures</p>
+                    <p>📋 Docker will gracefully stop all running containers and networks</p>
+                </div>
+            </div>
+        `;
+        
+        // Start progress simulation for docker stop
+        startDockerProgressSimulation('stop', stopDuration || 10);
+    } else {
+        // Standard loading for other actions
+        const message = `${actionText} ${appName}... Please wait.`;
+        
+        // Add spinner
+        const spinner = document.createElement('div');
+        spinner.className = 'loading-spinner';
+        
+        // Add message text
+        const messageText = document.createElement('span');
+        messageText.textContent = message;
+        
+        loadingDiv.appendChild(spinner);
+        loadingDiv.appendChild(messageText);
+    }
     
-    // Add message text
-    const messageText = document.createElement('span');
-    messageText.textContent = message;
-    
-    loadingDiv.appendChild(spinner);
-    loadingDiv.appendChild(messageText);
     overlay.appendChild(loadingDiv);
-    
     document.body.appendChild(overlay);
     
-    // Add click to dismiss (optional)
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            // Don't dismiss on overlay click to prevent accidental dismissal
-            // hideLoadingMessage();
+    // Add enhanced styles for clone loading
+    if ((action === 'clone' || action === 'start' || action === 'stop') && !document.getElementById('cloneLoadingStyles')) {
+        const style = document.createElement('style');
+        style.id = 'cloneLoadingStyles';
+        style.textContent = `
+            .loading-message {
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+            }
+            .loading-content h3 {
+                margin: 0 0 1.5rem 0;
+                color: #2c3e50;
+                font-size: 1.4rem;
+            }
+            .progress-container {
+                margin: 1.5rem 0;
+            }
+            .progress-bar {
+                width: 100%;
+                height: 8px;
+                background: #ecf0f1;
+                border-radius: 4px;
+                overflow: hidden;
+                margin-bottom: 0.5rem;
+            }
+            .progress-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #3498db, #2ecc71);
+                width: 0%;
+                transition: width 0.3s ease;
+                border-radius: 4px;
+            }
+            .progress-text {
+                font-size: 0.9rem;
+                color: #7f8c8d;
+                margin-bottom: 1rem;
+            }
+            .time-estimation {
+                background: #f8f9fa;
+                padding: 1rem;
+                border-radius: 8px;
+                margin: 1rem 0;
+                text-align: left;
+            }
+            .estimate-item {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 0.5rem;
+                font-size: 0.9rem;
+            }
+            .estimate-item:last-child {
+                margin-bottom: 0;
+            }
+            .estimate-label {
+                color: #7f8c8d;
+                font-weight: 500;
+            }
+            .estimate-value {
+                color: #2c3e50;
+                font-weight: 600;
+            }
+            .loading-tips {
+                background: #e8f4fd;
+                padding: 1rem;
+                border-radius: 8px;
+                margin-top: 1rem;
+                text-align: left;
+            }
+            .loading-tips p {
+                margin: 0.5rem 0;
+                font-size: 0.85rem;
+                color: #34495e;
+                line-height: 1.4;
+            }
+            .loading-tips p:first-child {
+                margin-top: 0;
+            }
+            .loading-tips p:last-child {
+                margin-bottom: 0;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function startCloneProgressSimulation(repoSizeMB) {
+    let progress = 0;
+    let startTime = Date.now();
+    
+    // Calculate estimated duration based on actual repo size
+    let estimatedDuration;
+    if (repoSizeMB < 10) {
+        estimatedDuration = 15 + (repoSizeMB * 1.5); // 15-30 seconds
+    } else if (repoSizeMB < 100) {
+        estimatedDuration = 30 + (repoSizeMB * 0.8); // 30-110 seconds
+    } else if (repoSizeMB < 1000) {
+        estimatedDuration = 120 + (repoSizeMB * 0.3); // 2-7 minutes
+    } else {
+        estimatedDuration = 300 + (repoSizeMB * 0.1); // 5+ minutes
+    }
+    
+    // Set initial estimated time
+    document.getElementById('estimatedTime').textContent = formatDuration(Math.round(estimatedDuration));
+    
+    const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('elapsedTime').textContent = elapsed + 's';
+        
+        // Simulate realistic progress curve (slower at start, faster in middle, slower at end)
+        const timeRatio = elapsed / estimatedDuration;
+        if (timeRatio < 0.1) {
+            progress = timeRatio * 50; // 0-5% in first 10% of time
+        } else if (timeRatio < 0.8) {
+            progress = 5 + (timeRatio - 0.1) * 128.57; // 5-95% in next 70% of time
+        } else {
+            progress = 95 + (timeRatio - 0.8) * 25; // 95-100% in last 20% of time
         }
-    });
+        
+        progress = Math.min(progress, 99); // Never reach 100% until actually done
+        
+        const progressBar = document.getElementById('cloneProgress');
+        const progressText = document.getElementById('progressText');
+        
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+        }
+        
+        if (progressText) {
+            if (progress < 10) {
+                progressText.textContent = 'Connecting to repository...';
+            } else if (progress < 30) {
+                progressText.textContent = 'Downloading repository metadata...';
+            } else if (progress < 70) {
+                progressText.textContent = 'Cloning files and history...';
+            } else if (progress < 90) {
+                progressText.textContent = 'Processing repository structure...';
+            } else {
+                progressText.textContent = 'Finalizing clone operation...';
+            }
+        }
+        
+        // Update estimated time remaining
+        const remaining = Math.max(0, estimatedDuration - elapsed);
+        if (remaining > 0) {
+            document.getElementById('estimatedTime').textContent = formatDuration(remaining) + ' remaining';
+        }
+        
+    }, 1000);
+    
+    // Store interval ID to clear it later
+    window.cloneProgressInterval = progressInterval;
+}
+
+function formatRepoSize(sizeInMB) {
+    if (sizeInMB < 10) {
+        return `Small (${sizeInMB}MB)`;
+    } else if (sizeInMB < 100) {
+        return `Medium (${sizeInMB}MB)`;
+    } else if (sizeInMB < 1000) {
+        return `Large (${sizeInMB}MB)`;
+    } else {
+        return `Very Large (${(sizeInMB/1000).toFixed(1)}GB)`;
+    }
+}
+
+function formatDuration(seconds) {
+    if (seconds < 60) {
+        return seconds + 's';
+    } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+}
+
+function startDockerProgressSimulation(action, estimatedDuration) {
+    let progress = 0;
+    let startTime = Date.now();
+    
+    // Set initial estimated time
+    document.getElementById('estimatedTime').textContent = formatDuration(estimatedDuration);
+    
+    const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        document.getElementById('elapsedTime').textContent = elapsed + 's';
+        
+        // Simulate realistic progress curve
+        const timeRatio = elapsed / estimatedDuration;
+        if (timeRatio < 0.2) {
+            progress = timeRatio * 150; // 0-30% in first 20% of time
+        } else if (timeRatio < 0.8) {
+            progress = 30 + (timeRatio - 0.2) * 108.33; // 30-95% in next 60% of time
+        } else {
+            progress = 95 + (timeRatio - 0.8) * 25; // 95-100% in last 20% of time
+        }
+        
+        progress = Math.min(progress, 99); // Never reach 100% until actually done
+        
+        const progressBar = document.getElementById(action === 'start' ? 'startProgress' : 'stopProgress');
+        const progressText = document.getElementById('progressText');
+        
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+        }
+        
+        if (progressText) {
+            if (action === 'start') {
+                if (progress < 20) {
+                    progressText.textContent = 'Preparing Docker environment...';
+                } else if (progress < 50) {
+                    progressText.textContent = 'Starting containers...';
+                } else if (progress < 80) {
+                    progressText.textContent = 'Initializing services...';
+                } else {
+                    progressText.textContent = 'Finalizing startup...';
+                }
+            } else {
+                if (progress < 30) {
+                    progressText.textContent = 'Sending stop signals...';
+                } else if (progress < 70) {
+                    progressText.textContent = 'Gracefully stopping containers...';
+                } else {
+                    progressText.textContent = 'Cleaning up resources...';
+                }
+            }
+        }
+        
+        // Update estimated time remaining
+        const remaining = Math.max(0, estimatedDuration - elapsed);
+        if (remaining > 0) {
+            document.getElementById('estimatedTime').textContent = formatDuration(remaining) + ' remaining';
+        }
+        
+    }, 1000);
+    
+    // Store interval ID to clear it later
+    window.dockerProgressInterval = progressInterval;
 }
 
 function hideLoadingMessage() {
+    // Clear all progress intervals
+    if (window.cloneProgressInterval) {
+        clearInterval(window.cloneProgressInterval);
+        window.cloneProgressInterval = null;
+    }
+    if (window.dockerProgressInterval) {
+        clearInterval(window.dockerProgressInterval);
+        window.dockerProgressInterval = null;
+    }
+    
     const loadingOverlay = document.getElementById('loadingOverlay');
     if (loadingOverlay) {
         loadingOverlay.remove();

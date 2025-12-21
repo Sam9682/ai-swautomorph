@@ -133,6 +133,7 @@ show_environment() {
     echo "  USER_NAME=${USER_NAME}"
     echo "  USER_EMAIL=${USER_EMAIL}"
     echo "  HTTP_PORT=${HTTP_PORT}"
+    echo "  HTTP_PORT2=${HTTP_PORT2}"
     echo "  HTTPS_PORT=${HTTPS_PORT}"
     echo "  HTTPS_PORT2=${HTTPS_PORT2}"
     echo ""

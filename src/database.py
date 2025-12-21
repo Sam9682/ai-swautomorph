@@ -181,6 +181,14 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             git_url TEXT,
+            git_remote_url TEXT,
+            git_local_url TEXT,
+            git_repo_size INTEGER DEFAULT 50,
+            docker_build_duration INTEGER,
+            docker_start_duration INTEGER,
+            docker_stop_duration INTEGER,
+            docker_ps_duration INTEGER,
+            docker_compose_ports TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -206,6 +214,8 @@ def init_db():
             url TEXT NOT NULL,
             http_port INTEGER,
             https_port INTEGER,
+            http_port2 INTEGER,
+            https_port2 INTEGER,
             others_port INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
@@ -213,22 +223,6 @@ def init_db():
             UNIQUE(user_id, application_id)
         )
     ''')
-    
-    # Add new columns to existing user_applications table if they don't exist
-    try:
-        cursor.execute('ALTER TABLE user_applications ADD COLUMN http_port INTEGER')
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute('ALTER TABLE user_applications ADD COLUMN https_port INTEGER')
-    except sqlite3.OperationalError:
-        pass  # Column already exists
-    
-    try:
-        cursor.execute('ALTER TABLE user_applications ADD COLUMN others_port INTEGER')
-    except sqlite3.OperationalError:
-        pass  # Column already exists
     
     # Deployments table
     cursor.execute('''
@@ -308,14 +302,14 @@ def init_db():
         # Port calculation constants
         
         default_apps = [
-            ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git'),
-            ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git'),
-            ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git'),
-            ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git'),
-            ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git'),
-            ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git')
+            ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 154, 65, 65, 10, 1),
+            ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
+            ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 51, 51, 1, 1),
+            ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 63, 63, 10, 1),
+            ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 73, 73, 1, 1),
+            ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
         ]
-        cursor.executemany('INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)', default_apps)
+        cursor.executemany('INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration),  VALUES (?, ?, ?, ?, ?, ?, ?, ?)', default_apps)
         
         # Insert default costs for applications
         cursor.execute('SELECT id FROM applications')

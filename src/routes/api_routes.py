@@ -103,10 +103,10 @@ def database_health():
 def api_applications():
     if request.method == 'GET':
         apps_data = db_manager.execute_query(
-            'SELECT id, name, description, git_url FROM applications ORDER BY name',
+            'SELECT id, name, description, git_url, git_repo_size FROM applications ORDER BY name',
             fetch_all=True
         )
-        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3]} 
+        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3], 'git_repo_size': row[4] or 50} 
                 for row in apps_data]
         return jsonify(apps)
     
@@ -131,9 +131,10 @@ def api_applications():
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
+        git_repo_size = data.get('git_repo_size', 50)
         app_id = db_manager.execute_query(
-            'INSERT INTO applications (name, description, git_url) VALUES (?, ?, ?)',
-            (name, description, git_url)
+            'INSERT INTO applications (name, description, git_url, git_repo_size) VALUES (?, ?, ?, ?)',
+            (name, description, git_url, git_repo_size)
         )
         
         # Assign new application to all existing users with URLs
@@ -165,10 +166,11 @@ def api_application_actions(app_id):
             return jsonify({'error': 'Name required'}), 400
         
         git_url = data.get('git_url', '')
+        git_repo_size = data.get('git_repo_size', 50)
         cursor.execute('''
-            UPDATE applications SET name = ?, description = ?, git_url = ?
+            UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?
             WHERE id = ?
-        ''', (name, description, git_url, app_id))
+        ''', (name, description, git_url, git_repo_size, app_id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Application updated successfully'})
