@@ -21,7 +21,7 @@
         <div class="app-card">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[5] or 50 }})" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[5] or 50 }}, {{ app[6] or 'null' }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }})" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
@@ -124,6 +124,26 @@
                 <label for="editAppGitSize">Repository Size (MB):</label>
                 <input type="number" id="editAppGitSize" min="1" max="10000" value="50">
                 <small>Estimated repository size in MB (used for clone time estimation)</small>
+            </div>
+            <div class="form-group">
+                <label for="editAppDockerBuildDuration">Docker Build Duration (seconds):</label>
+                <input type="number" id="editAppDockerBuildDuration" min="1" max="3600" placeholder="e.g., 60">
+                <small>Estimated time for docker build operation</small>
+            </div>
+            <div class="form-group">
+                <label for="editAppDockerStartDuration">Docker Start Duration (seconds):</label>
+                <input type="number" id="editAppDockerStartDuration" min="1" max="3600" placeholder="e.g., 30">
+                <small>Estimated time for docker start operation</small>
+            </div>
+            <div class="form-group">
+                <label for="editAppDockerStopDuration">Docker Stop Duration (seconds):</label>
+                <input type="number" id="editAppDockerStopDuration" min="1" max="3600" placeholder="e.g., 10">
+                <small>Estimated time for docker stop operation</small>
+            </div>
+            <div class="form-group">
+                <label for="editAppDockerPsDuration">Docker PS Duration (seconds):</label>
+                <input type="number" id="editAppDockerPsDuration" min="1" max="3600" placeholder="e.g., 1">
+                <small>Estimated time for docker ps operation</small>
             </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('update_application') }}</button>
@@ -728,7 +748,7 @@ function hideAddAppForm() {
     document.getElementById('addAppForm').reset();
 }
 
-function editApp(id, name, url, description, gitUrl, gitSize) {
+function editApp(id, name, url, description, gitUrl, gitSize, buildDuration, startDuration, stopDuration, psDuration) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
@@ -736,6 +756,10 @@ function editApp(id, name, url, description, gitUrl, gitSize) {
     document.getElementById('editAppDescription').value = description;
     document.getElementById('editAppGitUrl').value = gitUrl || '';
     document.getElementById('editAppGitSize').value = gitSize || 50;
+    document.getElementById('editAppDockerBuildDuration').value = buildDuration || '';
+    document.getElementById('editAppDockerStartDuration').value = startDuration || '';
+    document.getElementById('editAppDockerStopDuration').value = stopDuration || '';
+    document.getElementById('editAppDockerPsDuration').value = psDuration || '';
     document.getElementById('editAppForm').style.display = 'block';
 }
 
@@ -810,7 +834,11 @@ if (updateAppForm) {
             url: document.getElementById('editAppUrl').value,
             description: document.getElementById('editAppDescription').value,
             git_url: document.getElementById('editAppGitUrl').value,
-            git_repo_size: parseInt(document.getElementById('editAppGitSize').value) || 50
+            git_repo_size: parseInt(document.getElementById('editAppGitSize').value) || 50,
+            docker_build_duration: parseInt(document.getElementById('editAppDockerBuildDuration').value) || null,
+            docker_start_duration: parseInt(document.getElementById('editAppDockerStartDuration').value) || null,
+            docker_stop_duration: parseInt(document.getElementById('editAppDockerStopDuration').value) || null,
+            docker_ps_duration: parseInt(document.getElementById('editAppDockerPsDuration').value) || null
         };
         
         fetch(`/api/applications/${appId}`, {
@@ -922,6 +950,9 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
         
         console.log('Sending clone request with data:', data);
         
+        // Don't switch to logs tab for clone operations - keep applications panel visible
+        appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
+        
         fetch('/api/deployments', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -941,7 +972,20 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                     if (done) {
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
                         setTimeout(() => checkApplicationStatus(appName), 1000);
-                        setButtonLoadingState(appName, action, false);
+                        // Don't call setButtonLoadingState for clone to keep loading box open
+                        if (action !== 'clone') {
+                            setButtonLoadingState(appName, action, false);
+                        } else {
+                            // Reset clone button state manually
+                            const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                            if (cloneBtn && cloneBtn.dataset.originalContent) {
+                                cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
+                                cloneBtn.disabled = false;
+                                cloneBtn.style.opacity = '1';
+                                cloneBtn.style.cursor = 'pointer';
+                                delete cloneBtn.dataset.originalContent;
+                            }
+                        }
                         return;
                     }
                     
@@ -961,10 +1005,18 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                 } else if (data.done) {
                                     if (!data.success) appendLog('Operation failed');
                                     if (window.statusOutput) {
-                                        showActionModal('Clone Result', appName, window.statusOutput);
+                                        showCloneResultInWaitingBox(window.statusOutput);
                                         window.statusOutput = '';
                                     }
-                                    setButtonLoadingState(appName, action, false);
+                                    // Reset clone button state manually without closing the loading box
+                                    const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                                    if (cloneBtn && cloneBtn.dataset.originalContent) {
+                                        cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
+                                        cloneBtn.disabled = false;
+                                        cloneBtn.style.opacity = '1';
+                                        cloneBtn.style.cursor = 'pointer';
+                                        delete cloneBtn.dataset.originalContent;
+                                    }
                                 }
                             } catch (e) {}
                         }
@@ -979,7 +1031,15 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
             appendLog(`ERROR: ${error.message}`);
             appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
             setTimeout(() => checkApplicationStatus(appName), 1000);
-            setButtonLoadingState(appName, action, false);
+            // Reset clone button state manually on error
+            const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+            if (cloneBtn && cloneBtn.dataset.originalContent) {
+                cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
+                cloneBtn.disabled = false;
+                cloneBtn.style.opacity = '1';
+                cloneBtn.style.cursor = 'pointer';
+                delete cloneBtn.dataset.originalContent;
+            }
         });
         return;
     }
@@ -992,8 +1052,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
         }
     }
     
-    // Only show logs tab for actions that need it, not for status checks or logs viewing
-    if (action !== 'ps' && action !== 'logs') {
+    // Only show logs tab for actions that need it, not for status checks, logs viewing, or clone operations
+    if (action !== 'ps' && action !== 'logs' && action !== 'clone') {
         showLogs();
     }
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -2376,7 +2436,9 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
         button.title = '';
         
         // Hide loading message
-        hideLoadingMessage();
+        if (action !== 'clone') {
+            hideLoadingMessage();
+        }
         hideBriefLoadingIndicator();
     }
 }
@@ -2453,6 +2515,31 @@ function hideBriefLoadingIndicator() {
     }
 }
 
+// Function to show clone results in waiting box
+function showCloneResultInWaitingBox(results) {
+    // Stop the progress timer
+    if (window.cloneProgressInterval) {
+        clearInterval(window.cloneProgressInterval);
+        window.cloneProgressInterval = null;
+    }
+    
+    // Hide the spinning progress icon
+    const spinner = document.querySelector('.loading-spinner');
+    if (spinner) {
+        spinner.style.display = 'none';
+    }
+    
+    const tipsDiv = document.querySelector('.loading-tips');
+    if (tipsDiv) {
+        tipsDiv.innerHTML = `
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Clone Results</h4>
+                <pre style="background: #f8f9fa; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #495057; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin: 0; border: 1px solid #dee2e6;">${results}</pre>
+            </div>
+        `;
+    }
+}
+
 // Loading message functions
 function showLoadingMessage(action, appName, repoSize, startDuration, stopDuration) {
     const actionText = {
@@ -2491,7 +2578,7 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
         padding: 2rem !important;
         border-radius: 12px !important;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-        max-width: 500px !important;
+        max-width: 700px !important;
         width: 90% !important;
         text-align: center !important;
         position: relative !important;
@@ -2528,6 +2615,9 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                     <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
                     <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Typical times: Small repos (1-30s), Medium repos (30s-2min), Large repos (2-10min)</p>
                 </div>
+                <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
+                </div>
             </div>
         `;
         
@@ -2555,13 +2645,16 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                         <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Docker operation:</span>
-                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">Starting containers</span>
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Operation:</span>
+                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">START application</span>
                     </div>
                 </div>
                 <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
                     <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Start time depends on container complexity and system resources</p>
                     <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Docker will pull images, create networks, and start all services</p>
+                </div>
+                <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
                 </div>
             </div>
         `;
@@ -2597,6 +2690,9 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                 <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
                     <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Stop time depends on graceful shutdown procedures</p>
                     <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Docker will gracefully stop all running containers and networks</p>
+                </div>
+                <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
                 </div>
             </div>
         `;
@@ -2641,7 +2737,7 @@ function startCloneProgressSimulation(repoSizeMB) {
     // Set initial estimated time
     const estimatedTimeEl = document.getElementById('estimatedTime');
     if (estimatedTimeEl) {
-        estimatedTimeEl.textContent = formatDuration(Math.round(estimatedDuration));
+        estimatedTimeEl.textContent = formatDuration(Math.trunc(estimatedDuration));
     }
     
     const progressInterval = setInterval(() => {
@@ -2783,7 +2879,7 @@ function startDockerProgressSimulation(action, estimatedDuration) {
         // Update estimated time remaining
         const remaining = Math.max(0, estimatedDuration - elapsed);
         if (remaining > 0 && estimatedTimeEl) {
-            estimatedTimeEl.textContent = formatDuration(remaining) + ' remaining';
+            estimatedTimeEl.textContent = formatDuration(Math.trunc(remaining)) + ' remaining';
         }
         
     }, 1000);

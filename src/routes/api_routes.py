@@ -167,10 +167,16 @@ def api_application_actions(app_id):
         
         git_url = data.get('git_url', '')
         git_repo_size = data.get('git_repo_size', 50)
+        docker_build_duration = data.get('docker_build_duration')
+        docker_start_duration = data.get('docker_start_duration')
+        docker_stop_duration = data.get('docker_stop_duration')
+        docker_ps_duration = data.get('docker_ps_duration')
+        
         cursor.execute('''
-            UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?
+            UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?,
+                   docker_build_duration = ?, docker_start_duration = ?, docker_stop_duration = ?, docker_ps_duration = ?
             WHERE id = ?
-        ''', (name, description, git_url, git_repo_size, app_id))
+        ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
         conn.commit()
         conn.close()
         return jsonify({'message': 'Application updated successfully'})
