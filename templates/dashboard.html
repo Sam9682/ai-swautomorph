@@ -2626,10 +2626,6 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                         <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
                         <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">${startDuration || 30}s</span>
                     </div>
-                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">⏱️ Elapsed:</span>
-                        <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
-                    </div>
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
                         <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Operation:</span>
                         <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">START application</span>
@@ -2663,10 +2659,6 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
                         <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
                         <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">${stopDuration || 10}s</span>
-                    </div>
-                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">⏱️ Elapsed:</span>
-                        <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
                         <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Operation:</span>
@@ -2812,10 +2804,6 @@ function startDockerProgressSimulation(action, estimatedDuration) {
     
     const progressInterval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const elapsedTimeEl = document.getElementById('elapsedTime');
-        if (elapsedTimeEl) {
-            elapsedTimeEl.textContent = elapsed + 's';
-        }
         
         // Simulate realistic progress curve
         const timeRatio = elapsed / estimatedDuration;

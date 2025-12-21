@@ -159,7 +159,7 @@ TRANSLATIONS = {
         'select_table': 'Select Table',
         'select_table_option': '-- Select Table --',
         'auth_tokens': 'Auth Tokens',
-        'user_applications_ports': 'User Applications (with Ports)',
+        'user_applications_ports': 'User Applications',
         'deployments': 'Deployments',
         'application_costs': 'Application Costs',
         'billing_activities': 'Billing Activities',
