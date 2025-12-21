@@ -2773,7 +2773,7 @@ function startCloneProgressSimulation(repoSizeMB) {
         // Update estimated time remaining
         const remaining = Math.max(0, estimatedDuration - elapsed);
         if (remaining > 0 && estimatedTimeEl) {
-            estimatedTimeEl.textContent = formatDuration(remaining) + ' remaining';
+            estimatedTimeEl.textContent = formatDuration(Math.trunc(remaining)) + ' remaining';
         }
         
     }, 1000);
@@ -2815,7 +2815,7 @@ function startDockerProgressSimulation(action, estimatedDuration) {
     // Set initial estimated time
     const estimatedTimeEl = document.getElementById('estimatedTime');
     if (estimatedTimeEl) {
-        estimatedTimeEl.textContent = formatDuration(estimatedDuration);
+        estimatedTimeEl.textContent = formatDuration(Math.trunc(estimatedDuration));
     }
     
     const progressInterval = setInterval(() => {
