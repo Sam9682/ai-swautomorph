@@ -1,0 +1,24 @@
+--- a/src/routes/api_routes.py
++++ b/src/routes/api_routes.py
+@@ -517,6 +517,21 @@ def api_deployments():
+                 
+                 if status == 'failed':
+                     return jsonify({'error': error_msg, 'logs': command_output}), 400
++                
++                # Check if streaming is requested for clone
++                stream_output = data.get('stream', False)
++                if stream_output:
++                    # Return streaming response for clone
++                    def generate_clone_response():
++                        import json
++                        yield f"data: {json.dumps({'chunk': f'Clone completed successfully for {app_name}'})}\n\n"
++                        yield f"data: {json.dumps({'chunk': f'Repository cloned to: {deployment_path}'})}\n\n"
++                        yield f"data: {json.dumps({'chunk': command_output})}\n\n"
++                        yield f"data: {json.dumps({'done': True, 'success': True})}\n\n"
++                    
++                    return Response(stream_with_context(generate_clone_response()), mimetype='text/event-stream',
++                                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
++                
+                 
+             elif action in ['start', 'stop', 'restart', 'ps', 'logs']:
+                 # Check if deployment exists

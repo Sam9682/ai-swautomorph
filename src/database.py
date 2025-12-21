@@ -309,7 +309,7 @@ def init_db():
             ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 73, 73, 1, 1),
             ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
         ]
-        cursor.executemany('INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration),  VALUES (?, ?, ?, ?, ?, ?, ?, ?)', default_apps)
+        cursor.executemany('INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', default_apps)
         
         # Insert default costs for applications
         cursor.execute('SELECT id FROM applications')

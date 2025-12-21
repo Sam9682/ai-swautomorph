@@ -889,6 +889,8 @@ function unassignApp(userId, appId) {
 
 // Deployment functions
 function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDuration, stopDuration) {
+    console.log('deploy_sh_executionCmdInApp called:', { appName, gitUrl, action, repoSize, startDuration, stopDuration });
+    
     // Set loading state for all buttons
     setButtonLoadingState(appName, action, true, repoSize, startDuration, stopDuration);
     
@@ -900,8 +902,98 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
         }
     }
     
-    // Only show logs tab for actions that need it, not for status checks, logs viewing, stop, start, or clone
-    if (action !== 'ps' && action !== 'logs' && action !== 'stop' && action !== 'start' && action !== 'clone') {
+    // Only show logs tab for actions that need it, not for status checks or logs viewing
+    if (action !== 'ps' && action !== 'logs') {
+        showLogs();
+    }
+    appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
+    
+    // For clone action, proceed directly without server allocation
+    if (action === 'clone') {
+        console.log('Processing clone action for:', appName);
+        
+        const data = {
+            action: action,
+            application_name: appName,
+            git_url: gitUrl,
+            server_id: 1, // Default server
+            stream: true
+        };
+        
+        console.log('Sending clone request with data:', data);
+        
+        fetch('/api/deployments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            console.log('Clone response received:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
+                        setTimeout(() => checkApplicationStatus(appName), 1000);
+                        setButtonLoadingState(appName, action, false);
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    appendLog(data.chunk);
+                                    if (!window.statusOutput) window.statusOutput = '';
+                                    window.statusOutput += data.chunk + '\n';
+                                } else if (data.error) {
+                                    appendLog(`ERROR: ${data.error}`);
+                                } else if (data.done) {
+                                    if (!data.success) appendLog('Operation failed');
+                                    if (window.statusOutput) {
+                                        showActionModal('Clone Result', appName, window.statusOutput);
+                                        window.statusOutput = '';
+                                    }
+                                    setButtonLoadingState(appName, action, false);
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    readStream();
+                });
+            }
+            readStream();
+        })
+        .catch(error => {
+            console.error('Clone error:', error);
+            appendLog(`ERROR: ${error.message}`);
+            appendLog(`=== ${action.toUpperCase()} FAILED ===\n`);
+            setTimeout(() => checkApplicationStatus(appName), 1000);
+            setButtonLoadingState(appName, action, false);
+        });
+        return;
+    }
+    
+    if (action === 'start') {
+        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        if (startBtn) {
+            startBtn.disabled = true;
+            startBtn.innerHTML = '⏳ STARTING';
+        }
+    }
+    
+    // Only show logs tab for actions that need it, not for status checks or logs viewing
+    if (action !== 'ps' && action !== 'logs') {
         showLogs();
     }
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -1103,15 +1195,24 @@ document.getElementById('automorphForm').addEventListener('submit', function(e) 
 
 // Logs functions
 function showLogs() {
-    showTab('logs');
+    // Check if we're in dashboard layout
+    const logsSection = document.getElementById('logsSection');
+    if (logsSection) {
+        showTab('logs');
+    }
 }
 
 function clearLogs() {
-    document.getElementById('deploymentLogsContent').textContent = 'Ready for deployment commands...';
+    const logsContent = document.getElementById('deploymentLogsContent');
+    if (logsContent) {
+        logsContent.textContent = 'Ready for deployment commands...';
+    }
 }
 
 function appendLog(message) {
     const logsContent = document.getElementById('deploymentLogsContent');
+    if (!logsContent) return;
+    
     const timestamp = new Date().toLocaleTimeString();
     const currentContent = logsContent.textContent;
     
@@ -2216,6 +2317,8 @@ function startPeriodicStatusCheck(appName) {
 
 // Button loading state management
 function setButtonLoadingState(appName, action, isLoading, repoSize, startDuration, stopDuration) {
+    console.log('setButtonLoadingState called:', { appName, action, isLoading, repoSize, startDuration, stopDuration });
+    
     const appId = appName.replace(/\s+/g, '-').toLowerCase();
     const buttonMap = {
         'clone': `cloneBtn-${appId}`,
@@ -2228,6 +2331,8 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
     
     const buttonId = buttonMap[action];
     const button = document.getElementById(buttonId);
+    
+    console.log('Button found:', buttonId, button);
     
     if (!button) return;
     
@@ -2253,6 +2358,7 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
         
         // Show loading message for actions that don't show modal immediately
         if (action === 'clone' || action === 'start' || action === 'stop' || action === 'restart') {
+            console.log('Calling showLoadingMessage for action:', action);
             showLoadingMessage(action, appName, repoSize, startDuration, stopDuration);
         } else if (action === 'ps' || action === 'logs') {
             // For status and logs, show a brief loading indicator without overlay
@@ -2363,219 +2469,161 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
     const overlay = document.createElement('div');
     overlay.id = 'loadingOverlay';
     overlay.className = 'loading-overlay';
+    overlay.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: rgba(0, 0, 0, 0.7) !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        z-index: 10000 !important;
+        backdrop-filter: blur(3px) !important;
+    `;
     
     // Create loading message element
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'loading-message';
+    loadingDiv.style.cssText = `
+        background: white !important;
+        padding: 2rem !important;
+        border-radius: 12px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
+        max-width: 500px !important;
+        width: 90% !important;
+        text-align: center !important;
+        position: relative !important;
+        z-index: 10001 !important;
+    `;
     
     if (action === 'clone') {
         // Enhanced clone loading with progress and time estimation
         loadingDiv.innerHTML = `
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
             <div class="loading-content">
-                <h3>🔄 Cloning ${appName}</h3>
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="cloneProgress"></div>
+                <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.4rem;">🔄 Cloning ${appName}</h3>
+                <div class="progress-container" style="margin: 1.5rem 0;">
+                    <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div class="progress-fill" id="cloneProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
                     </div>
-                    <div class="progress-text" id="progressText">Initializing clone...</div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Initializing clone...</div>
                 </div>
-                <div class="time-estimation" id="timeEstimation">
-                    <div class="estimate-item">
-                        <span class="estimate-label">📊 Estimated time:</span>
-                        <span class="estimate-value" id="estimatedTime">Calculating...</span>
+                <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left;">
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">Calculating...</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">⏱️ Elapsed:</span>
-                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">📦 Repository size:</span>
-                        <span class="estimate-value" id="repoSize">${formatRepoSize(repoSize || 50)}</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📦 Repository size:</span>
+                        <span class="estimate-value" id="repoSize" style="color: #2c3e50; font-weight: 600;">${formatRepoSize(repoSize || 50)}</span>
                     </div>
                 </div>
-                <div class="loading-tips">
-                    <p>💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
-                    <p>📋 Typical times: Small repos (1-30s), Medium repos (30s-2min), Large repos (2-10min)</p>
+                <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                    <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Typical times: Small repos (1-30s), Medium repos (30s-2min), Large repos (2-10min)</p>
                 </div>
             </div>
         `;
         
         // Start progress simulation and timer with actual repo size
-        startCloneProgressSimulation(repoSize || 50);
+        setTimeout(() => startCloneProgressSimulation(repoSize || 50), 100);
     } else if (action === 'start') {
         // Enhanced start loading with progress and time estimation
         loadingDiv.innerHTML = `
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
             <div class="loading-content">
-                <h3>▶️ Starting ${appName}</h3>
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="startProgress"></div>
+                <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.4rem;">▶️ Starting ${appName}</h3>
+                <div class="progress-container" style="margin: 1.5rem 0;">
+                    <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div class="progress-fill" id="startProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
                     </div>
-                    <div class="progress-text" id="progressText">Initializing containers...</div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Initializing containers...</div>
                 </div>
-                <div class="time-estimation" id="timeEstimation">
-                    <div class="estimate-item">
-                        <span class="estimate-label">📊 Estimated time:</span>
-                        <span class="estimate-value" id="estimatedTime">${startDuration || 30}s</span>
+                <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left;">
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">${startDuration || 30}s</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">⏱️ Elapsed:</span>
-                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">🐳 Docker operation:</span>
-                        <span class="estimate-value">Starting containers</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Docker operation:</span>
+                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">Starting containers</span>
                     </div>
                 </div>
-                <div class="loading-tips">
-                    <p>💡 <strong>Tip:</strong> Start time depends on container complexity and system resources</p>
-                    <p>📋 Docker will pull images, create networks, and start all services</p>
+                <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                    <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Start time depends on container complexity and system resources</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Docker will pull images, create networks, and start all services</p>
                 </div>
             </div>
         `;
         
         // Start progress simulation for docker start
-        startDockerProgressSimulation('start', startDuration || 30);
+        setTimeout(() => startDockerProgressSimulation('start', startDuration || 30), 100);
     } else if (action === 'stop') {
         // Enhanced stop loading with progress and time estimation
         loadingDiv.innerHTML = `
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
             <div class="loading-content">
-                <h3>⏹️ Stopping ${appName}</h3>
-                <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="stopProgress"></div>
+                <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.4rem;">⏹️ Stopping ${appName}</h3>
+                <div class="progress-container" style="margin: 1.5rem 0;">
+                    <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div class="progress-fill" id="stopProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
                     </div>
-                    <div class="progress-text" id="progressText">Stopping containers...</div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Stopping containers...</div>
                 </div>
-                <div class="time-estimation" id="timeEstimation">
-                    <div class="estimate-item">
-                        <span class="estimate-label">📊 Estimated time:</span>
-                        <span class="estimate-value" id="estimatedTime">${stopDuration || 10}s</span>
+                <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left;">
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
+                        <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">${stopDuration || 10}s</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">⏱️ Elapsed:</span>
-                        <span class="estimate-value" id="elapsedTime">0s</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">⏱️ Elapsed:</span>
+                        <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
-                    <div class="estimate-item">
-                        <span class="estimate-label">🐳 Docker operation:</span>
-                        <span class="estimate-value">Stopping containers</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Docker operation:</span>
+                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">Stopping containers</span>
                     </div>
                 </div>
-                <div class="loading-tips">
-                    <p>💡 <strong>Tip:</strong> Stop time depends on graceful shutdown procedures</p>
-                    <p>📋 Docker will gracefully stop all running containers and networks</p>
+                <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                    <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Stop time depends on graceful shutdown procedures</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Docker will gracefully stop all running containers and networks</p>
                 </div>
             </div>
         `;
         
         // Start progress simulation for docker stop
-        startDockerProgressSimulation('stop', stopDuration || 10);
+        setTimeout(() => startDockerProgressSimulation('stop', stopDuration || 10), 100);
     } else {
         // Standard loading for other actions
         const message = `${actionText} ${appName}... Please wait.`;
         
-        // Add spinner
-        const spinner = document.createElement('div');
-        spinner.className = 'loading-spinner';
-        
-        // Add message text
-        const messageText = document.createElement('span');
-        messageText.textContent = message;
-        
-        loadingDiv.appendChild(spinner);
-        loadingDiv.appendChild(messageText);
+        loadingDiv.innerHTML = `
+            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
+            <div style="font-size: 1.2rem; color: #2c3e50; font-weight: 500;">${message}</div>
+        `;
     }
     
     overlay.appendChild(loadingDiv);
     document.body.appendChild(overlay);
     
-    // Add enhanced styles for clone loading
-    if ((action === 'clone' || action === 'start' || action === 'stop') && !document.getElementById('cloneLoadingStyles')) {
+    // Add spin animation if not already present
+    if (!document.getElementById('spinAnimation')) {
         const style = document.createElement('style');
-        style.id = 'cloneLoadingStyles';
+        style.id = 'spinAnimation';
         style.textContent = `
-            .loading-message {
-                background: white;
-                padding: 2rem;
-                border-radius: 12px;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-                max-width: 500px;
-                width: 90%;
-                text-align: center;
-            }
-            .loading-content h3 {
-                margin: 0 0 1.5rem 0;
-                color: #2c3e50;
-                font-size: 1.4rem;
-            }
-            .progress-container {
-                margin: 1.5rem 0;
-            }
-            .progress-bar {
-                width: 100%;
-                height: 8px;
-                background: #ecf0f1;
-                border-radius: 4px;
-                overflow: hidden;
-                margin-bottom: 0.5rem;
-            }
-            .progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, #3498db, #2ecc71);
-                width: 0%;
-                transition: width 0.3s ease;
-                border-radius: 4px;
-            }
-            .progress-text {
-                font-size: 0.9rem;
-                color: #7f8c8d;
-                margin-bottom: 1rem;
-            }
-            .time-estimation {
-                background: #f8f9fa;
-                padding: 1rem;
-                border-radius: 8px;
-                margin: 1rem 0;
-                text-align: left;
-            }
-            .estimate-item {
-                display: flex;
-                justify-content: space-between;
-                margin-bottom: 0.5rem;
-                font-size: 0.9rem;
-            }
-            .estimate-item:last-child {
-                margin-bottom: 0;
-            }
-            .estimate-label {
-                color: #7f8c8d;
-                font-weight: 500;
-            }
-            .estimate-value {
-                color: #2c3e50;
-                font-weight: 600;
-            }
-            .loading-tips {
-                background: #e8f4fd;
-                padding: 1rem;
-                border-radius: 8px;
-                margin-top: 1rem;
-                text-align: left;
-            }
-            .loading-tips p {
-                margin: 0.5rem 0;
-                font-size: 0.85rem;
-                color: #34495e;
-                line-height: 1.4;
-            }
-            .loading-tips p:first-child {
-                margin-top: 0;
-            }
-            .loading-tips p:last-child {
-                margin-bottom: 0;
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
             }
         `;
         document.head.appendChild(style);
@@ -2588,22 +2636,20 @@ function startCloneProgressSimulation(repoSizeMB) {
     
     // Calculate estimated duration based on actual repo size
     let estimatedDuration;
-    if (repoSizeMB < 10) {
-        estimatedDuration = 15 + (repoSizeMB * 1.5); // 15-30 seconds
-    } else if (repoSizeMB < 100) {
-        estimatedDuration = 30 + (repoSizeMB * 0.8); // 30-110 seconds
-    } else if (repoSizeMB < 1000) {
-        estimatedDuration = 120 + (repoSizeMB * 0.3); // 2-7 minutes
-    } else {
-        estimatedDuration = 300 + (repoSizeMB * 0.1); // 5+ minutes
-    }
+    estimatedDuration = (repoSizeMB / 32); // 1 second for 32M on this PLTF
     
     // Set initial estimated time
-    document.getElementById('estimatedTime').textContent = formatDuration(Math.round(estimatedDuration));
+    const estimatedTimeEl = document.getElementById('estimatedTime');
+    if (estimatedTimeEl) {
+        estimatedTimeEl.textContent = formatDuration(Math.round(estimatedDuration));
+    }
     
     const progressInterval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        document.getElementById('elapsedTime').textContent = elapsed + 's';
+        const elapsedTimeEl = document.getElementById('elapsedTime');
+        if (elapsedTimeEl) {
+            elapsedTimeEl.textContent = elapsed + 's';
+        }
         
         // Simulate realistic progress curve (slower at start, faster in middle, slower at end)
         const timeRatio = elapsed / estimatedDuration;
@@ -2640,8 +2686,8 @@ function startCloneProgressSimulation(repoSizeMB) {
         
         // Update estimated time remaining
         const remaining = Math.max(0, estimatedDuration - elapsed);
-        if (remaining > 0) {
-            document.getElementById('estimatedTime').textContent = formatDuration(remaining) + ' remaining';
+        if (remaining > 0 && estimatedTimeEl) {
+            estimatedTimeEl.textContent = formatDuration(remaining) + ' remaining';
         }
         
     }, 1000);
@@ -2681,11 +2727,17 @@ function startDockerProgressSimulation(action, estimatedDuration) {
     let startTime = Date.now();
     
     // Set initial estimated time
-    document.getElementById('estimatedTime').textContent = formatDuration(estimatedDuration);
+    const estimatedTimeEl = document.getElementById('estimatedTime');
+    if (estimatedTimeEl) {
+        estimatedTimeEl.textContent = formatDuration(estimatedDuration);
+    }
     
     const progressInterval = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        document.getElementById('elapsedTime').textContent = elapsed + 's';
+        const elapsedTimeEl = document.getElementById('elapsedTime');
+        if (elapsedTimeEl) {
+            elapsedTimeEl.textContent = elapsed + 's';
+        }
         
         // Simulate realistic progress curve
         const timeRatio = elapsed / estimatedDuration;
@@ -2730,8 +2782,8 @@ function startDockerProgressSimulation(action, estimatedDuration) {
         
         // Update estimated time remaining
         const remaining = Math.max(0, estimatedDuration - elapsed);
-        if (remaining > 0) {
-            document.getElementById('estimatedTime').textContent = formatDuration(remaining) + ' remaining';
+        if (remaining > 0 && estimatedTimeEl) {
+            estimatedTimeEl.textContent = formatDuration(remaining) + ' remaining';
         }
         
     }, 1000);
@@ -2761,19 +2813,6 @@ function hideLoadingMessage() {
         loadingMessage.remove();
     }
 }
-
-// Override the original deploy function to handle STOP action
-const originalDeployFunction = deploy_sh_executionCmdInApp;
-deploy_sh_executionCmdInApp = function(appName, gitUrl, action) {
-    if (action === 'stop') {
-        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-        if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.innerHTML = '▶️ START';
-        }
-    }
-    return originalDeployFunction.call(this, appName, gitUrl, action);
-};
 
 // Close modal when clicking outside
 window.onclick = function(event) {

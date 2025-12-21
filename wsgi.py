@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
-"""WSGI entry point for production"""
-from src.app import create_app
+"""WSGI entry point for production deployment"""
+import os
+import sys
+
+# Add the src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from src.ControlPlanFlaskApp import create_app
 from src.database import init_db
 
+# Initialize database on startup
 init_db()
-app = create_app()
 
-if __name__ == '__main__':
-    app.run()
+# Create application instance
+application = create_app()
+
+if __name__ == "__main__":
+    application.run()

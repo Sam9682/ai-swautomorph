@@ -121,6 +121,7 @@ calculate_ports() {
     HTTP_PORT=${RANGE_START_CONTROLPLAN}
     HTTPS_PORT=$((HTTP_PORT + 1))
     HTTPS_PORT2=$((HTTPS_PORT + 1))
+    HTTP_PORT2=$((HTTPS_PORT2 + 1))
 }
 
 # Display environment variables for operations
@@ -157,7 +158,9 @@ check_flask_status() {
         PID=$(cat "${PID_FILE:-./conf/app.pid}")
         if kill -0 "$PID" 2>/dev/null; then
             PROCESS_OWNER=$(ps -o user= -p "$PID" 2>/dev/null || echo "unknown")
+            PROCESS_CMD=$(ps -o cmd= -p "$PID" 2>/dev/null | head -c 50)
             echo -e "  $OK Flask application: Running (PID: $PID, Owner: $PROCESS_OWNER)"
+            echo -e "      Command: $PROCESS_CMD..."
         else
             echo -e "  $ERROR Flask application: Not running (stale PID: $PID)"
         fi
@@ -165,13 +168,24 @@ check_flask_status() {
         echo -e "  $ERROR Flask application: Not running (no PID file)"
     fi
     
-    # Check for any other Flask processes
+    # Check for Gunicorn processes
+    GUNICORN_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
+    if [ -n "$GUNICORN_PIDS" ]; then
+        echo -e "  $OK Gunicorn processes found: $GUNICORN_PIDS"
+        for pid in $GUNICORN_PIDS; do
+            OWNER=$(ps -o user= -p "$pid" 2>/dev/null || echo "unknown")
+            PROCESS_TYPE=$(ps -o cmd= -p "$pid" 2>/dev/null | grep -o "gunicorn: [a-z]*" || echo "gunicorn")
+            echo -e "    PID: $pid, Owner: $OWNER, Type: $PROCESS_TYPE"
+        done
+    fi
+    
+    # Check for any old Flask development server processes
     OTHER_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
     if [ -n "$OTHER_PIDS" ]; then
-        echo -e "  $WARN Other Flask processes found: $OTHER_PIDS"
+        echo -e "  $WARN Old Flask development server processes found: $OTHER_PIDS"
         for pid in $OTHER_PIDS; do
             OWNER=$(ps -o user= -p "$pid" 2>/dev/null || echo "unknown")
-            echo -e "    PID: $pid, Owner: $OWNER"
+            echo -e "    PID: $pid, Owner: $OWNER (should be migrated to Gunicorn)"
         done
     fi
 }
@@ -209,10 +223,12 @@ check_docker_status() {
 provide_cleanup_guidance() {
     echo ""
     echo -e "${YELLOW}[CLEANUP GUIDANCE]${NC} If processes couldn't be stopped automatically:"
-    echo "  1. Check running processes: ps aux | grep 'python3 ControlPlanFlaskApp.py'"
+    echo "  1. Check running Gunicorn processes: ps aux | grep 'gunicorn.*wsgi:application'"
     echo "  2. Kill specific PID: sudo kill -9 <PID>"
-    echo "  3. Kill all Flask processes: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
-    echo "  4. Check process ownership: ps -o pid,user,cmd -C python3"
+    echo "  3. Kill all Gunicorn processes: sudo pkill -9 -f 'gunicorn.*wsgi:application'"
+    echo "  4. Check for old Flask processes: ps aux | grep 'python3 ControlPlanFlaskApp.py'"
+    echo "  5. Kill old Flask processes: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
+    echo "  6. Check process ownership: ps -o pid,user,cmd -C python3"
     echo ""
 }
 
@@ -476,53 +492,57 @@ stop_flask_service() {
                 # Force kill if still running
                 if kill -0 "$PID" 2>/dev/null; then
                     if kill -9 "$PID" 2>/dev/null; then
-                        echo "  ✅ Flask application force stopped (PID: $PID)"
+                        echo "  ✅ Application force stopped (PID: $PID)"
                     else
-                        echo "  ⚠️ Could not force stop Flask process (PID: $PID) - permission denied"
+                        echo "  ⚠️ Could not force stop process (PID: $PID) - permission denied"
                         success=false
                     fi
                 else
-                    echo "  ✅ Flask application stopped (PID: $PID)"
+                    echo "  ✅ Application stopped (PID: $PID)"
                 fi
             else
-                echo "  ⚠️ Could not stop Flask process (PID: $PID) - permission denied"
+                echo "  ⚠️ Could not stop process (PID: $PID) - permission denied"
                 success=false
             fi
         else
-            echo "  ⚠️ Flask process not running (stale PID: $PID)"
+            echo "  ⚠️ Process not running (stale PID: $PID)"
         fi
         rm -f ./conf/app.pid
     else
         echo "  ⚠️ No ./conf/app.pid file found"
     fi
     
-    # Force kill any remaining Flask processes with better error handling
-    FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
-    if [ -n "$FLASK_PIDS" ]; then
-        echo "  🔥 Attempting to stop remaining Flask processes: $FLASK_PIDS"
-        # Try regular pkill first
-        if pkill -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
+    # Force kill any remaining Gunicorn processes
+    GUNICORN_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
+    if [ -n "$GUNICORN_PIDS" ]; then
+        echo "  🔥 Attempting to stop remaining Gunicorn processes: $GUNICORN_PIDS"
+        if pkill -f "gunicorn.*wsgi:application" 2>/dev/null; then
             sleep 2
-            # Check if any processes are still running
-            REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+            REMAINING_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
             if [ -n "$REMAINING_PIDS" ]; then
                 echo "  🔥 Force killing remaining processes: $REMAINING_PIDS"
-                # Try force kill with better error handling
-                if pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
-                    echo "  ✅ All Flask processes terminated"
+                if pkill -9 -f "gunicorn.*wsgi:application" 2>/dev/null; then
+                    echo "  ✅ All Gunicorn processes terminated"
                 else
-                    echo "  ⚠️ Some Flask processes could not be terminated (permission denied)"
-                    echo "  💡 Try running with sudo or kill processes manually: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
+                    echo "  ⚠️ Some Gunicorn processes could not be terminated (permission denied)"
+                    echo "  💡 Try: sudo pkill -9 -f 'gunicorn.*wsgi:application'"
                     success=false
                 fi
             else
-                echo "  ✅ All Flask processes terminated"
+                echo "  ✅ All Gunicorn processes terminated"
             fi
         else
-            echo "  ⚠️ Could not terminate Flask processes (permission denied)"
-            echo "  💡 Try running with sudo: sudo pkill -f 'python3 ControlPlanFlaskApp.py'"
+            echo "  ⚠️ Could not terminate Gunicorn processes (permission denied)"
+            echo "  💡 Try: sudo pkill -f 'gunicorn.*wsgi:application'"
             success=false
         fi
+    fi
+    
+    # Also check for old Flask development server processes
+    FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+    if [ -n "$FLASK_PIDS" ]; then
+        echo "  🔥 Found old Flask development server processes: $FLASK_PIDS"
+        pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true
     fi
     
     # Return appropriate exit code
@@ -565,17 +585,38 @@ show_logs() {
 }
 
 show_flask_logs() {
+    echo "  🐍 Flask Application Logs:"
+    
+    # Show Gunicorn logs
+    if [ -f "logs/gunicorn_error.log" ]; then
+        echo "    📋 Gunicorn Error Log (last 20 lines):"
+        tail -n 20 logs/gunicorn_error.log
+        echo ""
+    fi
+    
+    if [ -f "logs/gunicorn_access.log" ]; then
+        echo "    📋 Gunicorn Access Log (last 10 lines):"
+        tail -n 10 logs/gunicorn_access.log
+        echo ""
+    fi
+    
+    # Show legacy Flask logs if they exist
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     if [ -f "$LOG_FILE" ]; then
-        echo "  🐍 Flask Application Logs ($LOG_FILE):"
-        cat "$LOG_FILE"
+        echo "    📋 Legacy Flask Log ($LOG_FILE):"
+        tail -n 20 "$LOG_FILE"
     else
-        echo "  ❌ No Flask log file found ($LOG_FILE)"
         # Try to find any app logs in logs directory
         if ls logs/app_logs_*.log 1> /dev/null 2>&1; then
-            echo "📋 Available log files:"
+            echo "    📋 Available legacy log files:"
             ls -la logs/app_logs_*.log
         fi
+    fi
+    
+    # Show available log files
+    if ls logs/*.log 1> /dev/null 2>&1; then
+        echo "    📁 All available log files:"
+        ls -la logs/*.log
     fi
 }
 
@@ -615,28 +656,26 @@ restart_flask_service() {
         echo "  ⚠️ Some processes could not be stopped, but continuing with restart..."
     fi
     
-    echo "  🚀 Starting Flask application..."
+    echo "  🚀 Starting Flask application with Gunicorn..."
     # Create required directories
     mkdir -p logs conf
     
-    # Start Flask with date-based log file
-    LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    
-    if FLASK_RUN_PORT=5000 nohup python3 ControlPlanFlaskApp.py > "$LOG_FILE" 2>&1 & then
+    # Start Gunicorn with production configuration
+    if nohup gunicorn --config gunicorn.conf.py wsgi:application > /dev/null 2>&1 & then
         NEW_PID=$!
         echo $NEW_PID > ./conf/app.pid
         
         # Wait a moment and check if the process started successfully
         sleep 2
         if kill -0 "$NEW_PID" 2>/dev/null; then
-            echo "  ✅ Flask application restarted successfully (PID: $NEW_PID)"
+            echo "  ✅ Flask application restarted with Gunicorn (PID: $NEW_PID)"
         else
-            echo "  ❌ Flask application failed to restart (check logs: $LOG_FILE)"
+            echo "  ❌ Gunicorn failed to restart (check logs: logs/gunicorn_error.log)"
             rm -f ./conf/app.pid
             return 1
         fi
     else
-        echo "  ❌ Failed to restart Flask application"
+        echo "  ❌ Failed to restart Gunicorn"
         return 1
     fi
 }
@@ -911,62 +950,40 @@ install_python_dependencies() {
 }
 
 start_flask_application() {
-    echo "  🚀 Starting Flask application..."
+    echo "  🚀 Starting Flask application with Gunicorn..."
     
-    # Stop any existing Flask processes with better error handling
-    EXISTING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+    # Stop any existing Flask/Gunicorn processes
+    EXISTING_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
     if [ -n "$EXISTING_PIDS" ]; then
-        echo "  ⚠️ Found existing Flask processes: $EXISTING_PIDS"
+        echo "  ⚠️ Found existing Gunicorn processes: $EXISTING_PIDS"
         echo "  🛑 Attempting to stop existing processes..."
-        
-        # Try graceful shutdown first
-        if pkill -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
-            echo "  ✅ Sent termination signal to existing processes"
-            sleep 3
-            
-            # Check if any processes are still running
-            REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
-            if [ -n "$REMAINING_PIDS" ]; then
-                echo "  ⚠️ Some processes still running: $REMAINING_PIDS"
-                echo "  💀 Attempting force kill..."
-                
-                # Try force kill, but don't fail if it doesn't work
-                if pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null; then
-                    echo "  ✅ Force killed remaining processes"
-                else
-                    echo "  ⚠️ Could not force kill some processes (permission denied)"
-                    echo "  💡 Continuing with startup - new process will use different port if needed"
-                fi
-            fi
-        else
-            echo "  ⚠️ Could not send termination signal (permission denied)"
-            echo "  💡 Continuing with startup - will try to start on available port"
-        fi
+        pkill -f "gunicorn.*wsgi:application" 2>/dev/null || true
+        sleep 2
     fi
     
     # Create required directories
     mkdir -p logs conf
     
-    # Start Flask on port 5000 with date-based log file
-    LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
-    echo "  🚀 Starting new Flask instance..."
+    # Start Gunicorn with production configuration
+    echo "  🚀 Starting Gunicorn server..."
     
-    # Try to start Flask, handle port conflicts gracefully
-    if FLASK_RUN_PORT=5000 nohup python3 ControlPlanFlaskApp.py > "$LOG_FILE" 2>&1 & then
+    if nohup gunicorn --config gunicorn.conf.py wsgi:application > /dev/null 2>&1 & then
         NEW_PID=$!
         echo $NEW_PID > ./conf/app.pid
         
         # Wait a moment and check if the process started successfully
-        sleep 2
+        sleep 3
         if kill -0 "$NEW_PID" 2>/dev/null; then
-            echo "  ✅ Flask application started successfully (PID: $NEW_PID)"
+            echo "  ✅ Flask application started with Gunicorn (PID: $NEW_PID)"
+            echo "  🌐 Application available at: http://localhost:5000"
+            echo "  👥 Workers: $(python3 -c 'import multiprocessing; print(multiprocessing.cpu_count() * 2 + 1)')"
         else
-            echo "  ❌ Flask application failed to start (check logs: $LOG_FILE)"
+            echo "  ❌ Gunicorn failed to start (check logs: logs/gunicorn_error.log)"
             rm -f ./conf/app.pid
             return 1
         fi
     else
-        echo "  ❌ Failed to start Flask application"
+        echo "  ❌ Failed to start Gunicorn"
         return 1
     fi
 }
