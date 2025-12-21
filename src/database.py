@@ -306,7 +306,7 @@ def init_db():
             ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
             ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 51, 51, 1, 1),
             ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 63, 63, 10, 1),
-            ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 73, 73, 1, 1),
+            ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
             ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
         ]
         cursor.executemany('INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', default_apps)

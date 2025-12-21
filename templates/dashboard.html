@@ -367,13 +367,7 @@
     {% endif %}
     
     <!-- Deployment Logs Section -->
-    <div id="logsSection" class="tab-content" style="display: none;">
-        <h2>{{ get_text('deployment_logs') }}</h2>
-        <div class="logs-controls">
-            <button onclick="clearLogs()" class="btn btn-secondary btn-small">{{ get_text('clear_logs') }}</button>
-        </div>
-        <pre id="deploymentLogsContent" class="logs-content">{{ get_text('ready_deployment_commands') }}</pre>
-    </div>
+    <!-- Logs section removed from main panel -->
         </div>
     </div>
     
@@ -1052,8 +1046,8 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
         }
     }
     
-    // Only show logs tab for actions that need it, not for status checks, logs viewing, or clone operations
-    if (action !== 'ps' && action !== 'logs' && action !== 'clone') {
+    // Only show logs tab for actions that need it, not for status checks or logs viewing
+    if (action !== 'ps' && action !== 'logs') {
         showLogs();
     }
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
@@ -1253,13 +1247,9 @@ document.getElementById('automorphForm').addEventListener('submit', function(e) 
     });
 });
 
-// Logs functions
+// Logs functions - removed from main panel
 function showLogs() {
-    // Check if we're in dashboard layout
-    const logsSection = document.getElementById('logsSection');
-    if (logsSection) {
-        showTab('logs');
-    }
+    // Logs section removed - no action needed
 }
 
 function clearLogs() {
@@ -2671,7 +2661,7 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                     <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
                         <div class="progress-fill" id="stopProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
                     </div>
-                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Stopping containers...</div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">STOP application...</div>
                 </div>
                 <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left;">
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
@@ -2683,8 +2673,8 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                         <span class="estimate-value" id="elapsedTime" style="color: #2c3e50; font-weight: 600;">0s</span>
                     </div>
                     <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Docker operation:</span>
-                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">Stopping containers</span>
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">🐳 Operation:</span>
+                        <span class="estimate-value" style="color: #2c3e50; font-weight: 600;">STOP application</span>
                     </div>
                 </div>
                 <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
