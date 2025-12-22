@@ -313,7 +313,7 @@ def init_db():
         default_apps = [
             ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 1, 65, 65, 10, 1),
             ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
-            ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 28, 28, 1, 1),
+            ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 38, 38, 1, 1),
             ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 29, 29, 10, 1),
             ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
             ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
