@@ -100,6 +100,12 @@ def userguide():
 
 
 
+@main_bp.route('/favicon.ico')
+def favicon():
+    """Serve favicon.ico"""
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
+    return send_from_directory(static_dir, 'favicon.ico')
+
 @main_bp.route('/.well-known/pki-validation/<filename>')
 def ssl_validation(filename):
     """Serve SSL certificate validation files"""
