@@ -373,8 +373,8 @@ def init_db():
     records_to_update = cursor.fetchall()
     for record in records_to_update:
         record_id, user_id, app_id = record
-        HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
-        cursor.execute('UPDATE user_applications SET http_port = ?, https_port = ? WHERE id = ?', (HTTP_PORT, HTTPS_PORT, record_id))
+        HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
+        cursor.execute('UPDATE user_applications SET http_port = ?, https_port = ?, http_port2 = ?, https_port2 = ? WHERE id = ?', (HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2, record_id))
     
     conn.commit()
 
