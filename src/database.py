@@ -58,7 +58,9 @@ def calculate_app_ports(user_id, app_id):
     PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
     HTTP_PORT = PORT_RANGE_BEGIN + app_id * RANGE_PORTS_PER_APPLICATION
     HTTPS_PORT = HTTP_PORT + 1
-    return HTTP_PORT, HTTPS_PORT
+    HTTP_PORT2 = HTTPS_PORT + 1
+    HTTPS_PORT2 = HTTP_PORT2 + 1
+    return HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2
 
 class DatabaseManager:
     """Thread-safe database manager with connection pooling"""
@@ -353,10 +355,10 @@ def init_db():
         for app in apps:
             app_id, app_name = app[0], app[1]
             # Calculate URL using the same logic as deployControlPlan.sh
-            HTTP_PORT, HTTPS_PORT = calculate_app_ports(admin_id, app_id)
+            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
 
             url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port) VALUES (?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT))
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT2, HTTPS_PORT2))
         
         # Ensure costs exist for all applications
         cursor.execute('SELECT id FROM applications')
@@ -389,14 +391,14 @@ def assign_default_apps_to_user(user_id):
     for app in apps:
         app_id, app_name = app[0], app[1]
         # Calculate URL using the same logic as deployControlPlan.sh
-        HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
+        HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
 
         # Compose URL
         url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port) 
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, app_id, url, HTTP_PORT, HTTPS_PORT))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
     
         conn.commit()
 
@@ -413,12 +415,12 @@ def assign_app_to_all_users(app_id, app_name):
     for user_id in user_ids:
         uid = user_id[0]
         # Calculate URL using the same logic as deployControlPlan.sh
-        HTTP_PORT, HTTPS_PORT = calculate_app_ports(uid, app_id)
+        HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(uid, app_id)
 
         url = f'https://www.swautomorph.com:{HTTPS_PORT}'
         cursor.execute('''
-            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port) 
-            VALUES (?, ?, ?, ?, ?)
-        ''', (uid, app_id, url, HTTP_PORT, HTTPS_PORT))
+            INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (uid, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
     
         conn.commit()

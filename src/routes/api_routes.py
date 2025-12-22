@@ -340,7 +340,7 @@ def api_user_applications(user_id):
         try:
             # Calculate ports for the user and application
             from ..database import calculate_app_ports
-            HTTP_PORT, HTTPS_PORT = calculate_app_ports(user_id, app_id)
+            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
             
             # Get application name for URL generation
             cursor.execute('SELECT name FROM applications WHERE id = ?', (app_id,))
@@ -352,8 +352,8 @@ def api_user_applications(user_id):
             app_name = app_result[0]
             url = f'https://www.swautomorph.com:{HTTPS_PORT}'
             
-            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port) VALUES (?, ?, ?, ?, ?)',
-                          (user_id, app_id, url, HTTP_PORT, HTTPS_PORT))
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                          (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
             conn.commit()
             conn.close()
             return jsonify({'message': 'Application assigned successfully'})
@@ -1100,9 +1100,13 @@ APPLICATION_IDENTITY_NUMBER={application_id}
 PORT_RANGE_BEGIN=$((RANGE_START + USER_ID * RANGE_RESERVED))
 HTTP_PORT=$((PORT_RANGE_BEGIN + APPLICATION_IDENTITY_NUMBER * RANGE_PORTS_PER_APPLICATION))
 HTTPS_PORT=$((HTTP_PORT + 1))
+HTTP_PORT2=$((HTTPS_PORT + 1))
+HTTPS_PORT2=$((HTTP_PORT2 + 1))
 echo "PORT_RANGE_BEGIN: $PORT_RANGE_BEGIN"
 echo "HTTP_PORT: $HTTP_PORT"
 echo "HTTPS_PORT: $HTTPS_PORT"
+echo "HTTP_PORT2: $HTTP_PORT2"
+echo "HTTPS_PORT2: $HTTPS_PORT2"
 ```
 
 """
