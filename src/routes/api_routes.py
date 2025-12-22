@@ -595,8 +595,7 @@ def api_deployments():
                         (user_id, application_name, status, deployment_path, git_url, server_id)
                         VALUES (?, ?, ?, ?, ?, ?)
                     ''', (session['user_id'], app_name, status, deployment_path, git_url, server_id))
-    
-                
+
                 if status == 'failed':
                     return jsonify({'error': error_msg, 'logs': command_output}), 400
                 

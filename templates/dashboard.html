@@ -967,18 +967,15 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
                         setTimeout(() => checkApplicationStatus(appName), 1000);
                         // Don't call setButtonLoadingState for clone to keep loading box open
-                        if (action !== 'clone') {
-                            setButtonLoadingState(appName, action, false);
-                        } else {
-                            // Reset clone button state manually
-                            const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-                            if (cloneBtn && cloneBtn.dataset.originalContent) {
-                                cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
-                                cloneBtn.disabled = false;
-                                cloneBtn.style.opacity = '1';
-                                cloneBtn.style.cursor = 'pointer';
-                                delete cloneBtn.dataset.originalContent;
-                            }
+
+                        // Reset clone button state manually
+                        const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                        if (cloneBtn && cloneBtn.dataset.originalContent) {
+                            cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
+                            cloneBtn.disabled = false;
+                            cloneBtn.style.opacity = '1';
+                            cloneBtn.style.cursor = 'pointer';
+                            delete cloneBtn.dataset.originalContent;
                         }
                         return;
                     }
@@ -1057,7 +1054,7 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
             action: action,
             application_name: appName,
             server_id: serverId,
-            stream: false
+            stream: true
         };
         
         if (action === 'clone' && gitUrl) {
@@ -1077,32 +1074,9 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             
-            // Add timeout failsafe for START action
-            let streamTimeout;
-            if (action === 'start') {
-                streamTimeout = setTimeout(() => {
-                    console.log('START action timeout - forcing completion');
-                    appendLog(`=== ${action.toUpperCase()} TIMEOUT - CHECKING STATUS ===\n`);
-                    setTimeout(() => checkApplicationStatus(appName), 1000);
-                    setButtonLoadingState(appName, action, false);
-                    if (window.statusOutput) {
-                        showActionModal('Start Result', appName, window.statusOutput + '\n\n[TIMEOUT] Operation may have completed - check application status');
-                        window.statusOutput = '';
-                    }
-                    hideLoadingMessage();
-                }, (startDuration || 30) * 1000 + 10000); // Add 10 seconds buffer to estimated duration
-                // Store timeout globally for error handler access
-                window.currentStartTimeout = streamTimeout;
-            }
-            
             function readStream() {
                 reader.read().then(({done, value}) => {
                     if (done) {
-                        if (streamTimeout) clearTimeout(streamTimeout);
-                        if (window.currentStartTimeout) {
-                            clearTimeout(window.currentStartTimeout);
-                            window.currentStartTimeout = null;
-                        }
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
                         setTimeout(() => checkApplicationStatus(appName), 1000);
                         if (action === 'start') startPeriodicStatusCheck(appName);
@@ -1120,32 +1094,25 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                 const data = JSON.parse(line.substring(6));
                                 if (data.chunk) {
                                     appendLog(data.chunk);
-                                    // For status checks, logs, stop, start, and clone, also collect output to show in alert
-                                    if (action === 'ps' || action === 'logs' || action === 'stop' || action === 'start' || action === 'clone') {
-                                        if (!window.statusOutput) window.statusOutput = '';
-                                        window.statusOutput += data.chunk + '\n';
-                                    }
+                                    if (!window.statusOutput) window.statusOutput = '';
+                                    window.statusOutput += data.chunk + '\n';
                                 } else if (data.error) {
                                     appendLog(`ERROR: ${data.error}`);
                                 } else if (data.done) {
-                                    if (streamTimeout) clearTimeout(streamTimeout);
-                                    if (window.currentStartTimeout) {
-                                        clearTimeout(window.currentStartTimeout);
-                                        window.currentStartTimeout = null;
-                                    }
                                     if (!data.success) appendLog('Operation failed');
-                                    // Show results in modal for ps, logs, stop, start, and clone actions
-                                    if ((action === 'ps' || action === 'logs' || action === 'stop' || action === 'start' || action === 'clone') && window.statusOutput) {
-                                        const title = action === 'ps' ? 'Status' : action === 'logs' ? 'Logs' : action === 'stop' ? 'Stop Result' : action === 'start' ? 'Start Result' : 'Clone Result';
-                                        showActionModal(title, appName, window.statusOutput);
+                                    if (window.statusOutput) {
+                                        showCloneResultInWaitingBox(window.statusOutput);
                                         window.statusOutput = '';
-                                        // Close progress window for start action after showing results
-                                        if (action === 'start') {
-                                            setTimeout(() => hideLoadingMessage(), 1000);
-                                        }
                                     }
-                                    // Reset button loading state
-                                    setButtonLoadingState(appName, action, false);
+                                    // Reset start button state manually without closing the loading box
+                                    const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                                    if (startBtn && startBtn.dataset.originalContent) {
+                                        startBtn.innerHTML = startBtn.dataset.originalContent;
+                                        startBtn.disabled = false;
+                                        startBtn.style.opacity = '1';
+                                        startBtn.style.cursor = 'pointer';
+                                        delete startBtn.dataset.originalContent;
+                                    }
                                 }
                             } catch (e) {}
                         }
