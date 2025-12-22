@@ -17,6 +17,11 @@ def load_deploy_config():
     # Default values matching deployControlPlan.sh
     NAME_OF_APPLICATION = "ai-swautomorph"
     APPLICATION_IDENTITY_NUMBER = 0
+    RANGE_START = 6000
+    RANGE_RESERVED = 100
+    RANGE_START_CONTROLPLAN = 80
+    RANGE_RESERVED_CONTROLPLAN = 0
+    RANGE_PORTS_PER_APPLICATION = 4
     
     if os.path.exists(config_path):
         try:
@@ -358,7 +363,7 @@ def init_db():
             HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
 
             url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT2, HTTPS_PORT2))
+            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
         
         # Ensure costs exist for all applications
         cursor.execute('SELECT id FROM applications')
