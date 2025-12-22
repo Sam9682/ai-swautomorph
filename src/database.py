@@ -304,7 +304,7 @@ def init_db():
         # Port calculation constants
         
         default_apps = [
-            ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 154, 65, 65, 10, 1),
+            ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 1, 65, 65, 10, 1),
             ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
             ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 28, 28, 1, 1),
             ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 29, 29, 10, 1),
