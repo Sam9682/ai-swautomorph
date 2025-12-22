@@ -2710,7 +2710,7 @@ function startCloneProgressSimulation(repoSizeMB) {
     
     // Calculate estimated duration based on actual repo size
     let estimatedDuration;
-    estimatedDuration = (repoSizeMB / 32); // 1 second for 32M on this PLTF
+    estimatedDuration = Math.max(2, repoSizeMB / 32); // 1 second for 32M on this PLTF
     
     // Set initial estimated time
     const estimatedTimeEl = document.getElementById('estimatedTime');

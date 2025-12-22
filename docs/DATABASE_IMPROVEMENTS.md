@@ -249,7 +249,7 @@ def calculate_app_ports(user_id, app_id):
     RANGE_RESERVED = 100
     
     PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
-    HTTP_PORT = PORT_RANGE_BEGIN + app_id * 2
+    HTTP_PORT = PORT_RANGE_BEGIN + app_id * RANGE_PORTS_PER_APPLICATION
     HTTPS_PORT = HTTP_PORT + 1
     return HTTP_PORT, HTTPS_PORT
 ```
@@ -511,7 +511,7 @@ def calculate_app_ports(user_id, app_id):
     RANGE_RESERVED = 100
     
     PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
-    HTTP_PORT = PORT_RANGE_BEGIN + app_id * 2
+    HTTP_PORT = PORT_RANGE_BEGIN + app_id * RANGE_PORTS_PER_APPLICATION
     HTTPS_PORT = HTTP_PORT + 1
     return HTTP_PORT, HTTPS_PORT
 ```

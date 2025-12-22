@@ -92,7 +92,7 @@ The platform automatically selects the optimal server based on:
    - Runs `./deployApp.sh start {user_id} "{user_name}" {user_email}` 
    - Real-time status updates and streaming logs available
    - Billing tracking automatically starts
-   - Port allocation: HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * 2
+   - Port allocation: HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * RANGE_PORTS_PER_APPLICATION
 
 3. **Stop Application**:
    - Click the "⏹️ Stop" button
@@ -326,7 +326,7 @@ La plateforme sélectionne automatiquement le serveur optimal basé sur :
    - Exécute `./deployApp.sh start {user_id} "{user_name}" {user_email}` 
    - Mises à jour de statut temps réel et journaux en streaming disponibles
    - Le suivi de facturation démarre automatiquement
-   - Allocation de port: HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * 2
+   - Allocation de port: HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * RANGE_PORTS_PER_APPLICATION
 
 3. **Arrêter une Application**:
    - Cliquer sur le bouton "⏹️ Stop"
