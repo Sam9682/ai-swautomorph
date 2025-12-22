@@ -2425,8 +2425,8 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
         button.style.cursor = 'pointer';
         button.title = '';
         
-        // Hide loading message
-        if (action !== 'clone') {
+        // Hide loading message (keep open for clone and start actions)
+        if (action !== 'clone' && action !== 'start') {
             hideLoadingMessage();
         }
         hideBriefLoadingIndicator();
@@ -2599,7 +2599,7 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
                 </div>
                 <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
                     <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
-                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Typical times: Small repos (1-30s), Medium repos (30s-2min), Large repos (2-10min)</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Typical times: 30Mb for 1 sec</p>
                 </div>
                 <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
                     <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
