@@ -1111,6 +1111,10 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                         const title = action === 'ps' ? 'Status' : action === 'logs' ? 'Logs' : action === 'stop' ? 'Stop Result' : action === 'start' ? 'Start Result' : 'Clone Result';
                                         showActionModal(title, appName, window.statusOutput);
                                         window.statusOutput = '';
+                                        // Close progress window for start action after showing results
+                                        if (action === 'start') {
+                                            setTimeout(() => hideLoadingMessage(), 2000);
+                                        }
                                     }
                                     // Reset button loading state
                                     setButtonLoadingState(appName, action, false);
