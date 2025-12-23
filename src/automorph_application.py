@@ -2,6 +2,16 @@ import subprocess
 import datetime
 import time
 import re
+import os
+
+def log_print(message):
+    """Print message to console and log file"""
+    print(message)
+    log_dir = "./logs/"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, f"automorph_{datetime.datetime.now().strftime('%Y%m%d')}.log")
+    with open(log_file, 'a', encoding='utf-8') as f:
+        f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
 
 # 📁 Chemin du repo qui sert à docker-compose up
 REPO_DIR = "/home/ubuntu/deployments/"
@@ -24,10 +34,10 @@ def process_qchat_developer(user_request: str, auto_approve: bool = True, app_na
     repo_github_url = git_url if git_url else GITHUB_REMOTE_URL + app_name
     repo_gitea_url = GITEA_REMOTE_URL + branch_name
 
-    print(f"[VIRTUAL DEVELOPER] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
-    print(f"[VIRTUAL DEVELOPER] App: {app_name}, Folder: {repo_dir}")
-    print(f"[VIRTUAL DEVELOPER] Github: {repo_github_url}")
-    print(f"[VIRTUAL DEVELOPER] Gitea: {repo_gitea_url}")
+    log_print(f"[VIRTUAL DEVELOPER] Processing request: {user_request[:100]}{'...' if len(user_request) > 100 else ''}")
+    log_print(f"[VIRTUAL DEVELOPER] App: {app_name}, Folder: {repo_dir}")
+    log_print(f"[VIRTUAL DEVELOPER] Github: {repo_github_url}")
+    log_print(f"[VIRTUAL DEVELOPER] Gitea: {repo_gitea_url}")
     
     # 🧠 Prompt complet envoyé à Q Chat
     prompt = f"""
@@ -138,7 +148,7 @@ If ANY step fails, explain clearly which step failed and why.
             cmd_args.append('--trust-all-tools')
         cmd_args.append(prompt)
         
-        print(f"[VIRTUAL DEVELOPER] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
+        log_print(f"[VIRTUAL DEVELOPER] Executing qchat command with auto_approve={auto_approve} using: {qchat_cmd}")
         
         # Set up proper environment to avoid permission issues
         import os
@@ -153,7 +163,7 @@ If ANY step fails, explain clearly which step failed and why.
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=1500, env=qchat_env)
         execution_time = time.time() - start_time
         
-        print(f"[VIRTUAL DEVELOPER] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        log_print(f"[VIRTUAL DEVELOPER] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
         
         # Handle response from both stdout and stderr
         response_text = ''
@@ -180,13 +190,13 @@ If ANY step fails, explain clearly which step failed and why.
         }
         
     except subprocess.TimeoutExpired:
-        print(f"[VIRTUAL DEVELOPER] Request timed out after 1500s")
+        log_print(f"[VIRTUAL DEVELOPER] Request timed out after 1500s")
         return {
             'error': 'Automorph request timed out after 25 minutes',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
-        print(f"[VIRTUAL DEVELOPER] Error: {str(e)}")
+        log_print(f"[VIRTUAL DEVELOPER] Error: {str(e)}")
         return {
             'error': f'VIRTUAL DEVELOPER error: {str(e)}',
             'execution_time': round(time.time() - start_time, 2)
@@ -201,7 +211,7 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
     """
     start_time = time.time()
     
-    print(f"[VIRTUAL OPERATIONS] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
+    log_print(f"[VIRTUAL OPERATIONS] Processing question: {user_question[:100]}{'...' if len(user_question) > 100 else ''}")
     
     # Detect application management actions
     # First check for bracketed actions like [START], [STOP], etc.
@@ -213,7 +223,7 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
     if bracket_match:
         # Use bracketed action with priority
         detected_action = bracket_match.group(1).lower()
-        print(f"[VIRTUAL OPERATIONS] Detected bracketed action: {detected_action.upper()}")
+        log_print(f"[VIRTUAL OPERATIONS] Detected bracketed action: {detected_action.upper()}")
     else:
         # Fallback to keyword detection
         action_keywords = {
@@ -237,7 +247,7 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
         context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
         
         if os.path.exists(context_file):
-            print(f"[VIRTUAL OPERATIONS] Detected action: {detected_action.upper()}, loading context from {context_file}")
+            log_print(f"[VIRTUAL OPERATIONS] Detected action: {detected_action.upper()}, loading context from {context_file}")
             
             with open(context_file, 'r') as f:
                 context_template = f.read()
@@ -274,7 +284,7 @@ IMPORTANT: Execute all commands in the application folder: {app_folder if app_fo
 Execute all required steps and provide a clear summary of the results.
 """
         else:
-            print(f"[VIRTUAL OPERATIONS] Context file not found: {context_file}, using default Q&A mode")
+            log_print(f"[VIRTUAL OPERATIONS] Context file not found: {context_file}, using default Q&A mode")
             prompt = f"""
 You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
@@ -320,7 +330,7 @@ Provide a helpful and informative response.
             cmd_args.append('--trust-all-tools')
         cmd_args.append(prompt)
         
-        print(f"[VIRTUAL OPERATIONS] Executing qchat command for question using: {qchat_cmd}")
+        log_print(f"[VIRTUAL OPERATIONS] Executing qchat command for question using: {qchat_cmd}")
         
         # Set up proper environment to avoid permission issues
         import os
@@ -335,7 +345,7 @@ Provide a helpful and informative response.
         result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300, env=qchat_env)
         execution_time = time.time() - start_time
         
-        print(f"[VIRTUAL OPERATIONS] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
+        log_print(f"[VIRTUAL OPERATIONS] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
         
         # Handle response from both stdout and stderr
         response_text = ''
@@ -357,13 +367,13 @@ Provide a helpful and informative response.
         }
         
     except subprocess.TimeoutExpired:
-        print(f"[VIRTUAL OPERATIONS] Question timed out after 300s")
+        log_print(f"[VIRTUAL OPERATIONS] Question timed out after 300s")
         return {
             'error': 'Virtual Operations question timed out',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
-        print(f"[VIRTUAL OPERATIONS] Error: {str(e)}")
+        log_print(f"[VIRTUAL OPERATIONS] Error: {str(e)}")
         return {
             'error': f'Virtual Operations error: {str(e)}',
             'execution_time': round(time.time() - start_time, 2)
@@ -382,4 +392,4 @@ if __name__ == "__main__":
     # Exemple d'appel
     demande = "Ajoute un endpoint /healthcheck sur /health en GET qui retourne un JSON {{'status': 'ok'}}."
     result = process_qchat_developer(demande)
-    print(f"Result: {result}")
+    log_print(f"Result: {result}")

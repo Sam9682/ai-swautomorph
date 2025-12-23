@@ -812,7 +812,7 @@ def api_qchat_developer():
     import json
     import subprocess
     import re
-    import time
+    import logging
     
     user_id = session.get('user_id', 'anonymous')
     
