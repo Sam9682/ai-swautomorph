@@ -7,7 +7,7 @@ import os
 def log_print(message):
     """Print message to console and log file"""
     print(message)
-    log_dir = "./logs/"
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
     os.makedirs(log_dir, exist_ok=True)
     log_file = os.path.join(log_dir, f"automorph_{datetime.datetime.now().strftime('%Y%m%d')}.log")
     with open(log_file, 'a', encoding='utf-8') as f:

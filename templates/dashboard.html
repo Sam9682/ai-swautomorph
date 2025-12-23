@@ -398,12 +398,12 @@
                     </div>
                     <div id="unifiedMessages" class="messages-area"></div>
                     <div class="input-area">
-                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="3"></textarea>
+                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="3" oninput="updateSendButtonState()"></textarea>
                         <div class="input-controls">
                             <label>
                                 <input type="checkbox" id="unifiedAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button class="send-btn" onclick="sendUnifiedMessage()">{{ get_text('send') }}</button>
+                            <button id="unifiedSendBtn" class="send-btn" onclick="sendUnifiedMessage()" disabled>{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -1459,13 +1459,31 @@ function updateApplicationButtonStatus(appName, logs) {
 }
 
 // Virtual Agents Panel functions - Unified
+function updateSendButtonState() {
+    const input = document.getElementById('unifiedInput');
+    const sendBtn = document.getElementById('unifiedSendBtn');
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
+    
+    if (input && sendBtn) {
+        const hasText = input.value.trim().length > 0;
+        const hasApp = selectedApp.length > 0;
+        sendBtn.disabled = !hasText || !hasApp;
+    }
+}
+
 function sendUnifiedMessage() {
     const input = document.getElementById('unifiedInput');
+    const sendBtn = document.getElementById('unifiedSendBtn');
     const message = input.value.trim();
     if (!message) return;
     
+    // Update button to show action is ongoing
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Processing...';
+    
     sendUnifiedMessageWithText(message);
     input.value = '';
+    updateSendButtonState();
 }
 
 function sendUnifiedMessageWithText(message) {
@@ -1526,7 +1544,15 @@ function sendUnifiedMessageWithText(message) {
             
             function readStream() {
                 reader.read().then(({done, value}) => {
-                    if (done) return;
+                    if (done) {
+                        // Reset send button when action is complete
+                        const sendBtn = document.getElementById('unifiedSendBtn');
+                        if (sendBtn) {
+                            sendBtn.textContent = '{{ get_text("send") }}';
+                            updateSendButtonState();
+                        }
+                        return;
+                    }
                     
                     const chunk = decoder.decode(value, {stream: true});
                     const lines = chunk.split('\n');
@@ -1542,6 +1568,12 @@ function sendUnifiedMessageWithText(message) {
                                     contentDiv.textContent += `\n❌ Error: ${data.error}`;
                                 } else if (data.done) {
                                     contentDiv.textContent += '\n✅ Completed';
+                                    // Reset send button when action is complete
+                                    const sendBtn = document.getElementById('unifiedSendBtn');
+                                    if (sendBtn) {
+                                        sendBtn.textContent = '{{ get_text("send") }}';
+                                        updateSendButtonState();
+                                    }
                                 }
                             } catch (e) {}
                         }
@@ -1553,6 +1585,12 @@ function sendUnifiedMessageWithText(message) {
         })
         .catch(error => {
             contentDiv.textContent += `\n❌ Error: ${error.message}`;
+            // Reset send button on error
+            const sendBtn = document.getElementById('unifiedSendBtn');
+            if (sendBtn) {
+                sendBtn.textContent = '{{ get_text("send") }}';
+                updateSendButtonState();
+            }
         });
     } else {
         // Handle operations (START, STOP, LOGS)
@@ -1607,6 +1645,12 @@ function sendUnifiedMessageWithText(message) {
                     if (done) {
                         contentDiv.textContent += '\n=== Q Chat Session Completed ===\n';
                         appendLog(`=== OPERATIONS COMPLETED ===\n`);
+                        // Reset send button when stream is complete
+                        const sendBtn = document.getElementById('unifiedSendBtn');
+                        if (sendBtn) {
+                            sendBtn.textContent = '{{ get_text("send") }}';
+                            updateSendButtonState();
+                        }
                         return;
                     }
                     
@@ -1634,6 +1678,12 @@ function sendUnifiedMessageWithText(message) {
                                     appendLog(`❌ Error: ${data.error}`);
                                 } else if (data.done) {
                                     contentDiv.textContent += '\n✅ Q Chat Processing Completed';
+                                    // Reset send button when action is complete
+                                    const sendBtn = document.getElementById('unifiedSendBtn');
+                                    if (sendBtn) {
+                                        sendBtn.textContent = '{{ get_text("send") }}';
+                                        updateSendButtonState();
+                                    }
                                 }
                             } catch (e) {
                                 console.error('Error parsing SSE data:', e, 'Line:', line);
@@ -1646,6 +1696,12 @@ function sendUnifiedMessageWithText(message) {
                     console.error('Stream reading error:', error);
                     contentDiv.textContent += `\n❌ Stream Error: ${error.message}`;
                     appendLog(`❌ Stream Error: ${error.message}`);
+                    // Reset send button on error
+                    const sendBtn = document.getElementById('unifiedSendBtn');
+                    if (sendBtn) {
+                        sendBtn.textContent = '{{ get_text("send") }}';
+                        updateSendButtonState();
+                    }
                 });
             }
             readStream();
@@ -1654,6 +1710,12 @@ function sendUnifiedMessageWithText(message) {
             console.error('Fetch error:', error);
             contentDiv.textContent = `❌ Connection Error: ${error.message}`;
             appendLog(`❌ Connection Error: ${error.message}`);
+            // Reset send button on error
+            const sendBtn = document.getElementById('unifiedSendBtn');
+            if (sendBtn) {
+                sendBtn.textContent = '{{ get_text("send") }}';
+                updateSendButtonState();
+            }
         });
     }
 }
@@ -1739,10 +1801,12 @@ document.addEventListener('keydown', function(e) {
 // Auto-populate text when application or action is selected
 document.getElementById('unifiedAppSelect').addEventListener('change', function() {
     updateUnifiedInputText();
+    updateSendButtonState();
 });
 
 document.getElementById('unifiedAction').addEventListener('change', function() {
     updateUnifiedInputText();
+    updateSendButtonState();
 });
 
 function updateUnifiedInputText() {
@@ -1757,6 +1821,7 @@ function updateUnifiedInputText() {
             text = `I need an operations specialist to execute the ${selectedAction.replace('_', ' ')} action on the application ${selectedApp}`;
         }
         document.getElementById('unifiedInput').value = text;
+        updateSendButtonState();
     }
 }
 
