@@ -924,10 +924,6 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
         }
     }
     
-    // Only show logs tab for actions that need it, not for status checks or logs viewing
-    if (action !== 'ps' && action !== 'logs') {
-        showLogs();
-    }
     appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
     
     // For clone action, proceed directly without server allocation
@@ -957,7 +953,7 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
-            
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             
@@ -996,7 +992,7 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                 } else if (data.done) {
                                     if (!data.success) appendLog('Operation failed');
                                     if (window.statusOutput) {
-                                        showCloneResultInWaitingBox(window.statusOutput);
+                                        showResultInWaitingBox(window.statusOutput);
                                         window.statusOutput = '';
                                     }
                                     // Reset clone button state manually without closing the loading box
@@ -1042,13 +1038,7 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
             startBtn.innerHTML = '⏳ STARTING';
         }
     }
-    
-    // Only show logs tab for actions that need it, not for status checks or logs viewing
-    if (action !== 'ps' && action !== 'logs') {
-        showLogs();
-    }
-    appendLog(`\n=== ${action.toUpperCase()} ${appName} ===`);
-    
+        
     getAvailableServerId(appName).then(serverId => {
         const data = {
             action: action,
@@ -1079,9 +1069,10 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                     if (done) {
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
                         setTimeout(() => checkApplicationStatus(appName), 1000);
-                        if (action === 'start') startPeriodicStatusCheck(appName);
+                        //if (action === 'start') startPeriodicStatusCheck(appName);
                         // Reset button loading state
-                        setButtonLoadingState(appName, action, false);
+                        // Don't call setButtonLoadingState for clone to keep loading box open
+                        //setButtonLoadingState(appName, action, false);
                         return;
                     }
                     
@@ -1101,17 +1092,17 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                 } else if (data.done) {
                                     if (!data.success) appendLog('Operation failed');
                                     if (window.statusOutput) {
-                                        showCloneResultInWaitingBox(window.statusOutput);
+                                        showResultInWaitingBox(window.statusOutput);
                                         window.statusOutput = '';
                                     }
-                                    // Reset start button state manually without closing the loading box
-                                    const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-                                    if (startBtn && startBtn.dataset.originalContent) {
-                                        startBtn.innerHTML = startBtn.dataset.originalContent;
-                                        startBtn.disabled = false;
-                                        startBtn.style.opacity = '1';
-                                        startBtn.style.cursor = 'pointer';
-                                        delete startBtn.dataset.originalContent;
+                                    // Reset button state manually without closing the loading box
+                                    const Btn = document.getElementById(`${action}Btn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+                                    if (Btn && Btn.dataset.originalContent) {
+                                        Btn.innerHTML = Btn.dataset.originalContent;
+                                        Btn.disabled = false;
+                                        Btn.style.opacity = '1';
+                                        Btn.style.cursor = 'pointer';
+                                        delete Btn.dataset.originalContent;
                                     }
                                 }
                             } catch (e) {}
@@ -2411,11 +2402,11 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
         button.title = 'Please wait, action in progress...';
         
         // Show loading message for actions that don't show modal immediately
-        if (action === 'clone' || action === 'start' || action === 'stop' || action === 'restart') {
+        if (action === 'clone' || action === 'start' || action === 'stop' || action === 'restart' || action === 'ps') {
             console.log('Calling showLoadingMessage for action:', action);
             showLoadingMessage(action, appName, repoSize, startDuration, stopDuration);
-        } else if (action === 'ps' || action === 'logs') {
-            // For status and logs, show a brief loading indicator without overlay
+        } else if (action === 'logs') {
+            // For logs, show a brief loading indicator without overlay
             showBriefLoadingIndicator(action, appName);
         }
     } else {
@@ -2430,7 +2421,7 @@ function setButtonLoadingState(appName, action, isLoading, repoSize, startDurati
         button.title = '';
         
         // Hide loading message (keep open for clone and start actions)
-        if (action !== 'clone' && action !== 'start') {
+        if (action !== 'clone' && action !== 'start' && action !== 'ps') {
             hideLoadingMessage();
         }
         hideBriefLoadingIndicator();
@@ -2509,12 +2500,12 @@ function hideBriefLoadingIndicator() {
     }
 }
 
-// Function to show clone results in waiting box
-function showCloneResultInWaitingBox(results) {
+// Function to show results in waiting box
+function showResultInWaitingBox(results) {
     // Stop the progress timer
-    if (window.cloneProgressInterval) {
-        clearInterval(window.cloneProgressInterval);
-        window.cloneProgressInterval = null;
+    if (window.ProgressInterval) {
+        clearInterval(window.ProgressInterval);
+        window.ProgressInterval = null;
     }
     
     // Hide the spinning progress icon
@@ -2527,7 +2518,7 @@ function showCloneResultInWaitingBox(results) {
     if (tipsDiv) {
         tipsDiv.innerHTML = `
             <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Clone Results</h4>
+                <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Results</h4>
                 <pre style="background: #f8f9fa; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #495057; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin: 0; border: 1px solid #dee2e6;">${results}</pre>
             </div>
         `;
@@ -2681,6 +2672,28 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
         
         // Start progress simulation for docker stop
         setTimeout(() => startDockerProgressSimulation('stop', stopDuration || 10), 100);
+    } else if (action === 'ps') {
+        // Enhanced ps loading with progress
+        loadingDiv.innerHTML = `
+            <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
+            <div class="loading-content">
+                <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.4rem;">📊 Checking Status - ${appName}</h3>
+                <div class="progress-container" style="margin: 1.5rem 0;">
+                    <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
+                        <div class="progress-fill" id="psProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
+                    </div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Checking container status...</div>
+                </div>
+                <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
+                    <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Status check shows current container state</p>
+                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 This will show if containers are running, stopped, or have issues</p>
+                </div>
+                <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
+                </div>
+            </div>
+        `;
+        
     } else {
         // Standard loading for other actions
         const message = `${actionText} ${appName}... Please wait.`;
@@ -2767,7 +2780,7 @@ function startCloneProgressSimulation(repoSizeMB) {
     }, 1000);
     
     // Store interval ID to clear it later
-    window.cloneProgressInterval = progressInterval;
+    window.ProgressInterval = progressInterval;
 }
 
 function formatRepoSize(sizeInMB) {
@@ -2821,7 +2834,7 @@ function startDockerProgressSimulation(action, estimatedDuration) {
         
         progress = Math.min(progress, 99); // Never reach 100% until actually done
         
-        const progressBar = document.getElementById(action === 'start' ? 'startProgress' : 'stopProgress');
+        const progressBar = document.getElementById(action === 'start' ? 'startProgress' : action === 'stop' ? 'stopProgress' : 'psProgress');
         const progressText = document.getElementById('progressText');
         
         if (progressBar) {
@@ -2839,7 +2852,7 @@ function startDockerProgressSimulation(action, estimatedDuration) {
                 } else {
                     progressText.textContent = 'Finalizing startup...';
                 }
-            } else {
+            } else if (action === 'stop') {
                 if (progress < 30) {
                     progressText.textContent = 'Sending stop signals...';
                 } else if (progress < 70) {
@@ -2864,9 +2877,9 @@ function startDockerProgressSimulation(action, estimatedDuration) {
 
 function hideLoadingMessage() {
     // Clear all progress intervals
-    if (window.cloneProgressInterval) {
-        clearInterval(window.cloneProgressInterval);
-        window.cloneProgressInterval = null;
+    if (window.ProgressInterval) {
+        clearInterval(window.ProgressInterval);
+        window.ProgressInterval = null;
     }
     if (window.dockerProgressInterval) {
         clearInterval(window.dockerProgressInterval);
