@@ -386,7 +386,7 @@
                         <select id="unifiedAppSelect">
                             <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
-                            <option value="{{ app[1] }}">{{ app[1] }}</option>
+                            <option value="{{ app[1] }}" id="virtualAgent-{{ app[1] | replace(' ', '-') | lower }}">{{ app[1] }}</option>
                             {% endfor %}
                         </select>
                         <select id="unifiedAction">
@@ -1329,6 +1329,7 @@ function updateApplicationButtonStatus(appName, logs) {
     const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    const virtualAgentOption = document.getElementById(`virtualAgent-${appName.replace(/\s+/g, '-').toLowerCase()}`);
     if (!openBtn) return;
     
     // Check if application is not cloned/installed
@@ -1365,6 +1366,13 @@ function updateApplicationButtonStatus(appName, logs) {
         openBtn.style.opacity = '0.6';
         openBtn.title = 'Application is not cloned yet';
         
+        // Disable virtual agent option for non-cloned applications
+        if (virtualAgentOption) {
+            virtualAgentOption.disabled = true;
+            virtualAgentOption.style.color = '#999';
+            virtualAgentOption.title = 'Application must be cloned first';
+        }
+        
         // Only Clone button enabled
         if (cloneBtn) {
             cloneBtn.style.display = 'inline-block';
@@ -1396,6 +1404,13 @@ function updateApplicationButtonStatus(appName, logs) {
         openBtn.style.opacity = '1';
         openBtn.title = 'Application is running';
         
+        // Enable virtual agent option for cloned applications
+        if (virtualAgentOption) {
+            virtualAgentOption.disabled = false;
+            virtualAgentOption.style.color = '';
+            virtualAgentOption.title = '';
+        }
+        
         if (cloneBtn) cloneBtn.style.display = 'none';
         if (startBtn) startBtn.style.display = 'none';
         if (psBtn) psBtn.style.display = 'inline-block';
@@ -1414,6 +1429,13 @@ function updateApplicationButtonStatus(appName, logs) {
         openBtn.style.pointerEvents = 'none';
         openBtn.style.opacity = '0.6';
         openBtn.title = 'Application is not running';
+        
+        // Enable virtual agent option for cloned applications
+        if (virtualAgentOption) {
+            virtualAgentOption.disabled = false;
+            virtualAgentOption.style.color = '';
+            virtualAgentOption.title = '';
+        }
         
         if (cloneBtn) {
             cloneBtn.style.display = 'inline-block';
@@ -1452,6 +1474,13 @@ function sendUnifiedMessageWithText(message) {
     
     if (!selectedApp) {
         addAgentMessage('unified', 'error', 'Please select an application before sending your request.');
+        return;
+    }
+    
+    // Check if the selected application option is disabled (not cloned)
+    const virtualAgentOption = document.getElementById(`virtualAgent-${selectedApp.replace(/\s+/g, '-').toLowerCase()}`);
+    if (virtualAgentOption && virtualAgentOption.disabled) {
+        addAgentMessage('unified', 'error', `Application "${selectedApp}" must be cloned first before using the Virtual Agent.`);
         return;
     }
     

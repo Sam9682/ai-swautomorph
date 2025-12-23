@@ -214,28 +214,28 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
     # Detect application management actions
     # First check for bracketed actions like [START], [STOP], etc.
     import re
-    bracket_match = re.search(r'\[(START|STOP|RESTART|PS|LOGS)\]', user_question.upper())
     
     # Also check for complete sentences from the Virtual agent panel listbox
     complete_sentence_match = re.search(r'(MODIFY THE CODE OF THE APPLICATION \(IT Developer\)|START THE APPLICATION \(IT Operator\)|STOP THE APPLICATION \(IT Operator\)|DISPLAY THE LOGS OF THE APPLICATION \(IT Operator\)|MODIFIER LE CODE DE L\'APPLICATION \(Développeur IT\)|DÉMARRER L\'APPLICATION \(Opérateur IT\)|ARRÊTER L\'APPLICATION \(Opérateur IT\)|AFFICHER LES JOURNAUX DE L\'APPLICATION \(Opérateur IT\))', user_question, re.IGNORECASE)
     
     detected_action = None
-    
-    if bracket_match:
-        # Use bracketed action with priority
-        detected_action = bracket_match.group(1).lower()
-        log_print(f"[VIRTUAL OPERATIONS] Detected bracketed action: {detected_action.upper()}")
-    elif complete_sentence_match:
+
+    if complete_sentence_match:
         # Map complete sentences to actions
         sentence = complete_sentence_match.group(1).upper()
         if 'MODIFY THE CODE' in sentence or 'MODIFIER LE CODE' in sentence:
-            detected_action = 'modify_code'
+            l_msg = f"[VIRTUAL OPERATIONS] ERROR : asking to modify the code, should be sent to Developer agent"
+            log_print(l_msg)
+            return {
+                'error': l_msg,
+                'execution_time': round(time.time() - start_time, 2)
+            }
         elif 'START THE APPLICATION' in sentence or 'DÉMARRER L\'APPLICATION' in sentence:
-            detected_action = 'start'
+            detected_action = 'START'
         elif 'STOP THE APPLICATION' in sentence or 'ARRÊTER L\'APPLICATION' in sentence:
-            detected_action = 'stop'
+            detected_action = 'STOP'
         elif 'DISPLAY THE LOGS' in sentence or 'AFFICHER LES JOURNAUX' in sentence:
-            detected_action = 'logs'
+            detected_action = 'LOGS'
         log_print(f"[VIRTUAL OPERATIONS] Detected complete sentence action: {detected_action}")
     else:
         # Fallback to keyword detection
