@@ -349,7 +349,7 @@ Provide a helpful and informative response.
         # Use --trust-all-tools if action detected (needs command execution)
         cmd_args = [qchat_cmd, 'chat']
         if detected_action:
-            cmd_args.extend(['--trust-all-tools', '--no-mcp'])
+            cmd_args.extend(['--trust-all-tools'])
         cmd_args.append(prompt)
         
         log_print(f"[VIRTUAL OPERATIONS] Executing qchat command for {detected_action or 'question'} using: {qchat_cmd}")
