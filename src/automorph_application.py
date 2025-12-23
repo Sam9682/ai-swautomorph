@@ -282,19 +282,23 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
             prompt = f"""
 You are an autonomous Operations agent with access to execute shell commands on a Linux server.
 
-The user has requested an application management action.
+The user has requested an application management action: {detected_action.upper()}
 
 User Request: {user_question}
 
 {'Application Folder: ' + app_folder if app_folder else ''}
 
-Follow the instructions below to execute the {detected_action.upper()} action:
+IMPORTANT INSTRUCTIONS:
+1. Change to the application directory: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+2. Execute ALL steps from the context below in sequence
+3. Do not stop until all steps are completed
+4. If any step fails, report the error but continue with remaining steps where possible
+5. Provide a detailed summary of all executed steps and their results
 
+CONTEXT AND STEPS TO EXECUTE:
 {context}
 
-IMPORTANT: Execute all commands in the application folder: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-
-Execute all required steps and provide a clear summary of the results.
+Execute ALL steps above completely and provide a comprehensive summary of the results.
 """
         else:
             log_print(f"[VIRTUAL OPERATIONS] Context file not found: {context_file}, using default Q&A mode")
@@ -340,7 +344,7 @@ Provide a helpful and informative response.
         # Use --trust-all-tools if action detected (needs command execution)
         cmd_args = [qchat_cmd, 'chat']
         if detected_action:
-            cmd_args.append('--trust-all-tools')
+            cmd_args.extend(['--trust-all-tools', '--no-mcp'])
         cmd_args.append(prompt)
         
         log_print(f"[VIRTUAL OPERATIONS] Executing qchat command for question using: {qchat_cmd}")
@@ -354,8 +358,9 @@ Provide a helpful and informative response.
             'PATH': '/usr/local/bin:/usr/bin:/bin:' + qchat_env.get('PATH', '')
         })
         
-        # Execute Q Chat command with proper environment
-        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=300, env=qchat_env)
+        # Execute Q Chat command with proper environment (increased timeout for deployment operations)
+        timeout_duration = 1200 if detected_action in ['START', 'STOP', 'RESTART'] else 300
+        result = subprocess.run(cmd_args, capture_output=True, text=True, timeout=timeout_duration, env=qchat_env)
         execution_time = time.time() - start_time
         
         log_print(f"[VIRTUAL OPERATIONS] Command completed in {execution_time:.2f}s, Return code: {result.returncode}")
@@ -380,9 +385,10 @@ Provide a helpful and informative response.
         }
         
     except subprocess.TimeoutExpired:
-        log_print(f"[VIRTUAL OPERATIONS] Question timed out after 300s")
+        timeout_duration = 1200 if detected_action in ['START', 'STOP', 'RESTART'] else 300
+        log_print(f"[VIRTUAL OPERATIONS] Question timed out after {timeout_duration}s")
         return {
-            'error': 'Virtual Operations question timed out',
+            'error': f'Virtual Operations question timed out after {timeout_duration}s',
             'execution_time': round(time.time() - start_time, 2)
         }
     except Exception as e:
