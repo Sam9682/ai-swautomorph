@@ -4,7 +4,6 @@ import os
 # Database configuration
 DB_PATH = 'softfluid/db/ai_swautomorph.db'
 
-
 # Name of print logs output file
 OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
 

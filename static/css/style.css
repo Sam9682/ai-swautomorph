@@ -2019,6 +2019,47 @@ body {
 .agents-panel {
     flex: 0 0 30%;
     min-width: 300px;
+    position: relative;
+}
+
+/* Resize Handle */
+.resize-handle {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    background: transparent;
+    z-index: 1000;
+    transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+    background: rgba(102, 126, 234, 0.3);
+}
+
+.resize-handle.resizing {
+    background: rgba(102, 126, 234, 0.5);
+}
+
+.resize-handle::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 30px;
+    background: rgba(102, 126, 234, 0.4);
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.resize-handle:hover::before,
+.resize-handle.resizing::before {
+    opacity: 1;
 }
 
 .dashboard-container {
@@ -2168,6 +2209,10 @@ body {
         height: 500px;
     }
     
+    .resize-handle {
+        display: none;
+    }
+    
     .virtual-agents-panel {
         height: 100%;
     }
@@ -2189,6 +2234,10 @@ body {
     .agents-panel {
         height: 60vh;
         min-height: 400px;
+    }
+    
+    .resize-handle {
+        display: none;
     }
     
     .virtual-agents-panel {

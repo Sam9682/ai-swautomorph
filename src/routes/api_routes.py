@@ -1,15 +1,248 @@
 """API routes"""
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, Response, stream_with_context
 from werkzeug.security import generate_password_hash
 import sqlite3
 import os
-import shutil
 import requests
-from ..config import DB_PATH
+from datetime import datetime
+from ..config import DB_PATH, TRANSLATIONS
 from ..database import db_manager
 from ..db_health import check_database_health, get_database_stats
+from ..automorph_application import process_qchat_developer, process_qchat_operations
+
+def get_language():
+    return session.get('language', 'en')
+
+def get_text(key):
+    lang = get_language()
+    return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+
+def log_with_timestamp(message):
+    """Log message with datetime timestamp"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}")
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
+
+def return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default'):
+    # 🧠 Prompt complet envoyé à Q Chat
+    if (version == 'initial'):
+        prompt = f"""
+You are an autonomous Operations/code agent running on a Linux server
+with access to the local filesystem and shell commands.
+
+The application source code is located in the following git repository:
+  REPO_DIR = "{repo_dir}"
+
+This repository is the one used by docker-compose to run the application.
+The deployment command is executed from the repo root:
+  docker-compose up -d --build
+
+There is a local Github instance reachable with the Git URL:
+  GITHUB_REMOTE_URL = "{repo_github_url}"
+
+Your goal is to:
+  - modify the source code according to the user request,
+  - commit the changes on a new branch,
+  - push this branch to the local Gitea remote,
+  - rebuild and redeploy the running application with docker-compose.
+
+USER REQUEST (what must be changed in the app):
+\"\"\"{message}\"\"\"
+
+Follow these steps EXACTLY:
+
+1. Change directory to the repository:
+   cd {repo_dir}
+
+2. Check that the working tree is clean (no uncommitted changes).
+   If there are local changes, STOP and print a clear error message,
+   do NOT try to auto-commit existing local changes.
+
+3. Ensure that a git remote named 'gitea' exists and points to:
+     {repo_gitea_url}
+   - If 'gitea' does not exist, add it:
+       git remote add gitea {repo_gitea_url}
+   - If 'gitea' exists but with a different URL, update it:
+       git remote set-url gitea {repo_gitea_url}
+
+4. Fetch from 'origin':
+     git pull origin
+
+5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
+   Then create and checkout a new local branch named:
+     {branch_name}
+   starting from the default branch, for example:
+     git checkout -b {branch_name}
+
+6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
+   and implement the USER REQUEST in a minimal, clean and maintainable way.
+   - Update only the necessary files.
+   - Keep coding style consistent with the existing project.
+
+7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
+   try to detect it and run it.
+   - If tests FAIL, revert the modifications or reset the branch to the previous state,
+     and STOP with a clear error message (do NOT push a broken branch).
+
+8. Stage and commit the changes with a clear message that includes the user request, e.g.:
+     git status
+     git add .
+     git commit -m "Auto-update: {message}"
+
+9. Push the new branch to the 'gitea' remote:
+     git push gitea --all
+
+10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
+    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
+
+11. Rebuild and redeploy the running application by executing:
+      deployApp.sh stop
+      deployApp.sh start {user_id} {user_name}
+    from the repository root ({repo_dir}).
+
+12. At the end, print a short summary including:
+    - the branch name,
+    - the git commit hash,
+    - the result of the docker-compose command (success or failure),
+    - and any warnings (e.g. tests were not found, tests were skipped, etc.).
+
+If ANY step fails, explain clearly which step failed and why.
+"""
+    else:
+        prompt = f"""
+You are an autonomous Operations/code agent running on a Linux server
+with access to the local filesystem and shell commands.
+
+The application source code is located in the following git repository:
+  REPO_DIR = "{repo_dir}"
+
+This repository is the one used by docker-compose to run the application.
+The deployment command is executed from the repo root:
+  docker-compose up -d --build
+
+There is a local Github instance reachable with the Git URL:
+  GITHUB_REMOTE_URL = "{repo_github_url}"
+
+Your goal is to:
+  - modify the source code according to the user request,
+  - commit the changes on a new branch,
+  - push this branch to the local Gitea remote,
+  - rebuild and redeploy the running application with docker-compose.
+
+USER REQUEST (what must be changed in the app):
+\"\"\"{message}\"\"\"
+
+Follow these steps EXACTLY:
+
+1. Change directory to the repository:
+   cd {repo_dir}
+
+2. Check that the working tree is clean (no uncommitted changes).
+   If there are local changes, STOP and print a clear error message,
+   do NOT try to auto-commit existing local changes.
+
+3. Ensure that a git remote named 'gitea' exists and points to:
+     {repo_gitea_url}
+   - If 'gitea' does not exist, add it:
+       git remote add gitea {repo_gitea_url}
+   - If 'gitea' exists but with a different URL, update it:
+       git remote set-url gitea {repo_gitea_url}
+
+4. Fetch from 'origin':
+     git pull origin
+
+5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
+   Then create and checkout a new local branch named:
+     {branch_name}
+   starting from the default branch, for example:
+     git checkout -b {branch_name}
+
+6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
+   and implement the USER REQUEST in a minimal, clean and maintainable way.
+   - Update only the necessary files.
+   - Keep coding style consistent with the existing project.
+
+7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
+   try to detect it and run it.
+   - If tests FAIL, revert the modifications or reset the branch to the previous state,
+     and STOP with a clear error message (do NOT push a broken branch).
+
+8. Stage and commit the changes with a clear message that includes the user request, e.g.:
+     git status
+     git add .
+     git commit -m "Auto-update: {message}"
+
+9. Push the new branch to the 'gitea' remote:
+     git push gitea --all
+
+10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
+    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{application_name}'
+
+11. Rebuild and redeploy the running application by executing:
+      deployApp.sh stop
+      deployApp.sh start {session['user_id']} {user_name}
+    from the repository root ({repo_dir}).
+
+12. At the end, print a short summary including:
+    - the branch name,
+    - the git commit hash,
+    - the result of the docker-compose command (success or failure),
+    - and any warnings (e.g. tests were not found, tests were skipped, etc.).
+
+If ANY step fails, explain clearly which step failed and why.
+"""
+    return prompt
+
+def return_prompt_for_operator(detected_action, user_question, app_folder, context, version = 'default'):
+    # 🧠 Prompt complet envoyé à Q Chat
+    if (version == 'initial'):
+        prompt = f"""
+You are an autonomous Operations agent with access to execute shell commands on a Linux server.
+
+The user has requested an application management action: {detected_action.upper()}
+
+User Request: {user_question}
+
+{'Application Folder: ' + app_folder if app_folder else ''}
+
+CRITICAL INSTRUCTIONS:
+1. You MUST execute ALL steps from the context below in the exact sequence provided
+2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+3. Do NOT stop execution until ALL steps are completed
+4. If any step fails, report the error but continue with remaining steps
+5. Execute each bash command block completely
+6. Provide a detailed summary showing which steps succeeded and which failed
+
+STEPS TO EXECUTE (ALL OF THEM):
+{context}
+
+IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
+"""
+    else:
+        prompt = f"""
+You are an autonomous Operations agent with access to execute shell commands on a Linux server.
+
+The user has requested an application management action: {detected_action.upper()}
+
+User Request: {user_question}
+
+{'Application Folder: ' + app_folder if app_folder else ''}
+
+CRITICAL INSTRUCTIONS:
+1. You MUST execute ALL steps from the context below in the exact sequence provided
+2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+3. Do NOT stop execution until ALL steps are completed
+4. If any step fails, report the error but continue with remaining steps
+5. Execute each bash command block completely
+6. Provide a detailed summary showing which steps succeeded and which failed
+
+STEPS TO EXECUTE (ALL OF THEM):
+{context}
+
+IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
+"""
+    return prompt
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
     """Create user in Gitea server"""
@@ -21,7 +254,7 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
         admin_token = get_gitea_admin_token()
         
         if not admin_token:
-            print(f"[GITEA] Failed to get admin token for user creation: {username}")
+            log_with_timestamp(f"[GITEA] Failed to get admin token for user creation: {username}")
             return False
         
         # User data for Gitea
@@ -42,14 +275,14 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
         response = requests.post(gitea_url, json=user_data, headers=headers, timeout=10)
         
         if response.status_code == 201:
-            print(f"[GITEA] User {username} created successfully")
+            log_with_timestamp(f"[GITEA] User {username} created successfully")
             return True
         else:
-            print(f"[GITEA] Failed to create user {username}: {response.status_code} - {response.text}")
+            log_with_timestamp(f"[GITEA] Failed to create user {username}: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        print(f"[GITEA] Error creating user {username}: {str(e)}")
+        log_with_timestamp(f"[GITEA] Error creating user {username}: {str(e)}")
         return False
 
 def get_gitea_admin_token():
@@ -62,11 +295,11 @@ def get_gitea_admin_token():
                 return f.read().strip()
         
         # If no token file, return None (manual setup required)
-        print("[GITEA] No admin token found. Manual Gitea setup required.")
+        log_with_timestamp("[GITEA] No admin token found. Manual Gitea setup required.")
         return None
         
     except Exception as e:
-        print(f"[GITEA] Error getting admin token: {str(e)}")
+        log_with_timestamp(f"[GITEA] Error getting admin token: {str(e)}")
         return None
 
 @api_bp.route('/auth/status')
@@ -386,14 +619,14 @@ def api_deployments():
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     user_agent = request.headers.get('User-Agent', 'Unknown')
     
-    print(f"[DEPLOYMENT API] {method} /api/deployments - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
+    log_with_timestamp(f"[DEPLOYMENT API] {method} /api/deployments - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
     
     if 'user_id' not in session:
-        print(f"[DEPLOYMENT API] FAILED - Authentication required from {remote_ip}")
+        log_with_timestamp(f"[DEPLOYMENT API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     if request.method == 'GET':
-        print(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
+        log_with_timestamp(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
         deployments_data = db_manager.execute_query('''
             SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
             FROM deployments WHERE user_id = ? ORDER BY updated_at DESC
@@ -410,7 +643,7 @@ def api_deployments():
             'server_id': row[7]
         } for row in deployments_data]
         
-        print(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
+        log_with_timestamp(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
         return jsonify(deployments)
     
     elif request.method == 'POST':
@@ -423,10 +656,10 @@ def api_deployments():
         git_url = data.get('git_url')
         server_id = data.get('server_id')
         
-        print(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
+        log_with_timestamp(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
         
         if not all([action, app_name]):
-            print(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
+            log_with_timestamp(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
             return jsonify({'error': 'Action and application name required'}), 400
         
         # Get username for deployment path
@@ -437,19 +670,19 @@ def api_deployments():
         username = user[0] if user else f'user_{session["user_id"]}'
         
         deployment_path = f'/home/ubuntu/deployments/{username}/{app_name.lower().replace(" ", "-")}'
-        print(f"[DEPLOYMENT API] POST - Deployment path: {deployment_path}")
+        log_with_timestamp(f"[DEPLOYMENT API] POST - Deployment path: {deployment_path}")
         
         try:
             if action == 'clone':
                 if not git_url:
-                    print(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
                     return jsonify({'error': 'Git URL required for clone action'}), 400
                 
                 if not server_id:
-                    print(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
                     return jsonify({'error': 'Server ID required for clone action'}), 400
                 
-                print(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
+                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
                 
                 # Get current server IP and target server IP
                 import socket
@@ -468,25 +701,25 @@ def api_deployments():
                 )
                 
                 if not target_server:
-                    print(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
                     return jsonify({'error': f'Server {server_id} not found'}), 400
                 
                 target_server_ip = target_server[0]
                 is_local_server = (target_server_ip == current_server_ip or target_server_ip == "127.0.0.1" or target_server_ip == "localhost")
                 
-                print(f"[DEPLOYMENT API] CLONE - Current server: {current_server_ip}, Target server: {target_server_ip}, Local: {is_local_server}")
+                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Current server: {current_server_ip}, Target server: {target_server_ip}, Local: {is_local_server}")
                 
                 if is_local_server:
                     # Execute locally
-                    print(f"[DEPLOYMENT API] CLONE - Executing locally")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Executing locally")
                     
                     # Remove existing directory if it exists
                     if os.path.exists(deployment_path):
-                        print(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
+                        log_with_timestamp(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
                         shutil.rmtree(deployment_path)
                     
                     # Create full directory path recursively
-                    print(f"[DEPLOYMENT API] CLONE - Creating directory structure: {deployment_path}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Creating directory structure: {deployment_path}")
                     os.makedirs(deployment_path, exist_ok=True)
                     
                     # Clone repository with proper Git environment
@@ -500,7 +733,7 @@ def api_deployments():
                                           capture_output=True, text=True, timeout=600, env=git_env)
                 else:
                     # Execute on remote server via SSH
-                    print(f"[DEPLOYMENT API] CLONE - Executing on remote server {target_server_ip}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Executing on remote server {target_server_ip}")
                     
                     ssh_commands = [
                         f"rm -rf {deployment_path}",
@@ -522,7 +755,7 @@ def api_deployments():
                 if result.returncode == 0:
                     status = 'cloned'
                     error_msg = None
-                    print(f"[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to {deployment_path}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to {deployment_path}")
                     
                     # Copy SSL certificates to cloned application
                     try:
@@ -531,7 +764,7 @@ def api_deployments():
                         
                         if is_local_server:
                             # Local server - direct copy
-                            print(f"[DEPLOYMENT API] CLONE - Copying SSL certificates locally to {ssl_dest_dir}")
+                            log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copying SSL certificates locally to {ssl_dest_dir}")
                             os.makedirs(ssl_dest_dir, exist_ok=True)
                             
                             # Copy specific SSL files
@@ -544,10 +777,10 @@ def api_deployments():
                                 src_file = os.path.join(ssl_source_dir, ssl_file)
                                 if os.path.exists(src_file):
                                     shutil.copy2(src_file, ssl_dest_dir)
-                                    print(f"[DEPLOYMENT API] CLONE - Copied {ssl_file} to {ssl_dest_dir}")
+                                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copied {ssl_file} to {ssl_dest_dir}")
                         else:
                             # Remote server - rsync via SSH
-                            print(f"[DEPLOYMENT API] CLONE - Copying SSL certificates to remote server {target_server_ip}")
+                            log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copying SSL certificates to remote server {target_server_ip}")
                             
                             # Create ssl directory on remote server
                             ssh_mkdir = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {ssl_dest_dir}'"
@@ -558,22 +791,22 @@ def api_deployments():
                             rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=120)
                             
                             if rsync_result.returncode == 0:
-                                print(f"[DEPLOYMENT API] CLONE - SSL certificates copied successfully to {target_server_ip}:{ssl_dest_dir}")
+                                log_with_timestamp(f"[DEPLOYMENT API] CLONE - SSL certificates copied successfully to {target_server_ip}:{ssl_dest_dir}")
                             else:
-                                print(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {rsync_result.stderr}")
+                                log_with_timestamp(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {rsync_result.stderr}")
                                 
                     except Exception as ssl_error:
-                        print(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {str(ssl_error)}")
+                        log_with_timestamp(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {str(ssl_error)}")
                         # Don't fail the entire clone operation for SSL copy issues
                         
                 else:
                     status = 'failed'
                     error_msg = f'Git clone failed: {result.stderr}'
-                    print(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
                     deployment_path = None
                 
                 # Record deployment
-                print(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
+                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
                 
                 # Check if record exists for this user, app, and server
                 existing_record = db_manager.execute_query('''
@@ -587,7 +820,7 @@ def api_deployments():
                         UPDATE deployments SET status = ?, deployment_path = ?, git_url = ?, updated_at = CURRENT_TIMESTAMP
                         WHERE user_id = ? AND application_name = ? AND server_id = ?
                     ''', (status, deployment_path, git_url, session['user_id'], app_name, server_id))
-                    print(f"[DEPLOYMENT API] CLONE - Database record updated")
+                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Database record updated")
                 else:
                     # Insert new record
                     db_manager.execute_query('''
@@ -615,7 +848,7 @@ def api_deployments():
                 
             elif action in ['start', 'stop', 'restart', 'ps', 'logs']:
                 # Check if deployment exists
-                print(f"[DEPLOYMENT API] {action.upper()} - Looking for existing deployment for app '{app_name}'")
+                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Looking for existing deployment for app '{app_name}'")
                 deployment = db_manager.execute_query('''
                     SELECT deployment_path FROM deployments 
                     WHERE user_id = ? AND application_name = ? AND status != 'failed'
@@ -623,11 +856,11 @@ def api_deployments():
                 ''', (session['user_id'], app_name), fetch_one=True)
                 
                 if not deployment:
-                    print(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
                     return jsonify({'error': 'Application not deployed. Clone first.'}), 400
                 
                 # Debug deployment data type and content
-                print(f"[DEPLOYMENT API] {action.upper()} - DEBUG - deployment type: {type(deployment)}, content: {deployment}")
+                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - deployment type: {type(deployment)}, content: {deployment}")
                 
                 # Extract deployment path safely
                 deploy_path = None
@@ -640,33 +873,33 @@ def api_deployments():
                         elif isinstance(deployment, str):
                             deploy_path = deployment
                         else:
-                            print(f"[DEPLOYMENT API] {action.upper()} - ERROR - Unexpected deployment type: {type(deployment)}")
+                            log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Unexpected deployment type: {type(deployment)}")
                             return jsonify({'error': f'Invalid deployment data type: {type(deployment)}'}), 500
                     
                     if not deploy_path:
-                        print(f"[DEPLOYMENT API] {action.upper()} - ERROR - Could not extract deployment path")
+                        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Could not extract deployment path")
                         return jsonify({'error': 'Could not extract deployment path'}), 500
                         
-                    print(f"[DEPLOYMENT API] {action.upper()} - DEBUG - Extracted deploy_path: {deploy_path} (type: {type(deploy_path)})")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - Extracted deploy_path: {deploy_path} (type: {type(deploy_path)})")
                     
                 except Exception as path_error:
-                    print(f"[DEPLOYMENT API] {action.upper()} - ERROR - Path extraction failed: {str(path_error)}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Path extraction failed: {str(path_error)}")
                     return jsonify({'error': f'Path extraction failed: {str(path_error)}'}), 500
                 
                 # Debug the deploy_path before using it in os.path.join
-                print(f"[DEPLOYMENT API] {action.upper()} - DEBUG - About to call os.path.join with deploy_path: {deploy_path} (type: {type(deploy_path)})")
+                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - About to call os.path.join with deploy_path: {deploy_path} (type: {type(deploy_path)})")
                 
                 try:
                     deploy_script = os.path.join(deploy_path, 'deployApp.sh')
                 except Exception as join_error:
-                    print(f"[DEPLOYMENT API] {action.upper()} - ERROR - os.path.join failed: {str(join_error)}")
-                    print(f"[DEPLOYMENT API] {action.upper()} - ERROR - deploy_path value: {repr(deploy_path)}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - os.path.join failed: {str(join_error)}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - deploy_path value: {repr(deploy_path)}")
                     return jsonify({'error': f'Path join failed: {str(join_error)}'}), 500
-                print(f"[DEPLOYMENT API] {action.upper()} - Found deployment at: {deploy_path}")
-                print(f"[DEPLOYMENT API] {action.upper()} - Looking for deploy script: {deploy_script}")
+                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Found deployment at: {deploy_path}")
+                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Looking for deploy script: {deploy_script}")
                 
                 if not os.path.exists(deploy_script):
-                    print(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
                     return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 400
                 
                 # Get user details for deployApp.sh
@@ -719,11 +952,11 @@ def api_deployments():
                                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
                 else:
                     # Execute deployApp.sh with action and user environment variables
-                    print(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                    print(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
                     result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
                                               cwd=deploy_path, capture_output=True, text=True, timeout=600)
-                    print(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
                     
                     # Build command output only for non-empty content
                     output_parts = []
@@ -740,15 +973,15 @@ def api_deployments():
                         UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
                         WHERE user_id = ? AND application_name = ?
                     ''', (status, session['user_id'], app_name))
-                    print(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
+                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
                     
                     # Record billing activity for start/stop actions
                     if action in ['start', 'stop'] and result.returncode == 0:
                         from .billing_routes import record_billing_activity
                         record_billing_activity(session['user_id'], app_name, action)
-                        print(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
+                        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
             
-            print(f"[DEPLOYMENT API] POST - SUCCESS - Action '{action}' completed for app '{app_name}' by user {user_id}")
+            log_with_timestamp(f"[DEPLOYMENT API] POST - SUCCESS - Action '{action}' completed for app '{app_name}' by user {user_id}")
             return jsonify({
                 'message': f'{action.capitalize()} completed for {app_name}',
                 'status': status,
@@ -756,10 +989,10 @@ def api_deployments():
             }), 202
             
         except subprocess.TimeoutExpired:
-            print(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
+            log_with_timestamp(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
             return jsonify({'error': 'Operation timed out'}), 408
         except Exception as e:
-            print(f"[DEPLOYMENT API] POST - ERROR - Action '{action}' failed for app '{app_name}' by user {user_id}: {str(e)}")
+            log_with_timestamp(f"[DEPLOYMENT API] POST - ERROR - Action '{action}' failed for app '{app_name}' by user {user_id}: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/deployments/<int:deployment_id>/logs')
@@ -768,10 +1001,10 @@ def api_deployment_logs(deployment_id):
     user_id = session.get('user_id', 'anonymous')
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     
-    print(f"[DEPLOYMENT LOGS] GET /api/deployments/{deployment_id}/logs - User: {user_id}, IP: {remote_ip}")
+    log_with_timestamp(f"[DEPLOYMENT LOGS] GET /api/deployments/{deployment_id}/logs - User: {user_id}, IP: {remote_ip}")
     
     if 'user_id' not in session:
-        print(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
+        log_with_timestamp(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     deployment = db_manager.execute_query('''
@@ -780,7 +1013,7 @@ def api_deployment_logs(deployment_id):
     ''', (deployment_id, session['user_id']), fetch_one=True)
     
     if not deployment:
-        print(f"[DEPLOYMENT LOGS] FAILED - Deployment {deployment_id} not found for user {user_id}")
+        log_with_timestamp(f"[DEPLOYMENT LOGS] FAILED - Deployment {deployment_id} not found for user {user_id}")
         return jsonify({'error': 'Deployment not found'}), 404
     
     # Extract deployment path safely
@@ -800,10 +1033,10 @@ def api_deployment_logs(deployment_id):
         else:
             logs = 'No logs available'
         
-        print(f"[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment {deployment_id} to user {user_id}")
+        log_with_timestamp(f"[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment {deployment_id} to user {user_id}")
         return jsonify({'logs': logs})
     except Exception as e:
-        print(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
+        log_with_timestamp(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
 
 @api_bp.route('/qchat_developer', methods=['POST'])
@@ -835,8 +1068,10 @@ def api_qchat_developer():
     username = user_details[0] if user_details else 'user'
     user_email = user_details[1] if user_details else 'user@example.com'
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
-    description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
-    
+
+    log_with_timestamp(f"AI Chat Developer - User: {username}, Email: {user_email}, App: {application_name}, Folder: {application_folder}")
+    log_with_timestamp(f"AI Chat Developer - Message: {message[:120]}")
+
     def generate():
         import datetime
         
@@ -844,7 +1079,7 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': 'Starting Q Chat Developer session...'})}\n\n"
             
             # Build prompt directly here
-            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             branch_name = f"{session['user_id']}-automorph-{application_name}-{timestamp}"
             
             # Use provided app folder or default REPO_DIR
@@ -854,89 +1089,9 @@ def api_qchat_developer():
             
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
-            prompt = f"""
-You are an autonomous Operations/code agent running on a Linux server
-with access to the local filesystem and shell commands.
+            # 🧠 Prompt complet envoyé à Q Chat
+            prompt = return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default')
 
-The application source code is located in the following git repository:
-  REPO_DIR = "{repo_dir}"
-
-This repository is the one used by docker-compose to run the application.
-The deployment command is executed from the repo root:
-  docker-compose up -d --build
-
-There is a local Github instance reachable with the Git URL:
-  GITHUB_REMOTE_URL = "{repo_github_url}"
-
-Your goal is to:
-  - modify the source code according to the user request,
-  - commit the changes on a new branch,
-  - push this branch to the local Gitea remote,
-  - rebuild and redeploy the running application with docker-compose.
-
-USER REQUEST (what must be changed in the app):
-\"\"\"{message}\"\"\"
-
-Follow these steps EXACTLY:
-
-1. Change directory to the repository:
-   cd {repo_dir}
-
-2. Check that the working tree is clean (no uncommitted changes).
-   If there are local changes, STOP and print a clear error message,
-   do NOT try to auto-commit existing local changes.
-
-3. Ensure that a git remote named 'gitea' exists and points to:
-     {repo_gitea_url}
-   - If 'gitea' does not exist, add it:
-       git remote add gitea {repo_gitea_url}
-   - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {repo_gitea_url}
-
-4. Fetch from 'origin':
-     git pull origin
-
-5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
-   Then create and checkout a new local branch named:
-     {branch_name}
-   starting from the default branch, for example:
-     git checkout -b {branch_name}
-
-6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
-   and implement the USER REQUEST in a minimal, clean and maintainable way.
-   - Update only the necessary files.
-   - Keep coding style consistent with the existing project.
-
-7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
-   try to detect it and run it.
-   - If tests FAIL, revert the modifications or reset the branch to the previous state,
-     and STOP with a clear error message (do NOT push a broken branch).
-
-8. Stage and commit the changes with a clear message that includes the user request, e.g.:
-     git status
-     git add .
-     git commit -m "Auto-update: {message}"
-
-9. Push the new branch to the 'gitea' remote:
-     git push gitea --all
-
-10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
-    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{application_name}'
-
-11. Rebuild and redeploy the running application by executing:
-      deployApp.sh stop
-      deployApp.sh start {session['user_id']} {user_name}
-    from the repository root ({repo_dir}).
-
-12. At the end, print a short summary including:
-    - the branch name,
-    - the git commit hash,
-    - the result of the docker-compose command (success or failure),
-    - and any warnings (e.g. tests were not found, tests were skipped, etc.).
-
-If ANY step fails, explain clearly which step failed and why.
-"""
-            
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
             qchat_cmd = None
@@ -1013,7 +1168,10 @@ def api_qchat_operations():
     user_email = user_details[1] if user_details else 'user@example.com'
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
     description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
-    
+
+    log_with_timestamp(f"AI Chat Operator - User: {username}, Email: {user_email}, App: {application_name}, Folder: {application_folder}")
+    log_with_timestamp(f"AI Chat Operator - Message: {message[:120]}")
+
     def generate():
         import os
         
@@ -1022,13 +1180,25 @@ def api_qchat_operations():
             
             # Build prompt directly here instead of calling process_qchat_devops
             # Detect application management actions
-            bracket_match = re.search(r'\[(START|STOP|RESTART|PS|LOGS)\]', message.upper())
+            complete_sentence_match = re.search(r'\[\[(.*?)\]\[', message.upper())
             
             detected_action = None
             
-            if bracket_match:
-                detected_action = bracket_match.group(1).lower()
-                yield f"data: {json.dumps({'chunk': f'Detected bracketed action: {detected_action.upper()}'})}\n\n"
+            if complete_sentence_match:
+                # Map complete sentences to actions
+                sentence = complete_sentence_match.group(1).upper()
+                if get_text('modify_code_option') in sentence:
+                    l_msg = f"[VIRTUAL OPERATIONS] ERROR : asking to modify the code, should be sent to Developer agent"
+                    yield f"data: {json.dumps({'error': l_msg})}\n\n"
+                    return
+                elif get_text('start_app_option') in sentence:
+                    detected_action = 'START'
+                elif get_text('stop_app_option') in sentence:
+                    detected_action = 'STOP'
+                elif get_text('display_logs_option') in sentence:
+                    detected_action = 'LOGS'
+                log_with_timestamp(f'AI Chat Operator - Detected action: {detected_action}')
+                yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
             else:
                 # Fallback to keyword detection
                 action_keywords = {
@@ -1051,6 +1221,7 @@ def api_qchat_operations():
                 context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
                 
                 if os.path.exists(context_file):
+                    log_with_timestamp(f'AI Chat Operator - Loading context from {detected_action.upper()}_context.md')
                     yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
                     
                     with open(context_file, 'r') as f:
@@ -1117,30 +1288,10 @@ echo "HTTPS_PORT2: $HTTPS_PORT2"
                         if len(parts) > 1:
                             app_folder = parts[1].strip()
                     
-                    prompt = f"""
-You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
+                    # 🧠 Prompt complet envoyé à Q Chat
+                    prompt = return_prompt_for_operator(detected_action, message, app_folder, context, version = 'default')
+                    log_with_timestamp(f'AI Chat Operator - Prompt : {prompt[:120]}')
 
-The user has requested an application management action: {detected_action.upper()}
-
-User Request: {message}
-
-{'Application Folder: ' + app_folder if app_folder else ''}
-
-{config_vars}
-
-CRITICAL INSTRUCTIONS:
-1. You MUST execute ALL steps from the context below in the exact sequence provided
-2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-3. Do NOT stop execution until ALL steps are completed
-4. If any step fails, report the error but continue with remaining steps
-5. Execute each bash command block completely
-6. Provide a detailed summary showing which steps succeeded and which failed
-
-STEPS TO EXECUTE (ALL OF THEM):
-{context}
-
-IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the {detected_action.upper()} operation.
-"""
                 else:
                     yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
                     prompt = f"""
@@ -1151,6 +1302,8 @@ User Question: {message}
 
 Provide a helpful and informative response.
 """
+                    log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {prompt[:120]}')
+
             else:
                 # Simple prompt for Q&A without code execution
                 prompt = f"""
@@ -1161,7 +1314,8 @@ User Question: {message}
 
 Provide a helpful and informative response.
 """
-            
+            log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {prompt[:120]}')
+
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
             qchat_cmd = None
@@ -1217,6 +1371,7 @@ Provide a helpful and informative response.
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
             
         except Exception as e:
+            log_with_timestamp(f'AI Chat Operator - Exception in generate(): {str(e)}')
             yield f"data: {json.dumps({'error': f'Exception in generate(): {str(e)}'})}\n\n"
     
     return Response(stream_with_context(generate()), mimetype='text/event-stream',
