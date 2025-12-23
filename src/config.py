@@ -95,7 +95,7 @@ TRANSLATIONS = {
         'operations_teams': 'Operations Teams',
         'operations_teams_desc': 'Multi-server deployment with automated lifecycle management',
         'key_features': 'Key Features',
-        'virtual_agents': 'Virtual Agents',
+        'virtual_agents': 'My Virtual IT Team Agents',
         'virtual_agents_desc': 'AI Developer & Operations assistants for code and deployment',
         'app_lifecycle': 'Application Lifecycle',
         'app_lifecycle_desc': 'CLONE, START, STOP, RESTART, PS, LOGS management',
@@ -213,7 +213,8 @@ TRANSLATIONS = {
         'configuration': 'Configuration',
         'user_management': 'User Management',
         'server_management': 'Server Management',
-        'database_management': 'Database Management'
+        'database_management': 'Database Management',
+        'virtual_agents_ready': 'Virtual Agents ready. Select an application and action to get started.'
     },
     'fr': {
         'login': 'Connexion',
@@ -294,7 +295,7 @@ TRANSLATIONS = {
         'operations_teams': 'Équipes Opérations',
         'operations_teams_desc': 'Déploiement multi-serveurs avec gestion automatisée du cycle de vie',
         'key_features': 'Fonctionnalités Clés',
-        'virtual_agents': 'Agents Virtuels',
+        'virtual_agents': 'Mes Informaticiens Virtuels',
         'virtual_agents_desc': 'Assistants IA Développeur et Opérations pour le code et le déploiement',
         'app_lifecycle': 'Cycle de Vie des Applications',
         'app_lifecycle_desc': 'Gestion CLONE, START, STOP, RESTART, PS, LOGS',
@@ -412,6 +413,7 @@ TRANSLATIONS = {
         'configuration': 'Configuration',
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
-        'database_management': 'Gestion de la Base de Données'
+        'database_management': 'Gestion de la Base de Données',
+        'virtual_agents_ready': 'Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.'
     }
 }

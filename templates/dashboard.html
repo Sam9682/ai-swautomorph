@@ -1769,7 +1769,7 @@ document.addEventListener('touchend', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize unified agent area
     if (document.getElementById('unifiedMessages').innerHTML === '') {
-        addAgentMessage('unified', 'system', 'Virtual Agents ready. Select an application and action to get started.');
+        addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
     }
     
     // Make Virtual Agents panel resizable
