@@ -1071,7 +1071,7 @@ def api_qchat_operations():
                     
                     # Load configuration values from database.py
                     from ..database import load_deploy_config
-                    NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN = load_deploy_config()
+                    NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
                     
                     # Replace placeholders
                     context = context_template.replace('{USER_ID}', str(session['user_id']))
