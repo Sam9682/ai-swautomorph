@@ -1128,7 +1128,7 @@ User Request: {message}
 
 {config_vars}
 
-Follow the instructions below to execute the {detected_action.upper()} action:
+Follow the instructions below to execute the {detected_action.upper()} action on the application {application_name}:
 
 {context}
 
