@@ -380,57 +380,30 @@
             </div>
             
             <div class="panel-content">
-                <!-- Agent Tabs -->
-                <div class="agent-tabs">
-                    <button class="agent-tab active" data-agent="developer" onclick="switchAgent('developer')">🤖 {{ get_text('virtual_developer') }}</button>
-                    <button class="agent-tab" data-agent="operations" onclick="switchAgent('operations')">💡 {{ get_text('virtual_operations') }}</button>
-                </div>
-                
-                <!-- Developer Agent Area -->
-                <div class="agent-content" id="developerContent">
-                    <div class="app-selection">
-                        <select id="developerAppSelect">
+                <!-- Unified Agent Area -->
+                <div class="agent-content" id="unifiedContent">
+                    <div class="unified-controls">
+                        <select id="unifiedAppSelect">
                             <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
                             <option value="{{ app[1] }}">{{ app[1] }}</option>
                             {% endfor %}
                         </select>
-                    </div>
-                    <div id="developerMessages" class="messages-area"></div>
-                    <div class="input-area">
-                        <textarea id="developerInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="3"></textarea>
-                        <div class="input-controls">
-                            <label>
-                                <input type="checkbox" id="autoApprove" checked> {{ get_text('auto_approve') }}
-                            </label>
-                            <button class="send-btn" onclick="sendDeveloperMessage()">{{ get_text('send') }}</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Operations Agent Area -->
-                <div class="agent-content" id="operationsContent" style="display: none;">
-                    <div class="operations-controls">
-                        <select id="operationsAppSelect">
-                            <option value="">{{ get_text('select_application_option') }}</option>
-                            {% for app in applications %}
-                            <option value="{{ app[1] }}">{{ app[1] }}</option>
-                            {% endfor %}
-                        </select>
-                        <select id="operationsAction">
-                            <option value="START" selected>START</option>
-                            <option value="STOP">STOP</option>
-                            <option value="LOGS">LOGS</option>
+                        <select id="unifiedAction">
+                            <option value="MODIFY_CODE">MODIFY THE CODE OF THE APPLICATION</option>
+                            <option value="START">START THE APPLICATION</option>
+                            <option value="STOP">STOP THE APPLICATION</option>
+                            <option value="LOGS">DISPLAY THE LOGS OF THE APPLICATION</option>
                         </select>
                     </div>
-                    <div id="operationsMessages" class="messages-area"></div>
+                    <div id="unifiedMessages" class="messages-area"></div>
                     <div class="input-area">
-                        <textarea id="operationsInput" placeholder="{{ get_text('ask_question_placeholder') }}" rows="3"></textarea>
+                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="3"></textarea>
                         <div class="input-controls">
                             <label>
-                                <input type="checkbox" id="operationsAutoApprove" checked> {{ get_text('auto_approve') }}
+                                <input type="checkbox" id="unifiedAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <button class="send-btn" onclick="sendOperationsMessage()">{{ get_text('send') }}</button>
+                            <button class="send-btn" onclick="sendUnifiedMessage()">{{ get_text('send') }}</button>
                         </div>
                     </div>
                 </div>
@@ -1463,19 +1436,197 @@ function updateApplicationButtonStatus(appName, logs) {
     }
 }
 
-// Virtual Agents Panel functions
-function switchAgent(agent) {
-    // Hide all agent contents
-    document.getElementById('developerContent').style.display = 'none';
-    document.getElementById('operationsContent').style.display = 'none';
+// Virtual Agents Panel functions - Unified
+function sendUnifiedMessage() {
+    const input = document.getElementById('unifiedInput');
+    const message = input.value.trim();
+    if (!message) return;
     
-    // Show selected agent content
-    document.getElementById(agent + 'Content').style.display = 'flex';
+    sendUnifiedMessageWithText(message);
+    input.value = '';
+}
+
+function sendUnifiedMessageWithText(message) {
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
+    const selectedAction = document.getElementById('unifiedAction').value;
     
-    // Update tab states
-    document.querySelectorAll('.agent-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.agent === agent);
-    });
+    if (!selectedApp) {
+        addAgentMessage('unified', 'error', 'Please select an application before sending your request.');
+        return;
+    }
+    
+    const username = '{{ username }}';
+    const userId = '{{ session.user_id }}';
+    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
+    
+    if (selectedAction === 'MODIFY_CODE') {
+        // Handle code modification (former developer functionality)
+        const fullMessage = `[DEVELOPER] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+        
+        addAgentMessage('unified', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
+        addAgentMessage('unified', 'user', message);
+        addAgentMessage('unified', 'system', `Virtual Developer is processing code modification for ${selectedApp}...`);
+        
+        // Create streaming message container
+        const messagesDiv = document.getElementById('unifiedMessages');
+        const streamDiv = document.createElement('div');
+        streamDiv.className = 'message developer-assistant';
+        streamDiv.innerHTML = `
+            <div class="message-header">
+                <span class="message-icon">🤖</span>
+                <span class="message-time">${new Date().toLocaleTimeString()}</span>
+            </div>
+            <div class="message-content" style="white-space: pre-wrap;"></div>
+        `;
+        messagesDiv.appendChild(streamDiv);
+        const contentDiv = streamDiv.querySelector('.message-content');
+        
+        // Stream from Developer API
+        fetch('/api/qchat_developer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: fullMessage,
+                application_name: selectedApp,
+                application_folder: appFolder
+            })
+        })
+        .then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({done, value}) => {
+                    if (done) return;
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    contentDiv.textContent += data.chunk + '\n';
+                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                } else if (data.error) {
+                                    contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                                } else if (data.done) {
+                                    contentDiv.textContent += '\n✅ Completed';
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    readStream();
+                });
+            }
+            readStream();
+        })
+        .catch(error => {
+            contentDiv.textContent += `\n❌ Error: ${error.message}`;
+        });
+    } else {
+        // Handle operations (START, STOP, LOGS)
+        const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+        
+        addAgentMessage('unified', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
+        addAgentMessage('unified', 'user', message);
+        addAgentMessage('unified', 'system', `Virtual Operations Team is processing ${selectedAction} for ${selectedApp}...`);
+        
+        // Add header to logs without switching tabs
+        appendLog(`\n=== OPERATIONS ${selectedAction} ${selectedApp} ===`);
+        
+        // Create streaming message container
+        const messagesDiv = document.getElementById('unifiedMessages');
+        const streamDiv = document.createElement('div');
+        streamDiv.className = 'message operations-assistant';
+        streamDiv.innerHTML = `
+            <div class="message-header">
+                <span class="message-icon">💡</span>
+                <span class="message-time">${new Date().toLocaleTimeString()}</span>
+            </div>
+            <div class="message-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0; min-height: 50px; max-height: 300px; overflow-y: auto;"></div>
+        `;
+        messagesDiv.appendChild(streamDiv);
+        const contentDiv = streamDiv.querySelector('.message-content');
+        
+        // Initialize with loading message
+        contentDiv.textContent = 'Connecting to Q Chat...\n';
+        
+        // Stream from Operations API
+        fetch('/api/qchat_operations', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: fullMessage,
+                application_name: selectedApp,
+                application_folder: appFolder
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            contentDiv.textContent = 'Q Chat connected, processing request...\n';
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        contentDiv.textContent += '\n=== Q Chat Session Completed ===\n';
+                        appendLog(`=== OPERATIONS COMPLETED ===\n`);
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    // Clear initial loading message on first chunk
+                                    if (contentDiv.textContent.includes('processing request')) {
+                                        contentDiv.textContent = '';
+                                    }
+                                    contentDiv.textContent += data.chunk + '\n';
+                                    // Force immediate DOM update
+                                    contentDiv.scrollTop = contentDiv.scrollHeight;
+                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                    // Force browser repaint
+                                    contentDiv.offsetHeight;
+                                    appendLog(data.chunk);
+                                } else if (data.error) {
+                                    contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                                    appendLog(`❌ Error: ${data.error}`);
+                                } else if (data.done) {
+                                    contentDiv.textContent += '\n✅ Q Chat Processing Completed';
+                                }
+                            } catch (e) {
+                                console.error('Error parsing SSE data:', e, 'Line:', line);
+                            }
+                        }
+                    }
+                    // Use setTimeout to ensure immediate processing
+                    setTimeout(readStream, 0);
+                }).catch(error => {
+                    console.error('Stream reading error:', error);
+                    contentDiv.textContent += `\n❌ Stream Error: ${error.message}`;
+                    appendLog(`❌ Stream Error: ${error.message}`);
+                });
+            }
+            readStream();
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            contentDiv.textContent = `❌ Connection Error: ${error.message}`;
+            appendLog(`❌ Connection Error: ${error.message}`);
+        });
+    }
 }
 
 // Make Virtual Agents panel resizable
@@ -1517,11 +1668,11 @@ function makeResizable() {
 }
 
 function addAgentMessage(agent, type, message) {
-    const messagesDiv = document.getElementById(agent + 'Messages');
+    const messagesDiv = document.getElementById('unifiedMessages');
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${type}`;
     
-    const icon = agent === 'developer' ? '🤖' : '💡';
+    const icon = type === 'error' ? '❌' : type === 'system' ? '💬' : '👤';
     messageDiv.innerHTML = `
         <div class="message-header">
             <span class="message-icon">${icon}</span>
@@ -1548,214 +1699,36 @@ function toggleAgentsPanel() {
     }
 }
 
-function sendDeveloperMessage() {
-    const input = document.getElementById('developerInput');
-    const message = input.value.trim();
-    if (!message) return;
-    
-    sendDeveloperMessageWithText(message);
-    input.value = '';
-}
-
-function sendOperationsMessage() {
-    const input = document.getElementById('operationsInput');
-    const message = input.value.trim();
-    if (!message) return;
-    
-    sendOperationsMessageWithText(message);
-    input.value = '';
-}
-
-function sendDeveloperMessageWithText(message) {
-    const selectedApp = document.getElementById('developerAppSelect').value;
-    
-    if (!selectedApp) {
-        addAgentMessage('developer', 'error', 'Please select an application before sending your request.');
-        return;
+// Handle Enter key in unified agent input
+document.addEventListener('keydown', function(e) {
+    if (e.target.id === 'unifiedInput' && e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendUnifiedMessage();
     }
-    
-    const username = '{{ username }}';
-    const userId = '{{ session.user_id }}';
-    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
-    
-    const fullMessage = `[DEVELOPER] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
-    
-    addAgentMessage('developer', 'user', `App: ${selectedApp}`);
-    addAgentMessage('developer', 'user', message);
-    addAgentMessage('developer', 'system', `Virtual Developer is processing request for ${selectedApp}...`);
-    
-    // Create streaming message container
-    const messagesDiv = document.getElementById('developerMessages');
-    const streamDiv = document.createElement('div');
-    streamDiv.className = 'message developer-assistant';
-    streamDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">🤖</span>
-            <span class="message-time">${new Date().toLocaleTimeString()}</span>
-        </div>
-        <div class="message-content" style="white-space: pre-wrap;"></div>
-    `;
-    messagesDiv.appendChild(streamDiv);
-    const contentDiv = streamDiv.querySelector('.message-content');
-    
-    // Stream from API
-    fetch('/api/qchat_developer', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            message: fullMessage,
-            application_name: selectedApp,
-            application_folder: appFolder
-        })
-    })
-    .then(response => {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        
-        function readStream() {
-            reader.read().then(({done, value}) => {
-                if (done) return;
-                
-                const chunk = decoder.decode(value, {stream: true});
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.substring(6));
-                            if (data.chunk) {
-                                contentDiv.textContent += data.chunk + '\n';
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                            } else if (data.error) {
-                                contentDiv.textContent += `\n❌ Error: ${data.error}`;
-                            } else if (data.done) {
-                                contentDiv.textContent += '\n✅ Completed';
-                            }
-                        } catch (e) {}
-                    }
-                }
-                readStream();
-            });
-        }
-        readStream();
-    })
-    .catch(error => {
-        contentDiv.textContent += `\n❌ Error: ${error.message}`;
-    });
-}
+});
 
-function sendOperationsMessageWithText(message) {
-    const selectedApp = document.getElementById('operationsAppSelect').value;
-    const selectedAction = document.getElementById('operationsAction').value;
+// Auto-populate text when application or action is selected
+document.getElementById('unifiedAppSelect').addEventListener('change', function() {
+    updateUnifiedInputText();
+});
+
+document.getElementById('unifiedAction').addEventListener('change', function() {
+    updateUnifiedInputText();
+});
+
+function updateUnifiedInputText() {
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
+    const selectedAction = document.getElementById('unifiedAction').value;
     
-    if (!selectedApp) {
-        addAgentMessage('operations', 'error', 'Please select an application before sending your request.');
-        return;
+    if (selectedApp && selectedAction) {
+        let text = '';
+        if (selectedAction === 'MODIFY_CODE') {
+            text = `I need a developer specialist to modify the code of the application ${selectedApp}. Please, hereafter is request to be coded in the application :`;
+        } else {
+            text = `I need an operations specialist to execute the ${selectedAction.replace('_', ' ')} action on the application ${selectedApp}`;
+        }
+        document.getElementById('unifiedInput').value = text;
     }
-    
-    const username = '{{ username }}';
-    const userId = '{{ session.user_id }}';
-    const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
-    
-    const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
-    
-    addAgentMessage('operations', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
-    addAgentMessage('operations', 'user', message);
-    addAgentMessage('operations', 'system', `Virtual Operations Team is processing ${selectedAction} for ${selectedApp}...`);
-    
-    // Add header to logs without switching tabs
-    appendLog(`\n=== OPERATIONS ${selectedAction} ${selectedApp} ===`);
-    
-    // Create streaming message container
-    const messagesDiv = document.getElementById('operationsMessages');
-    const streamDiv = document.createElement('div');
-    streamDiv.className = 'message operations-assistant';
-    streamDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">💡</span>
-            <span class="message-time">${new Date().toLocaleTimeString()}</span>
-        </div>
-        <div class="message-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0; min-height: 50px; max-height: 300px; overflow-y: auto;"></div>
-    `;
-    messagesDiv.appendChild(streamDiv);
-    const contentDiv = streamDiv.querySelector('.message-content');
-    
-    // Initialize with loading message
-    contentDiv.textContent = 'Connecting to Q Chat...\n';
-    
-    // Stream from API
-    fetch('/api/qchat_operations', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-            message: fullMessage,
-            application_name: selectedApp,
-            application_folder: appFolder
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        contentDiv.textContent = 'Q Chat connected, processing request...\n';
-        
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        
-        function readStream() {
-            reader.read().then(({done, value}) => {
-                if (done) {
-                    contentDiv.textContent += '\n=== Q Chat Session Completed ===\n';
-                    appendLog(`=== OPERATIONS COMPLETED ===\n`);
-                    return;
-                }
-                
-                const chunk = decoder.decode(value, {stream: true});
-                const lines = chunk.split('\n');
-                
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        try {
-                            const data = JSON.parse(line.substring(6));
-                            if (data.chunk) {
-                                // Clear initial loading message on first chunk
-                                if (contentDiv.textContent.includes('processing request')) {
-                                    contentDiv.textContent = '';
-                                }
-                                contentDiv.textContent += data.chunk + '\n';
-                                // Force immediate DOM update
-                                contentDiv.scrollTop = contentDiv.scrollHeight;
-                                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                                // Force browser repaint
-                                contentDiv.offsetHeight;
-                                appendLog(data.chunk);
-                            } else if (data.error) {
-                                contentDiv.textContent += `\n❌ Error: ${data.error}`;
-                                appendLog(`❌ Error: ${data.error}`);
-                            } else if (data.done) {
-                                contentDiv.textContent += '\n✅ Q Chat Processing Completed';
-                            }
-                        } catch (e) {
-                            console.error('Error parsing SSE data:', e, 'Line:', line);
-                        }
-                    }
-                }
-                // Use setTimeout to ensure immediate processing
-                setTimeout(readStream, 0);
-            }).catch(error => {
-                console.error('Stream reading error:', error);
-                contentDiv.textContent += `\n❌ Stream Error: ${error.message}`;
-                appendLog(`❌ Stream Error: ${error.message}`);
-            });
-        }
-        readStream();
-    })
-    .catch(error => {
-        console.error('Fetch error:', error);
-        contentDiv.textContent = `❌ Connection Error: ${error.message}`;
-        appendLog(`❌ Connection Error: ${error.message}`);
-    });
 }
 
 function getAvailableServerId(applicationName) {
@@ -1773,17 +1746,11 @@ function getAvailableServerId(applicationName) {
     });
 }
 
-// Handle Enter key in agent inputs (mobile-friendly)
-document.addEventListener('keydown', function(e) {
-    if (e.target.id === 'developerInput' && e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendDeveloperMessage();
-    }
-    if (e.target.id === 'operationsInput' && e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendOperationsMessage();
-    }
-});
+
+
+
+
+
 
 // Touch-friendly button handling
 document.addEventListener('touchstart', function(e) {
@@ -1798,48 +1765,12 @@ document.addEventListener('touchend', function(e) {
     }
 });
 
-// Auto-populate text when application is selected
-document.getElementById('developerAppSelect').addEventListener('change', function() {
-    const selectedApp = this.value;
-    if (selectedApp) {
-        document.getElementById('developerInput').value = `I need a developer specialist to modify the code of the application ${selectedApp} application. Please, hereafter is request to be coded in the application :`;
-    }
-});
-
-document.getElementById('operationsAppSelect').addEventListener('change', function() {
-    const selectedApp = this.value;
-    if (selectedApp) {
-        const selectedAction = document.getElementById('operationsAction').value;
-        document.getElementById('operationsInput').value = `I need an operations specialist to execute the ${selectedAction} action on the application ${selectedApp}`;
-    }
-});
-
-document.getElementById('operationsAction').addEventListener('change', function() {
-    const selectedApp = document.getElementById('operationsAppSelect').value;
-    if (selectedApp) {
-        const selectedAction = this.value;
-        document.getElementById('operationsInput').value = `I need an operations specialist to execute the ${selectedAction} action the application ${selectedApp}`;
-    }
-});
-
-
-
-
-
-
-
 // Initialize panel on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize both agent areas
-    if (document.getElementById('developerMessages').innerHTML === '') {
-        addAgentMessage('developer', 'system', 'Virtual Developer ready. Select an application and describe your coding needs.');
+    // Initialize unified agent area
+    if (document.getElementById('unifiedMessages').innerHTML === '') {
+        addAgentMessage('unified', 'system', 'Virtual Agents ready. Select an application and action to get started.');
     }
-    if (document.getElementById('operationsMessages').innerHTML === '') {
-        addAgentMessage('operations', 'system', 'Virtual Operations Team ready. Select an application and action.');
-    }
-    
-    // Initialize with developer tab active
-    switchAgent('developer');
     
     // Make Virtual Agents panel resizable
     makeResizable();
