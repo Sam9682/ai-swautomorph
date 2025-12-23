@@ -3,7 +3,7 @@ from flask import Flask, session
 from flask_cors import CORS
 import sys
 import os
-from .config import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS
+from .config import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME
 from .database import init_db
 from .routes.main_routes import main_bp
 from .routes.auth_routes import auth_bp
@@ -20,7 +20,7 @@ class PrintLogger:
     def write(self, message):
         if message.strip():  # Only log non-empty messages
             with open(self.log_file, 'a') as f:
-                f.write(f"{message}")
+                f.write(f"{message}\n")
                 f.flush()
         self.terminal.write(message)
         
@@ -30,7 +30,7 @@ class PrintLogger:
 # Setup print logging
 log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
 os.makedirs(log_dir, exist_ok=True)
-print_log_file = os.path.join(log_dir, 'print_output.log')
+print_log_file = os.path.join(log_dir, OUTPUT_PRINT_LOGS_FILENAME)
 sys.stdout = PrintLogger(print_log_file)
 
 def create_app():

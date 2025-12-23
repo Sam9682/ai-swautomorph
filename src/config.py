@@ -4,6 +4,10 @@ import os
 # Database configuration
 DB_PATH = 'softfluid/db/ai_swautomorph.db'
 
+
+# Name of print logs output file
+OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
+
 # Flask configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
