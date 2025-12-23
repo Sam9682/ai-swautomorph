@@ -1595,7 +1595,7 @@ function sendUnifiedMessageWithText(message) {
         });
     } else {
         // Handle operations (START, STOP, LOGS)
-        const fullMessage = `[${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+        const fullMessage = `[ACTION:${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
         
         addAgentMessage('unified', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
         addAgentMessage('unified', 'user', message);
@@ -1622,13 +1622,15 @@ function sendUnifiedMessageWithText(message) {
         contentDiv.textContent = 'Connecting to Q Chat...\n';
         
         // Stream from Operations API
+        const action_operation = `${selectedAction}`
         fetch('/api/qchat_operations', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 message: fullMessage,
                 application_name: selectedApp,
-                application_folder: appFolder
+                application_folder: appFolder,
+                action_operation: action_operation
             })
         })
         .then(response => {
@@ -1830,9 +1832,9 @@ function updateUnifiedInputText() {
     if (selectedApp && selectedAction) {
         let text = '';
         if (selectedAction === 'MODIFY_CODE') {
-            text = `I need a developer specialist to modify the code of the application ${selectedApp}. Please, hereafter is request to be coded in the application :`;
+            text = `I need a developer specialist to modify the code of the application ${selectedApp}. Please, hereafter is the specification of the request :`;
         } else {
-            text = `I need an operations specialist to execute the [[${selectedAction.replace('_', ' ')}]] action on the application ${selectedApp}`;
+            text = `I need an operations specialist to execute the [[${selectedAction}]] action on the application ${selectedApp}`;
         }
         document.getElementById('unifiedInput').value = text;
         updateSendButtonState();

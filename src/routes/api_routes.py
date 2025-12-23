@@ -1155,6 +1155,7 @@ def api_qchat_operations():
     message = data.get('message', '').strip()
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
+    action_operation = data.get('action_operation', '')
     
     if not message:
         return jsonify({'error': 'Message required'}), 400
@@ -1180,44 +1181,19 @@ def api_qchat_operations():
             
             # Build prompt directly here instead of calling process_qchat_devops
             # Detect application management actions
-            complete_sentence_match = re.search(r'\[\[(.*?)\]\[', message.upper())
             
-            detected_action = None
-            
-            if complete_sentence_match:
+            if action_operation:
                 # Map complete sentences to actions
-                sentence = complete_sentence_match.group(1).upper()
-                if get_text('modify_code_option') in sentence:
+                if 'MODIFY_CODE' in action_operation:
                     l_msg = f"[VIRTUAL OPERATIONS] ERROR : asking to modify the code, should be sent to Developer agent"
                     yield f"data: {json.dumps({'error': l_msg})}\n\n"
                     return
-                elif get_text('start_app_option') in sentence:
-                    detected_action = 'START'
-                elif get_text('stop_app_option') in sentence:
-                    detected_action = 'STOP'
-                elif get_text('display_logs_option') in sentence:
-                    detected_action = 'LOGS'
+                else:
+                    detected_action = action_operation
+
                 log_with_timestamp(f'AI Chat Operator - Detected action: {detected_action}')
                 yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
-            else:
-                # Fallback to keyword detection
-                action_keywords = {
-                    'start': ['start', 'deploy', 'launch', 'run'],
-                    'stop': ['stop', 'shutdown', 'halt', 'terminate'],
-                    'restart': ['restart', 'reboot', 'reload'],
-                    'ps': ['status', 'ps', 'check', 'running'],
-                    'logs': ['logs', 'log', 'output', 'console']
-                }
-                
-                question_lower = message.lower()
-                
-                for action, keywords in action_keywords.items():
-                    if any(keyword in question_lower for keyword in keywords):
-                        detected_action = action
-                        break
             
-            # Load context from shared folder if action detected
-            if detected_action:
                 context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
                 
                 if os.path.exists(context_file):
@@ -1278,7 +1254,6 @@ echo "HTTPS_PORT: $HTTPS_PORT"
 echo "HTTP_PORT2: $HTTP_PORT2"
 echo "HTTPS_PORT2: $HTTPS_PORT2"
 ```
-
 """
                     
                     # Extract application folder from description if present
