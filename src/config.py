@@ -213,7 +213,11 @@ TRANSLATIONS = {
         'user_management': 'User Management',
         'server_management': 'Server Management',
         'database_management': 'Database Management',
-        'virtual_agents_ready': 'Virtual Agents ready. Select an application and action to get started.'
+        'virtual_agents_ready': 'Virtual Agents ready. Select an application and action to get started.',
+        'modify_code_option': 'MODIFY THE CODE OF THE APPLICATION (IT Developer)',
+        'start_app_option': 'START THE APPLICATION (IT Operator)',
+        'stop_app_option': 'STOP THE APPLICATION (IT Operator)',
+        'display_logs_option': 'DISPLAY THE LOGS OF THE APPLICATION (IT Operator)'
     },
     'fr': {
         'login': 'Connexion',
@@ -412,6 +416,10 @@ TRANSLATIONS = {
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
         'database_management': 'Gestion de la Base de Données',
-        'virtual_agents_ready': 'Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.'
+        'virtual_agents_ready': 'Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.',
+        'modify_code_option': 'MODIFIER LE CODE DE L\'APPLICATION (Développeur IT)',
+        'start_app_option': 'DÉMARRER L\'APPLICATION (Opérateur IT)',
+        'stop_app_option': 'ARRÊTER L\'APPLICATION (Opérateur IT)',
+        'display_logs_option': 'AFFICHER LES JOURNAUX DE L\'APPLICATION (Opérateur IT)'
     }
 }

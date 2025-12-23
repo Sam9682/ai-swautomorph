@@ -390,10 +390,10 @@
                             {% endfor %}
                         </select>
                         <select id="unifiedAction">
-                            <option value="MODIFY_CODE">MODIFY THE CODE OF THE APPLICATION</option>
-                            <option value="START">START THE APPLICATION</option>
-                            <option value="STOP">STOP THE APPLICATION</option>
-                            <option value="LOGS">DISPLAY THE LOGS OF THE APPLICATION</option>
+                            <option value="MODIFY_CODE">{{ get_text('modify_code_option') }}</option>
+                            <option value="START">{{ get_text('start_app_option') }}</option>
+                            <option value="STOP">{{ get_text('stop_app_option') }}</option>
+                            <option value="LOGS">{{ get_text('display_logs_option') }}</option>
                         </select>
                     </div>
                     <div id="unifiedMessages" class="messages-area"></div>
