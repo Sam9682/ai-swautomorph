@@ -265,12 +265,16 @@ def process_qchat_operations(user_question: str, user_id: str = '0', user_name: 
             with open(context_file, 'r') as f:
                 context_template = f.read()
             
+            log_print(f"[VIRTUAL OPERATIONS] Context file loaded, length: {len(context_template)} characters")
+            
             # Replace placeholders
             context = context_template.replace('{USER_ID}', user_id)
             context = context.replace('{USER_NAME}', user_name)
             context = context.replace('{USER_EMAIL}', user_email)
             context = context.replace('{DESCRIPTION}', description)
             context = context.replace('{TAIL_LINES}', '100')  # Default tail lines
+            
+            log_print(f"[VIRTUAL OPERATIONS] Context after placeholder replacement, length: {len(context)} characters")
             
             # Extract application folder from description if present
             app_folder = ''
@@ -288,17 +292,18 @@ User Request: {user_question}
 
 {'Application Folder: ' + app_folder if app_folder else ''}
 
-IMPORTANT INSTRUCTIONS:
-1. Change to the application directory: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-2. Execute ALL steps from the context below in sequence
-3. Do not stop until all steps are completed
-4. If any step fails, report the error but continue with remaining steps where possible
-5. Provide a detailed summary of all executed steps and their results
+CRITICAL INSTRUCTIONS:
+1. You MUST execute ALL steps from the context below in the exact sequence provided
+2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+3. Do NOT stop execution until ALL steps are completed
+4. If any step fails, report the error but continue with remaining steps
+5. Execute each bash command block completely
+6. Provide a detailed summary showing which steps succeeded and which failed
 
-CONTEXT AND STEPS TO EXECUTE:
+STEPS TO EXECUTE (ALL OF THEM):
 {context}
 
-Execute ALL steps above completely and provide a comprehensive summary of the results.
+IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
 """
         else:
             log_print(f"[VIRTUAL OPERATIONS] Context file not found: {context_file}, using default Q&A mode")
@@ -347,7 +352,7 @@ Provide a helpful and informative response.
             cmd_args.extend(['--trust-all-tools', '--no-mcp'])
         cmd_args.append(prompt)
         
-        log_print(f"[VIRTUAL OPERATIONS] Executing qchat command for question using: {qchat_cmd}")
+        log_print(f"[VIRTUAL OPERATIONS] Executing qchat command for {detected_action or 'question'} using: {qchat_cmd}")
         
         # Set up proper environment to avoid permission issues
         import os

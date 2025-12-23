@@ -1120,7 +1120,7 @@ echo "HTTPS_PORT2: $HTTPS_PORT2"
                     prompt = f"""
 You are an autonomous DevOps agent with access to execute shell commands on a Linux server.
 
-The user has requested an application management action.
+The user has requested an application management action: {detected_action.upper()}
 
 User Request: {message}
 
@@ -1128,13 +1128,18 @@ User Request: {message}
 
 {config_vars}
 
-Follow the instructions below to execute the {detected_action.upper()} action on the application {application_name}:
+CRITICAL INSTRUCTIONS:
+1. You MUST execute ALL steps from the context below in the exact sequence provided
+2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
+3. Do NOT stop execution until ALL steps are completed
+4. If any step fails, report the error but continue with remaining steps
+5. Execute each bash command block completely
+6. Provide a detailed summary showing which steps succeeded and which failed
 
+STEPS TO EXECUTE (ALL OF THEM):
 {context}
 
-IMPORTANT: Execute all commands in the application folder: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-
-Execute all required steps and provide a clear summary of the results.
+IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the {detected_action.upper()} operation.
 """
                 else:
                     yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
@@ -1178,7 +1183,7 @@ Provide a helpful and informative response.
             # Use --trust-all-tools if action detected (needs command execution)
             cmd_args = [qchat_cmd, 'chat']
             if detected_action:
-                cmd_args.append('--trust-all-tools')
+                cmd_args.extend(['--trust-all-tools', '--no-mcp'])
             cmd_args.append(prompt)
             
             qchat_env = os.environ.copy()
@@ -1208,6 +1213,7 @@ Provide a helpful and informative response.
                 except Exception as billing_error:
                     yield f"data: {json.dumps({'chunk': f'Warning: Failed to record billing activity: {str(billing_error)}'})}\n\n"
             
+            yield f"data: {json.dumps({'chunk': f'=== Q Chat Session Completed ==='})}\n\n"
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
             
         except Exception as e:
