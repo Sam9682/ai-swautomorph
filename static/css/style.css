@@ -353,13 +353,16 @@ body {
 }
 
 .app-card {
-    background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+    background: linear-gradient(145deg, #f8f8f8, #e8e8e8);
     padding: 2rem;
     border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    box-shadow: 
+        0 8px 32px rgba(0,0,0,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.8),
+        inset 0 -1px 0 rgba(0,0,0,0.1);
     transition: all 0.3s ease;
     position: relative;
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(0,0,0,0.1);
     backdrop-filter: blur(10px);
 }
 
@@ -573,6 +576,11 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+.unifiedMessage {
+    background-color: black;
+    color: white;
 }
 
 .agent-tabs {
@@ -2095,14 +2103,14 @@ body {
 
 .virtual-agents-panel .developer-assistant .message-content,
 .virtual-agents-panel .devops-assistant .message-content {
-    background: #f8f9fa !important;
-    border: 1px solid #e0e0e0 !important;
+    background: #000000 !important;
+    border: 1px solid #333333 !important;
     border-radius: 4px !important;
     padding: 0.5rem !important;
     min-height: 50px !important;
     font-family: 'Courier New', monospace !important;
     font-size: 0.8rem !important;
-    color: #2c3e50 !important;
+    color: #ffffff !important;
 }
 
 /* Dashboard Layout Styles */

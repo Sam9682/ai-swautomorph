@@ -26,7 +26,7 @@ def log_with_timestamp(message):
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-def return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default'):
+def return_prompt_for_developer(application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default'):
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
         l_prompt = f"""You are an autonomous Operations/code agent running on a Linux server
@@ -79,7 +79,7 @@ Follow these steps EXACTLY:
 9. Push the new branch to the 'gitea' remote:
      git push gitea --all
 10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
-    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
+    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{application_name}'
 11. Rebuild and redeploy the running application by executing:
       deployApp.sh stop
       deployApp.sh start {user_id} {user_name}
@@ -93,7 +93,7 @@ If ANY step fails, explain clearly which step failed and why.
 """
     return l_prompt
 
-def return_prompt_for_operator(detected_action, user_question, app_folder, context, version = 'default'):
+def return_prompt_for_operator(application_name, detected_action, user_question, app_folder, context, version = 'default'):
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
         l_prompt = f"""You are an autonomous IT Operater agent with access to execute shell commands on a Linux server.
@@ -935,8 +935,6 @@ def api_qchat_developer():
     log_with_timestamp(f"AI Chat Developer - Message: {message[:120]}")
 
     def generate():
-        import datetime
-        
         try:
             yield f"data: {json.dumps({'chunk': 'Starting Q Chat Developer session...'})}\n\n"
             
@@ -952,7 +950,7 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            l_prompt = return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
+            l_prompt = return_prompt_for_developer(application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/dev_prompt_generated.txt'
@@ -1117,33 +1115,6 @@ def api_qchat_operations():
                     context = context.replace('{USER_EMAIL}', user_email)
                     context = context.replace('{DESCRIPTION}', description)
                     context = context.replace('{TAIL_LINES}', '100')
-                    
-                    # Add configuration variables to context
-                    config_vars = f"""**Configuration Variables:**
-- NAME_OF_APPLICATION: {NAME_OF_APPLICATION}
-- APPLICATION_IDENTITY_NUMBER: {application_id}
-- RANGE_START: {RANGE_START}
-- RANGE_RESERVED: {RANGE_RESERVED}
-- RANGE_START_CONTROLPLAN: {RANGE_START_CONTROLPLAN}
-- RANGE_RESERVED_CONTROLPLAN: {RANGE_RESERVED_CONTROLPLAN}
-**Port Calculation (for verification):**
-```bash
-USER_ID={session['user_id']}
-RANGE_START={RANGE_START}
-RANGE_RESERVED={RANGE_RESERVED}
-APPLICATION_IDENTITY_NUMBER={application_id}
-PORT_RANGE_BEGIN=$((RANGE_START + USER_ID * RANGE_RESERVED))
-HTTP_PORT=$((PORT_RANGE_BEGIN + APPLICATION_IDENTITY_NUMBER * RANGE_PORTS_PER_APPLICATION))
-HTTPS_PORT=$((HTTP_PORT + 1))
-HTTP_PORT2=$((HTTPS_PORT + 1))
-HTTPS_PORT2=$((HTTP_PORT2 + 1))
-echo "PORT_RANGE_BEGIN: $PORT_RANGE_BEGIN"
-echo "HTTP_PORT: $HTTP_PORT"
-echo "HTTPS_PORT: $HTTPS_PORT"
-echo "HTTP_PORT2: $HTTP_PORT2"
-echo "HTTPS_PORT2: $HTTPS_PORT2"
-```
-"""
 
                     # Extract application folder from description if present
                     app_folder = ''
@@ -1153,7 +1124,7 @@ echo "HTTPS_PORT2: $HTTPS_PORT2"
                             app_folder = parts[1].strip()
                     
                     # 🧠 Prompt complet envoyé à Q Chat
-                    l_prompt = return_prompt_for_operator(detected_action, message, app_folder, context)
+                    l_prompt = return_prompt_for_operator(application_name, detected_action, message, app_folder, context)
                     log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
 
                 else:
@@ -1212,18 +1183,41 @@ Provide a helpful and informative response.
             log_with_timestamp(f'AI Chat Operator - Executing Q Chat command at: {qchat_cmd}...')
             yield f"data: {json.dumps({'chunk': 'Executing Q Chat command...'})}\n\n"
             
+            # Start process with longer timeout and better error handling
             process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                      text=True, bufsize=1, env=qchat_env)
+                                      text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             
-            for line in iter(process.stdout.readline, ''):
-                if line:
-                    clean_line = ansi_escape.sub('', line.rstrip())
-                    if clean_line and 'Thinking...' not in clean_line:
-                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+            import signal
+            import time
             
-            process.wait()
+            # Set a longer timeout for Q Chat operations (30 minutes)
+            timeout_seconds = 1800
+            start_time = time.time()
+            
+            try:
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        clean_line = ansi_escape.sub('', line.rstrip())
+                        if clean_line and 'Thinking...' not in clean_line:
+                            yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+                    
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        yield f"data: {json.dumps({'chunk': 'WARNING: Q Chat operation timeout reached (30 minutes), terminating...'})}\n\n"
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        time.sleep(5)
+                        if process.poll() is None:
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        break
+                
+                process.wait(timeout=60)  # Wait up to 1 minute for clean shutdown
+                
+            except subprocess.TimeoutExpired:
+                yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                process.returncode = -1
             
             # Record billing activity for START and STOP actions if successful
             if (detected_action == 'START' or detected_action == 'STOP') and process.returncode == 0 and application_name:
