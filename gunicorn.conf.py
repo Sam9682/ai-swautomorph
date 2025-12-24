@@ -27,7 +27,7 @@ access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
 proc_name = 'ai-swautomorph'
 
 # Daemon mode
-daemon = False
+daemon = True
 pidfile = "conf/gunicorn.pid"
 
 # User and group to run as
@@ -35,7 +35,7 @@ user = os.getuid()
 group = os.getgid()
 
 # Preload application for better performance
-preload_app = True
+preload_app = False
 
 # Enable auto-reload in development
 reload = os.environ.get('FLASK_ENV') == 'development'
