@@ -627,7 +627,15 @@ body {
 }
 
 /* Required field highlighting for Virtual Agents selects */
-#unifiedAppSelect, #unifiedAction {
+#unifiedAppSelect {
+    background: linear-gradient(135deg, #58fd8a 0%, #16a736 100%) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border: 2px solid #079452 !important;
+    box-shadow: 0 2px 8px rgba(6, 138, 55, 0.3) !important;
+}
+
+#unifiedAction {
     background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
     color: white !important;
     font-weight: 600 !important;
