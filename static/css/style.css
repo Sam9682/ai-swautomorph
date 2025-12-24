@@ -578,11 +578,6 @@ body {
     overflow: hidden;
 }
 
-.unifiedMessage {
-    background-color: black;
-    color: white;
-}
-
 .agent-tabs {
     display: flex;
     border-bottom: 1px solid rgba(226, 232, 240, 0.5);
@@ -2099,10 +2094,13 @@ body {
     overflow-y: auto;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    background-color: black !important;
+    color: white !important;
 }
 
 .virtual-agents-panel .developer-assistant .message-content,
-.virtual-agents-panel .devops-assistant .message-content {
+.virtual-agents-panel .devops-assistant .message-content,
+.virtual-agents-panel .operations-assistant .message-content {
     background: #000000 !important;
     border: 1px solid #333333 !important;
     border-radius: 4px !important;
