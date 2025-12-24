@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash
 import sqlite3
 import os
 import requests
+import json
 from datetime import datetime
 from ..config import DB_PATH, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME
 from ..database import db_manager
@@ -26,168 +27,93 @@ def log_with_timestamp(message):
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-def return_prompt_for_developer(application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default'):
+def return_prompt_for_developer(detected_action, application_name, user_name, user_email, version = 'default'):
+
+    l_prompt = ''
+
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
-        l_prompt = f"""You are an autonomous Operations/code agent running on a Linux server
-with access to the local filesystem and shell commands.
-The application source code is located in the following git repository:
-  REPO_DIR = "{repo_dir}"
-This repository is the one used by docker-compose to run the application.
-The deployment command is executed from the repo root:
-  docker-compose up -d --build
-There is a local Github instance reachable with the Git URL:
-  GITHUB_REMOTE_URL = "{repo_github_url}"
-Your goal is to:
-  - modify the source code according to the user request,
-  - commit the changes on a new branch,
-  - push this branch to the local Gitea remote,
-  - rebuild and redeploy the running application with docker-compose.
-USER REQUEST (what must be changed in the app):
-\"\"\"{message}\"\"\"
-Follow these steps EXACTLY:
-1. Change directory to the repository:
-   cd {repo_dir}
-2. Check that the working tree is clean (no uncommitted changes).
-   If there are local changes, STOP and print a clear error message,
-   do NOT try to auto-commit existing local changes.
-3. Ensure that a git remote named 'gitea' exists and points to:
-     {repo_gitea_url}
-   - If 'gitea' does not exist, add it:
-       git remote add gitea {repo_gitea_url}
-   - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {repo_gitea_url}
-4. Fetch from 'origin':
-     git pull origin
-5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
-   Then create and checkout a new local branch named:
-     {branch_name}
-   starting from the default branch, for example:
-     git checkout -b {branch_name}
-6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
-   and implement the USER REQUEST in a minimal, clean and maintainable way.
-   - Update only the necessary files.
-   - Keep coding style consistent with the existing project.
-7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
-   try to detect it and run it.
-   - If tests FAIL, revert the modifications or reset the branch to the previous state,
-     and STOP with a clear error message (do NOT push a broken branch).
-8. Stage and commit the changes with a clear message that includes the user request, e.g.:
-     git status
-     git add .
-     git commit -m "Auto-update: {message}"
-9. Push the new branch to the 'gitea' remote:
-     git push gitea --all
-10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
-    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{application_name}'
-11. Rebuild and redeploy the running application by executing:
-      deployApp.sh stop
-      deployApp.sh start {user_id} {user_name}
-    from the repository root ({repo_dir}).
-12. At the end, print a short summary including:
-    - the branch name,
-    - the git commit hash,
-    - the result of the docker-compose command (success or failure),
-    - and any warnings (e.g. tests were not found, tests were skipped, etc.).
-If ANY step fails, explain clearly which step failed and why.
-"""
+
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+        
+        if os.path.exists(context_file):
+            log_with_timestamp(f'AI Chat Developer - Loading context from {detected_action.upper()}_context.md')
+            yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
+            
+            with open(context_file, 'r') as f:
+                context_template = f.read()
+            
+            # Get application ID from database for APPLICATION_IDENTITY_NUMBER
+            application_id = 0  # Default fallback
+            if application_name:
+                app_data = db_manager.execute_query(
+                    'SELECT id FROM applications WHERE name = ?', 
+                    (application_name,), fetch_one=True
+                )
+                if app_data:
+                    application_id = app_data[0]
+                    yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
+            
+            # Load configuration values from database.py
+            from ..database import load_deploy_config
+            NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
+            
+            # Replace placeholders
+            l_prompt = context_template.replace('{USER_ID}', str(session['user_id']))
+            l_prompt = l_prompt.replace('{USER_NAME}', user_name)
+            l_prompt = l_prompt.replace('{USER_EMAIL}', user_email)
+            l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+
     return l_prompt
 
-def return_prompt_for_operator(application_name, detected_action, user_question, app_folder, context, version = 'default'):
-    # 🧠 Prompt complet envoyé à Q Chat
+def return_prompt_for_operator(application_name, detected_action, user_name, user_email, message, version = 'default'):
+
+    l_prompt = ''
+
+    # 🧠 Prompt sent to Q Chat
     if (version == 'default'):
-        l_prompt = f"""You are an autonomous IT Operater agent with access to execute shell commands on a Linux server.
-The user has requested an application {detected_action} management action for the application located in {app_folder}.
-The User requested {user_question}.
-Run ALL commands from within the application Folder {app_folder}.
-
-#### 1. Check Prerequisites, docker and docker-compose have to be installed on the current server
-you can use the following commands to check if docker and docker-compose are installed:
-command -v docker || exit 1
-command -v docker-compose || exit 1
-
-#### 2. Generate Secrets (only if .env.prod doesn't exist)
-DB_PASSWORD=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-25)
-JWT_SECRET=$(openssl rand -base64 32 | tr -d '=+/' | cut -c1-32)
-cat > .env.prod << EOF
-DATABASE_URL=sqlite:///./data/ai_haccp.db
-JWT_SECRET=$JWT_SECRET
-DOMAIN=www.swautomorph.com
-API_URL=https://www.swautomorph.com
-SSL_EMAIL=admin@swautomorph.com
-REACT_APP_API_URL=https://www.swautomorph.com
-EOF
-chmod 600 .env.prod
-
-#### 3. Calculate HTTP Ports, which are the ports used by the docker containers of the application
-Use the following command to calculate the docker ports of the running application to stop (it uses the env variables called $NAME_OF_APPLICATION and $USER_ID):
-
-source ./conf/deploy.ini
-if ! [[ '$USER_ID' =~ ^[0-9]+$ ]]; then
-    USER_ID=0
-fi
-PORT_RANGE_BEGIN = RANGE_START + USER_ID * RANGE_RESERVED
-HTTP_PORT = PORT_RANGE_BEGIN + APPLICATION_IDENTITY_NUMBER * RANGE_PORTS_PER_APPLICATION
-HTTPS_PORT = HTTP_PORT + 1
-HTTP_PORT2=$((HTTPS_PORT + 1))
-HTTPS_PORT2=$((HTTP_PORT2 + 1))
-
-#### 4. Generate Nginx Configuration. 
-If conf/nginx.conf.template file exists, then use nginx.conf.template to create nginx.conf and replace ${USER_ID} by its value. If the file does not exists, then go to next step.
-you can use the following command:
-sed 's/\$USER_ID/$USER_ID/g' conf/nginx.conf.template > conf/nginx.conf
-
-#### 5. Setup SSL Certificates. If exist, copy www_swautomorph_com.crt and privateKey_automorph_simple.key
-You can use the following commands:
-mkdir -p ssl
-if [[ -f ~/.ssh/www_swautomorph_com.crt && -f ~/.ssh/privateKey_automorph_simple.key ]]; then
-    cp ~/.ssh/www_swautomorph_com.crt ssl/fullchain.pem
-    cp ~/.ssh/privateKey_automorph_simple.key ssl/privkey.pem
-elif command -v certbot &> /dev/null; then
-    sudo systemctl stop nginx 2>/dev/null || true
-    sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet
-    sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem ssl/
-    sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem ssl/
-    sudo chown -R $USER:$USER ssl/
-else
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout ssl/privkey.pem -out ssl/fullchain.pem -subj "/C=US/ST=State/L=City/O=Organization/CN=www.swautomorph.com"
-fi
-
-#### 6. Build Services using docker-compose command
-Use docker-compose command to build the service
-HTTP_PORT=$HTTP_PORT HTTPS_PORT=$HTTPS_PORT USER_ID=$USER_ID docker-compose -p '$NAME_OF_APPLICATION-$USER_ID-$HTTPS_PORT' -f docker-compose.yml build --no-cache --build-arg PIP_UPGRADE=1
-
-#### 7. Start Services using docker-compose command
-Use docker-compose command to start the service
-HTTP_PORT=$HTTP_PORT HTTPS_PORT=$HTTPS_PORT USER_ID=$USER_ID docker-compose -p '$NAME_OF_APPLICATION-$USER_ID-$HTTPS_PORT' -f docker-compose.yml --env-file .env.prod up -d
-
-#### 8. Verify the recent Deployment using docker-compose command
-Use docker-compose command to check the status of the service
-docker-compose -p '$NAME_OF_APPLICATION-$USER_ID-$HTTPS_PORT' -f docker-compose.yml ps | grep -q 'Up'
-sleep 10
-curl -f -s 'http://www.swautomorph.com:$HTTP_PORT' || true
-
-#### 9. Configure Firewall (UFW has to be available)
-Use the following commands to allow incoming socket flow for the service:
-if command -v ufw &> /dev/null; then
-    sudo ufw --force reset
-    sudo ufw default deny incoming
-    sudo ufw default allow outgoing
-    sudo ufw allow ssh
-    sudo ufw allow $HTTP_PORT/tcp
-    sudo ufw allow $HTTPS_PORT/tcp
-    sudo ufw --force enable
-fi
-
-**After completion, verify:**
-- All containers are running (check with docker-compose ps)
-- Services are accessible on calculated HTTP_PORT and HTTPS_PORT
-- Report the final status including ports and any errors encountered
-
-**Summary:** Execute all steps above to deploy the application for USER_ID=$USER_ID. Report success or failure with details.
-
-IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+                
+        if os.path.exists(context_file):
+            log_with_timestamp(f'AI Chat Operator - Loading context from {detected_action.upper()}_context.md')
+            yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
+            
+            with open(context_file, 'r') as f:
+                context_template = f.read()
+            
+            # Get application ID from database for APPLICATION_IDENTITY_NUMBER
+            application_id = 0  # Default fallback
+            if application_name:
+                app_data = db_manager.execute_query(
+                    'SELECT id FROM applications WHERE name = ?', 
+                    (application_name,), fetch_one=True
+                )
+                if app_data:
+                    application_id = app_data[0]
+                    yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
+                else:
+                    yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
+            
+            # Load configuration values from database.py
+            from ..database import load_deploy_config
+            NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
+            
+            # Replace placeholders
+            l_prompt = context_template.replace('{USER_ID}', str(session['user_id']))
+            l_prompt = l_prompt.replace('{USER_NAME}', user_name)
+            l_prompt = l_prompt.replace('{USER_EMAIL}', user_email)
+            l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+        else:
+            yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
+            l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+Do not execute any commands or modify any files. Just provide helpful information and guidance.
+User Question: {message}
+Provide a helpful and informative response.
 """
+            log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {l_prompt[:120]}')
+
     return l_prompt
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
@@ -988,10 +914,8 @@ def api_deployment_logs(deployment_id):
 @api_bp.route('/qchat_developer', methods=['POST'])
 def api_qchat_developer():
     from flask import Response, stream_with_context
-    import json
     import subprocess
     import re
-    import logging
     
     user_id = session.get('user_id', 'anonymous')
     
@@ -1002,7 +926,8 @@ def api_qchat_developer():
     message = data.get('message', '').strip()
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
-    
+    detected_action = data.get('action_operation', '')
+
     if not message:
         return jsonify({'error': 'Message required'}), 400
     
@@ -1014,6 +939,7 @@ def api_qchat_developer():
     username = user_details[0] if user_details else 'user'
     user_email = user_details[1] if user_details else 'user@example.com'
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+    description = f"Application: {application_name}, Path: {application_folder}" if application_name else ''
 
     log_with_timestamp(f"AI Chat Developer - User: {username}, Email: {user_email}, App: {application_name}, Folder: {application_folder}")
     log_with_timestamp(f"AI Chat Developer - Message: {message[:120]}")
@@ -1025,7 +951,10 @@ def api_qchat_developer():
             # Build prompt directly here
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
             branch_name = f"{session['user_id']}-automorph-{application_name}-{timestamp}"
-            
+
+            log_with_timestamp(f'AI Chat Developer - Detected action: {detected_action}')
+            yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
+
             # Use provided app folder or default REPO_DIR
             repo_dir = application_folder if application_folder else "/home/ubuntu/deployments/"
             repo_github_url = f"git@github.com:Sam9682/{application_name}" if application_name else "git@github.com:Sam9682/"
@@ -1034,7 +963,7 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            l_prompt = return_prompt_for_developer(application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
+            l_prompt = return_prompt_for_developer(detected_action, application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/dev_prompt_generated.txt'
@@ -1112,12 +1041,8 @@ def api_qchat_developer():
 @api_bp.route('/qchat_operations', methods=['POST'])
 def api_qchat_operations():
     from flask import Response, stream_with_context
-    import json
     import subprocess
     import re
-    import time
-    import sys
-    import os
     
     user_id = session.get('user_id', 'anonymous')
     
@@ -1166,66 +1091,16 @@ def api_qchat_operations():
 
                 log_with_timestamp(f'AI Chat Operator - Detected action: {detected_action}')
                 yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
-            
-                context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
-                
-                if os.path.exists(context_file):
-                    log_with_timestamp(f'AI Chat Operator - Loading context from {detected_action.upper()}_context.md')
-                    yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
-                    
-                    with open(context_file, 'r') as f:
-                        context_template = f.read()
-                    
-                    # Get application ID from database for APPLICATION_IDENTITY_NUMBER
-                    application_id = 0  # Default fallback
-                    if application_name:
-                        app_data = db_manager.execute_query(
-                            'SELECT id FROM applications WHERE name = ?', 
-                            (application_name,), fetch_one=True
-                        )
-                        if app_data:
-                            application_id = app_data[0]
-                            yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
-                        else:
-                            yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
-                    
-                    # Load configuration values from database.py
-                    from ..database import load_deploy_config
-                    NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
-                    
-                    # Replace placeholders
-                    context = context_template.replace('{USER_ID}', str(session['user_id']))
-                    context = context.replace('{USER_NAME}', user_name)
-                    context = context.replace('{USER_EMAIL}', user_email)
-                    context = context.replace('{DESCRIPTION}', description)
-                    context = context.replace('{TAIL_LINES}', '100')
 
-                    # Extract application folder from description if present
-                    app_folder = ''
-                    if 'Path:' in description:
-                        parts = description.split('Path:')
-                        if len(parts) > 1:
-                            app_folder = parts[1].strip()
-                    
-                    # 🧠 Prompt complet envoyé à Q Chat
-                    l_prompt = return_prompt_for_operator(application_name, detected_action, message, app_folder, context)
-                    log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
-
-                else:
-                    yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
-                    l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
-Do not execute any commands or modify any files. Just provide helpful information and guidance.
-User Question: {message}
-Provide a helpful and informative response.
-"""
-                    log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {l_prompt[:120]}')
+                # 🧠 Prompt complet envoyé à Q Chat
+                l_prompt = return_prompt_for_operator(application_name, detected_action, message, app_folder, context)
+                log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
 
             else:
                 # Simple prompt for Q&A without code execution
                 l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
-User Question: {message}
-Provide a helpful and informative response.
+User Question: {message}. Provide a helpful and informative response.
 """
                 log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {l_prompt[:120]}')
 
