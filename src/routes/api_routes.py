@@ -96,17 +96,10 @@ If ANY step fails, explain clearly which step failed and why.
 def return_prompt_for_operator(detected_action, user_question, app_folder, context, version = 'default'):
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
-        l_prompt = f"""You are an autonomous Operations agent with access to execute shell commands on a Linux server.
+        l_prompt = f"""You are an autonomous IT Operater agent with access to execute shell commands on a Linux server.
 The user has requested an application management action: {detected_action.upper()}
 User Request: {user_question}
 Application Folder: {app_folder}
-CRITICAL INSTRUCTIONS:
-1. You MUST execute ALL steps from the context below in the exact sequence provided
-2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-3. Do NOT stop execution until ALL steps are completed
-4. If any step fails, report the error but continue with remaining steps
-5. Execute each bash command block completely
-6. Provide a detailed summary showing which steps succeeded and which failed
 STEPS TO EXECUTE (ALL OF THEM):
 {context}
 IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
@@ -1182,9 +1175,12 @@ Provide a helpful and informative response.
                 log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {l_prompt[:120]}')
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/ope_prompt_generated.txt'
+            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/ope_prompts_generated.log'
             with open(prompt_file_path, 'w') as f:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                f.write(f"----------------- Generated Prompt for Virtual Operator at {timestamp}: \n")
                 f.write(l_prompt+"\n")
+                f.write(f"----------------- END OF Generated Prompt for Virtual Operator at {timestamp}: \n")
 
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
