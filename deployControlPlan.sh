@@ -60,6 +60,25 @@ USER_NAME=${4:-${DEFAULT_USER_NAME:-"admin"}}
 USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@swautomorph.com"}}
 DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 
+# Normalize LOCAL_MODE parameter (handle --locally and --docker)
+case "$LOCAL_MODE" in
+    "--locally")
+        LOCAL_MODE="locally"
+        ;;
+    "--docker")
+        LOCAL_MODE="docker"
+        ;;
+esac
+
+# Check for --keep-gitea-running parameter
+KEEP_GITEA_RUNNING=false
+for arg in "$@"; do
+    if [ "$arg" = "--keep-gitea-running" ]; then
+        KEEP_GITEA_RUNNING=true
+        break
+    fi
+done
+
 # Interactive menu for deployment mode selection using Python simple-term-menu
 show_deployment_menu() {
     # Check if simple-term-menu is available
@@ -406,13 +425,16 @@ confirm_gitea_stop() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
         echo "⚠️ Gitea is currently running"
         
+        # Auto-select "No" when --keep-gitea-running parameter is set
+        if [ "$KEEP_GITEA_RUNNING" = "true" ]; then
+            echo "  🔧 Auto-selecting: No, keep Gitea configuration (--keep-gitea-running parameter set)"
+            CHOICE="no"
         # Auto-select "No" when STOP command is used (non-interactive mode)
-        if [[ "$COMMAND" =~ ^(stop|-k|--stop)$ ]]; then
+        elif [[ "$COMMAND" =~ ^(stop|-k|--stop)$ ]]; then
             echo "  🔧 Auto-selecting: No, keep Gitea configuration (but nginx is stopped)"
             CHOICE="no"
-        fi
         # Check if simple-term-menu is available
-        if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+        elif python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
             # Use Python simple-term-menu for interactive selection
             CHOICE=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
@@ -1216,7 +1238,7 @@ EOF
 # Show usage information
 help() {
     echo "🚀 AI-SwAutoMorph Deployment Script"
-    echo "Usage: $0 [COMMAND] [MODE] [USER_ID] [USER_NAME] [USER_EMAIL] [DESCRIPTION]"
+    echo "Usage: $0 [COMMAND] [MODE] [USER_ID] [USER_NAME] [USER_EMAIL] [DESCRIPTION] [OPTIONS]"
     echo ""
     echo "COMMANDS:"
     echo "  start     - Deploy and start all services (Flask app, Nginx, Gitea)"
@@ -1274,6 +1296,10 @@ help() {
     echo "  --help    - Show this help menu (alias for help)"
     echo "  -h        - Show this help menu (short alias for help)"
     echo ""
+    echo "OPTIONS:"
+    echo "  --keep-gitea-running  - Automatically answer 'no' to Gitea stop question"
+    echo "                          Keeps Gitea service running during stop operations"
+    echo ""
     echo "MODES:"
     echo "  locally   - Deploy without Docker (direct system installation)"
     echo "              • Installs services directly on the host system"
@@ -1308,6 +1334,7 @@ help() {
     echo "  $0 start docker             # Deploy using Docker containers"
     echo "  $0 start locally 123 john   # Deploy locally for user 'john' with ID '123'"
     echo "  $0 stop                     # Stop all services (interactive Gitea removal)"
+    echo "  $0 stop --keep-gitea-running # Stop all services but keep Gitea running"
     echo "  $0 stop locally             # Stop all services started "locally" (interactive Gitea removal)"
     echo "  $0 restart locally          # Restart local services"
     echo "  $0 ps                       # Check status of all services"
