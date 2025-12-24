@@ -989,19 +989,18 @@ start_flask_application() {
     # Start Gunicorn with production configuration
     echo "  🚀 Starting Gunicorn server..."
     
-    if nohup gunicorn --config gunicorn.conf.py wsgi:application > /dev/null 2>&1 & then
-        NEW_PID=$!
-        echo $NEW_PID > ./conf/app.pid
-        
-        # Wait a moment and check if the process started successfully
-        sleep 3
-        if kill -0 "$NEW_PID" 2>/dev/null; then
-            echo "  ✅ Flask application started with Gunicorn (PID: $NEW_PID)"
+    # Start Gunicorn in daemon mode with full path
+    if /home/ubuntu/.local/bin/gunicorn --config gunicorn.conf.py wsgi:application --daemon; then
+        # Wait for daemon to start and get PID
+        sleep 2
+        GUNICORN_PID=$(pgrep -f "gunicorn.*wsgi:application" | head -1)
+        if [ -n "$GUNICORN_PID" ]; then
+            echo $GUNICORN_PID > ./conf/app.pid
+            echo "  ✅ Flask application started with Gunicorn (PID: $GUNICORN_PID)"
             echo "  🌐 Application available at: http://localhost:5000"
             echo "  👥 Workers: $(python3 -c 'import multiprocessing; print(multiprocessing.cpu_count() * 2 + 1)')"
         else
             echo "  ❌ Gunicorn failed to start (check logs: logs/gunicorn_error.log)"
-            rm -f ./conf/app.pid
             return 1
         fi
     else
