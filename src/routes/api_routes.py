@@ -97,9 +97,9 @@ def return_prompt_for_operator(detected_action, user_question, app_folder, conte
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
         l_prompt = f"""You are an autonomous IT Operater agent with access to execute shell commands on a Linux server.
-The user has requested an application management action: {detected_action.upper()}
-User Request: {user_question}
-Application Folder: {app_folder}
+The user has requested an application {detected_action} management action for the application located in {app_folder}.
+The User requested {user_question}.
+Run ALL commands from within the application Folder {app_folder}.
 STEPS TO EXECUTE (ALL OF THEM):
 {context}
 IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.

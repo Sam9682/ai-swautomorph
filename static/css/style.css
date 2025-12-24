@@ -626,6 +626,21 @@ body {
     margin-bottom: 0.5rem;
 }
 
+/* Required field highlighting for Virtual Agents selects */
+#unifiedAppSelect, #unifiedAction {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border: 2px solid #e55100 !important;
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3) !important;
+}
+
+#unifiedAppSelect option, #unifiedAction option {
+    background: white !important;
+    color: #333 !important;
+    font-weight: normal !important;
+}
+
 .operations-controls {
     display: flex;
     gap: 0.5rem;
