@@ -5,10 +5,9 @@ import sqlite3
 import os
 import requests
 from datetime import datetime
-from ..config import DB_PATH, TRANSLATIONS
+from ..config import DB_PATH, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME
 from ..database import db_manager
 from ..db_health import check_database_health, get_database_stats
-from ..automorph_application import process_qchat_developer, process_qchat_operations
 
 def get_language():
     return session.get('language', 'en')
@@ -20,192 +19,87 @@ def get_text(key):
 def log_with_timestamp(message):
     """Log message with datetime timestamp"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
+    log_message = f"[{timestamp}] {message}"
+    print(log_message)
+    with open(OUTPUT_PRINT_LOGS_FILENAME, 'a') as f:
+        f.write(log_message + '\n')
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 def return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default'):
     # 🧠 Prompt complet envoyé à Q Chat
-    if (version == 'initial'):
-        prompt = f"""
-You are an autonomous Operations/code agent running on a Linux server
+    if (version == 'default'):
+        l_prompt = f"""You are an autonomous Operations/code agent running on a Linux server
 with access to the local filesystem and shell commands.
-
 The application source code is located in the following git repository:
   REPO_DIR = "{repo_dir}"
-
 This repository is the one used by docker-compose to run the application.
 The deployment command is executed from the repo root:
   docker-compose up -d --build
-
 There is a local Github instance reachable with the Git URL:
   GITHUB_REMOTE_URL = "{repo_github_url}"
-
 Your goal is to:
   - modify the source code according to the user request,
   - commit the changes on a new branch,
   - push this branch to the local Gitea remote,
   - rebuild and redeploy the running application with docker-compose.
-
 USER REQUEST (what must be changed in the app):
 \"\"\"{message}\"\"\"
-
 Follow these steps EXACTLY:
-
 1. Change directory to the repository:
    cd {repo_dir}
-
 2. Check that the working tree is clean (no uncommitted changes).
    If there are local changes, STOP and print a clear error message,
    do NOT try to auto-commit existing local changes.
-
 3. Ensure that a git remote named 'gitea' exists and points to:
      {repo_gitea_url}
    - If 'gitea' does not exist, add it:
        git remote add gitea {repo_gitea_url}
    - If 'gitea' exists but with a different URL, update it:
        git remote set-url gitea {repo_gitea_url}
-
 4. Fetch from 'origin':
      git pull origin
-
 5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
    Then create and checkout a new local branch named:
      {branch_name}
    starting from the default branch, for example:
      git checkout -b {branch_name}
-
 6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
    and implement the USER REQUEST in a minimal, clean and maintainable way.
    - Update only the necessary files.
    - Keep coding style consistent with the existing project.
-
 7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
    try to detect it and run it.
    - If tests FAIL, revert the modifications or reset the branch to the previous state,
      and STOP with a clear error message (do NOT push a broken branch).
-
 8. Stage and commit the changes with a clear message that includes the user request, e.g.:
      git status
      git add .
      git commit -m "Auto-update: {message}"
-
 9. Push the new branch to the 'gitea' remote:
      git push gitea --all
-
 10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
     set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{app_name}'
-
 11. Rebuild and redeploy the running application by executing:
       deployApp.sh stop
       deployApp.sh start {user_id} {user_name}
     from the repository root ({repo_dir}).
-
 12. At the end, print a short summary including:
     - the branch name,
     - the git commit hash,
     - the result of the docker-compose command (success or failure),
     - and any warnings (e.g. tests were not found, tests were skipped, etc.).
-
 If ANY step fails, explain clearly which step failed and why.
 """
-    else:
-        prompt = f"""
-You are an autonomous Operations/code agent running on a Linux server
-with access to the local filesystem and shell commands.
-
-The application source code is located in the following git repository:
-  REPO_DIR = "{repo_dir}"
-
-This repository is the one used by docker-compose to run the application.
-The deployment command is executed from the repo root:
-  docker-compose up -d --build
-
-There is a local Github instance reachable with the Git URL:
-  GITHUB_REMOTE_URL = "{repo_github_url}"
-
-Your goal is to:
-  - modify the source code according to the user request,
-  - commit the changes on a new branch,
-  - push this branch to the local Gitea remote,
-  - rebuild and redeploy the running application with docker-compose.
-
-USER REQUEST (what must be changed in the app):
-\"\"\"{message}\"\"\"
-
-Follow these steps EXACTLY:
-
-1. Change directory to the repository:
-   cd {repo_dir}
-
-2. Check that the working tree is clean (no uncommitted changes).
-   If there are local changes, STOP and print a clear error message,
-   do NOT try to auto-commit existing local changes.
-
-3. Ensure that a git remote named 'gitea' exists and points to:
-     {repo_gitea_url}
-   - If 'gitea' does not exist, add it:
-       git remote add gitea {repo_gitea_url}
-   - If 'gitea' exists but with a different URL, update it:
-       git remote set-url gitea {repo_gitea_url}
-
-4. Fetch from 'origin':
-     git pull origin
-
-5. Determine the default branch (prefer 'main', otherwise 'master', otherwise stay on current).
-   Then create and checkout a new local branch named:
-     {branch_name}
-   starting from the default branch, for example:
-     git checkout -b {branch_name}
-
-6. Inspect the codebase to find the relevant files (e.g. main app entrypoints, routes, services, etc.)
-   and implement the USER REQUEST in a minimal, clean and maintainable way.
-   - Update only the necessary files.
-   - Keep coding style consistent with the existing project.
-
-7. If there is a test suite (for example 'pytest', 'npm test', 'pnpm test', 'make test', etc.),
-   try to detect it and run it.
-   - If tests FAIL, revert the modifications or reset the branch to the previous state,
-     and STOP with a clear error message (do NOT push a broken branch).
-
-8. Stage and commit the changes with a clear message that includes the user request, e.g.:
-     git status
-     git add .
-     git commit -m "Auto-update: {message}"
-
-9. Push the new branch to the 'gitea' remote:
-     git push gitea --all
-
-10. Update table Application from swautomorph.db localted in ~/swautomorph/softfluid/db/ folder, 
-    set the field 'gitea_url' of Deployments table to the value '{repo_gitea_url}' where application_name = '{application_name}'
-
-11. Rebuild and redeploy the running application by executing:
-      deployApp.sh stop
-      deployApp.sh start {session['user_id']} {user_name}
-    from the repository root ({repo_dir}).
-
-12. At the end, print a short summary including:
-    - the branch name,
-    - the git commit hash,
-    - the result of the docker-compose command (success or failure),
-    - and any warnings (e.g. tests were not found, tests were skipped, etc.).
-
-If ANY step fails, explain clearly which step failed and why.
-"""
-    return prompt
+    return l_prompt
 
 def return_prompt_for_operator(detected_action, user_question, app_folder, context, version = 'default'):
     # 🧠 Prompt complet envoyé à Q Chat
-    if (version == 'initial'):
-        prompt = f"""
-You are an autonomous Operations agent with access to execute shell commands on a Linux server.
-
+    if (version == 'default'):
+        l_prompt = f"""You are an autonomous Operations agent with access to execute shell commands on a Linux server.
 The user has requested an application management action: {detected_action.upper()}
-
 User Request: {user_question}
-
-{'Application Folder: ' + app_folder if app_folder else ''}
-
+Application Folder: {app_folder}
 CRITICAL INSTRUCTIONS:
 1. You MUST execute ALL steps from the context below in the exact sequence provided
 2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
@@ -213,36 +107,11 @@ CRITICAL INSTRUCTIONS:
 4. If any step fails, report the error but continue with remaining steps
 5. Execute each bash command block completely
 6. Provide a detailed summary showing which steps succeeded and which failed
-
 STEPS TO EXECUTE (ALL OF THEM):
 {context}
-
 IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
 """
-    else:
-        prompt = f"""
-You are an autonomous Operations agent with access to execute shell commands on a Linux server.
-
-The user has requested an application management action: {detected_action.upper()}
-
-User Request: {user_question}
-
-{'Application Folder: ' + app_folder if app_folder else ''}
-
-CRITICAL INSTRUCTIONS:
-1. You MUST execute ALL steps from the context below in the exact sequence provided
-2. Change to the application directory FIRST: {app_folder if app_folder else '/home/ubuntu/deployments/[username]/[appname]'}
-3. Do NOT stop execution until ALL steps are completed
-4. If any step fails, report the error but continue with remaining steps
-5. Execute each bash command block completely
-6. Provide a detailed summary showing which steps succeeded and which failed
-
-STEPS TO EXECUTE (ALL OF THEM):
-{context}
-
-IMPORTANT: You must complete ALL steps above. Do not stop early. Execute every command and report the final status of the deployment.
-"""
-    return prompt
+    return l_prompt
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
     """Create user in Gitea server"""
@@ -784,11 +653,11 @@ def api_deployments():
                             
                             # Create ssl directory on remote server
                             ssh_mkdir = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {ssl_dest_dir}'"
-                            subprocess.run(ssh_mkdir, shell=True, capture_output=True, text=True, timeout=60)
+                            subprocess.run(ssh_mkdir, shell=True, capture_output=True, text=True, timeout=600)
                             
                             # Rsync SSL certificates
                             rsync_cmd = f"rsync -avz -e 'ssh -o StrictHostKeyChecking=no' {ssl_source_dir}STAR_swautomorph_com.crt {ssl_source_dir}privateKey_STAR_swautomorph_com.key ubuntu@{target_server_ip}:{ssl_dest_dir}/"
-                            rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=120)
+                            rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=600)
                             
                             if rsync_result.returncode == 0:
                                 log_with_timestamp(f"[DEPLOYMENT API] CLONE - SSL certificates copied successfully to {target_server_ip}:{ssl_dest_dir}")
@@ -1090,14 +959,19 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            prompt = return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name, version = 'default')
+            l_prompt = return_prompt_for_developer(repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
+
+            # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
+            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/dev_prompt_generated.txt'
+            with open(prompt_file_path, 'w') as f:
+                f.write(l_prompt+"\n")
 
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
             qchat_cmd = None
             for path in qchat_paths:
                 try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                    result = subprocess.run([path, '--version'], capture_output=True, timeout=600)
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
@@ -1110,24 +984,48 @@ def api_qchat_developer():
             
             yield f"data: {json.dumps({'chunk': f'Found Q Chat at: {qchat_cmd}'})}\n\n"
             
-            cmd_args = [qchat_cmd, 'chat', '--trust-all-tools', prompt]
+            cmd_args = [qchat_cmd, 'chat', '--trust-all-tools', l_prompt]
             qchat_env = os.environ.copy()
             qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
             
             yield f"data: {json.dumps({'chunk': 'Executing Q Chat command...'})}\n\n"
             
+            # Start process with longer timeout and better error handling
             process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                      text=True, bufsize=1, env=qchat_env)
+                                      text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             
-            for line in iter(process.stdout.readline, ''):
-                if line:
-                    clean_line = ansi_escape.sub('', line.rstrip())
-                    if clean_line and 'Thinking...' not in clean_line:
-                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+            import signal
+            import time
             
-            process.wait()
+            # Set a longer timeout for Q Chat operations (30 minutes)
+            timeout_seconds = 1800
+            start_time = time.time()
+            
+            try:
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        clean_line = ansi_escape.sub('', line.rstrip())
+                        if clean_line and 'Thinking...' not in clean_line:
+                            yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+                    
+                    # Check timeout
+                    if time.time() - start_time > timeout_seconds:
+                        yield f"data: {json.dumps({'chunk': 'WARNING: Q Chat operation timeout reached (30 minutes), terminating...'})}\n\n"
+                        os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+                        time.sleep(5)
+                        if process.poll() is None:
+                            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                        break
+                
+                process.wait(timeout=60)  # Wait up to 1 minute for clean shutdown
+                
+            except subprocess.TimeoutExpired:
+                yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
+                os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                process.returncode = -1
+            
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
             
         except Exception as e:
@@ -1228,15 +1126,13 @@ def api_qchat_operations():
                     context = context.replace('{TAIL_LINES}', '100')
                     
                     # Add configuration variables to context
-                    config_vars = f"""
-**Configuration Variables:**
+                    config_vars = f"""**Configuration Variables:**
 - NAME_OF_APPLICATION: {NAME_OF_APPLICATION}
 - APPLICATION_IDENTITY_NUMBER: {application_id}
 - RANGE_START: {RANGE_START}
 - RANGE_RESERVED: {RANGE_RESERVED}
 - RANGE_START_CONTROLPLAN: {RANGE_START_CONTROLPLAN}
 - RANGE_RESERVED_CONTROLPLAN: {RANGE_RESERVED_CONTROLPLAN}
-
 **Port Calculation (for verification):**
 ```bash
 USER_ID={session['user_id']}
@@ -1255,7 +1151,7 @@ echo "HTTP_PORT2: $HTTP_PORT2"
 echo "HTTPS_PORT2: $HTTPS_PORT2"
 ```
 """
-                    
+
                     # Extract application folder from description if present
                     app_folder = ''
                     if 'Path:' in description:
@@ -1264,39 +1160,38 @@ echo "HTTPS_PORT2: $HTTPS_PORT2"
                             app_folder = parts[1].strip()
                     
                     # 🧠 Prompt complet envoyé à Q Chat
-                    prompt = return_prompt_for_operator(detected_action, message, app_folder, context, version = 'default')
-                    log_with_timestamp(f'AI Chat Operator - Prompt : {prompt[:120]}')
+                    l_prompt = return_prompt_for_operator(detected_action, message, app_folder, context)
+                    log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
 
                 else:
                     yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
-                    prompt = f"""
-You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+                    l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
-
 User Question: {message}
-
 Provide a helpful and informative response.
 """
-                    log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {prompt[:120]}')
+                    log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {l_prompt[:120]}')
 
             else:
                 # Simple prompt for Q&A without code execution
-                prompt = f"""
-You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+                l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
-
 User Question: {message}
-
 Provide a helpful and informative response.
 """
-            log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {prompt[:120]}')
+                log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {l_prompt[:120]}')
+
+            # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
+            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/ope_prompt_generated.txt'
+            with open(prompt_file_path, 'w') as f:
+                f.write(l_prompt+"\n")
 
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
             qchat_cmd = None
             for path in qchat_paths:
                 try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=5)
+                    result = subprocess.run([path, '--version'], capture_output=True, timeout=600)
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
@@ -1313,11 +1208,12 @@ Provide a helpful and informative response.
             cmd_args = [qchat_cmd, 'chat']
             if detected_action:
                 cmd_args.extend(['--trust-all-tools'])
-            cmd_args.append(prompt)
+            cmd_args.append(l_prompt)
             
             qchat_env = os.environ.copy()
             qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
             
+            log_with_timestamp(f'AI Chat Operator - Executing Q Chat command at: {qchat_cmd}...')
             yield f"data: {json.dumps({'chunk': 'Executing Q Chat command...'})}\n\n"
             
             process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
@@ -1334,17 +1230,18 @@ Provide a helpful and informative response.
             process.wait()
             
             # Record billing activity for START and STOP actions if successful
-            if (detected_action == 'start' or detected_action == 'stop') and process.returncode == 0 and application_name:
+            if (detected_action == 'START' or detected_action == 'STOP') and process.returncode == 0 and application_name:
                 try:
                     from .billing_routes import record_billing_activity
                     record_billing_activity(session['user_id'], application_name, detected_action)
-                    yield f"data: {json.dumps({'chunk': f'Billing activity recorded for {detected_action.upper()} action on {application_name}'})}\n\n"
+                    log_with_timestamp(f'AI Chat Operator - Billing activity recorded for {detected_action} action on {application_name}')
+                    yield f"data: {json.dumps({'chunk': f'Billing activity recorded for {detected_action} action on {application_name}'})}\n\n"
                 except Exception as billing_error:
                     yield f"data: {json.dumps({'chunk': f'Warning: Failed to record billing activity: {str(billing_error)}'})}\n\n"
             
             yield f"data: {json.dumps({'chunk': f'=== Q Chat Session Completed ==='})}\n\n"
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
-            
+            log_with_timestamp(f'AI Chat Operator - done ! rc = {process.returncode}')
         except Exception as e:
             log_with_timestamp(f'AI Chat Operator - Exception in generate(): {str(e)}')
             yield f"data: {json.dumps({'error': f'Exception in generate(): {str(e)}'})}\n\n"
