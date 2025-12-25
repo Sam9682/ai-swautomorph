@@ -1214,17 +1214,7 @@ document.getElementById('automorphForm').addEventListener('submit', function(e) 
     });
 });
 
-// Logs functions - removed from main panel
-function showLogs() {
-    // Logs section removed - no action needed
-}
 
-function clearLogs() {
-    const logsContent = document.getElementById('deploymentLogsContent');
-    if (logsContent) {
-        logsContent.textContent = 'Ready for deployment commands...';
-    }
-}
 
 function appendLog(message) {
     const logsContent = document.getElementById('deploymentLogsContent');
@@ -1249,41 +1239,9 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(checkAllApplicationStatus, 10000);
 });
 
-// Initial button state setup - disable all buttons except clone for apps that might not be cloned
-function initializeButtonStates() {
-    const appCards = document.querySelectorAll('.app-card');
-    appCards.forEach(card => {
-        const appName = card.querySelector('h3').textContent;
-        const openBtn = card.querySelector('[id^="openBtn-"]');
-        const startBtn = card.querySelector('[id^="startBtn-"]');
-        const stopBtn = card.querySelector('[id^="stopBtn-"]');
-        const restartBtn = card.querySelector('[id^="restartBtn-"]');
-        
-        // Initially assume apps are not cloned and disable buttons
-        if (openBtn) {
-            openBtn.classList.remove('btn-primary', 'btn-success');
-            openBtn.classList.add('btn-danger');
-            openBtn.style.pointerEvents = 'none';
-            openBtn.style.opacity = '0.6';
-            openBtn.title = 'Checking application status...';
-        }
-        
-        [startBtn, stopBtn, restartBtn].forEach(btn => {
-            if (btn) {
-                btn.style.display = 'none';
-            }
-        });
-    });
-}
-
-// Initialize button states immediately
-initializeButtonStates();
-
 function checkAllApplicationStatus() {
     const appCards = document.querySelectorAll('.app-card');
     appCards.forEach(card => {
-        // only take the first word of the card.querySelector('h3').textContent to be the name of app
-
         const appName = card.querySelector('h3').textContent.split(' ')[0];
         checkApplicationStatus(appName);
     });
@@ -1862,18 +1820,7 @@ function getAvailableServerId(applicationName) {
 
 
 
-// Touch-friendly button handling
-document.addEventListener('touchstart', function(e) {
-    if (e.target.tagName === 'BUTTON') {
-        e.target.style.transform = 'scale(0.95)';
-    }
-});
 
-document.addEventListener('touchend', function(e) {
-    if (e.target.tagName === 'BUTTON') {
-        e.target.style.transform = 'scale(1)';
-    }
-});
 
 // Initialize panel on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -2383,23 +2330,7 @@ if (updateServerForm) {
     });
 }
 
-// Periodic status checking for START button
-function startPeriodicStatusCheck(appName) {
-    const checkInterval = setInterval(() => {
-        checkApplicationStatus(appName);
-        
-        // Check if application is running and stop the interval
-        const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-        if (openBtn && openBtn.classList.contains('btn-success')) {
-            clearInterval(checkInterval);
-        }
-    }, 3000); // Check every 3 seconds
-    
-    // Stop checking after 5 minutes to prevent infinite polling
-    setTimeout(() => {
-        clearInterval(checkInterval);
-    }, 300000);
-}
+
 
 // Button loading state management
 function setButtonLoadingState(appName, action, isLoading, repoSize, startDuration, stopDuration) {
@@ -2534,12 +2465,7 @@ function showBriefLoadingIndicator(action, appName) {
     document.body.appendChild(indicator);
 }
 
-function hideBriefLoadingIndicator() {
-    const indicator = document.getElementById('briefLoadingIndicator');
-    if (indicator) {
-        indicator.remove();
-    }
-}
+
 
 // Function to show results in waiting box
 function showResultInWaitingBox(results) {
