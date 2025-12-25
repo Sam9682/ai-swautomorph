@@ -902,7 +902,7 @@ def api_qchat_developer():
     import subprocess
     import re
     
-    user_id = session.get('user_id', 'anonymous')
+    user_id = session.get('user_id', '0')
     
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
