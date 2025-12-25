@@ -5,8 +5,11 @@ import sqlite3
 import os
 import requests
 import json
+import subprocess
 from datetime import datetime
-from ..config import DB_PATH, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME
+from ..config import DB_PATH, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, \
+    TIMEOUT_GITEA_HTTP_POST, TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, \
+    TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN
 from ..database import db_manager
 from ..db_health import check_database_health, get_database_stats
 
@@ -22,12 +25,15 @@ def log_with_timestamp(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_message = f"[{timestamp}] {message}"
     print(log_message)
-    with open(OUTPUT_PRINT_LOGS_FILENAME, 'a') as f:
-        f.write(log_message + '\n')
+    try:
+        with open(OUTPUT_PRINT_LOGS_FILENAME, 'a') as f:
+            f.write(log_message + '\n')
+    except (IOError, OSError) as e:
+        print(f"Warning: Failed to write to log file: {e}")
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-def return_prompt_for_developer(detected_action, application_name, user_name, user_email, version = 'default'):
+def return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email, version = 'default'):
 
     l_prompt = ''
 
@@ -38,8 +44,7 @@ def return_prompt_for_developer(detected_action, application_name, user_name, us
         
         if os.path.exists(context_file):
             log_with_timestamp(f'AI Chat Developer - Loading context from {detected_action.upper()}_context.md')
-            yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
-            
+
             with open(context_file, 'r') as f:
                 context_template = f.read()
             
@@ -52,23 +57,27 @@ def return_prompt_for_developer(detected_action, application_name, user_name, us
                 )
                 if app_data:
                     application_id = app_data[0]
-                    yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
+                    log_with_timestamp( f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n")
                 else:
-                    yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
+                    log_with_timestamp( f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n")
             
-            # Load configuration values from database.py
+            # Load configuration values from database.py (unused but required for context)
             from ..database import load_deploy_config
-            NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
+            _ = load_deploy_config()  # Load but don't unpack unused variables
             
             # Replace placeholders
-            l_prompt = context_template.replace('{USER_ID}', str(session['user_id']))
-            l_prompt = l_prompt.replace('{USER_NAME}', user_name)
-            l_prompt = l_prompt.replace('{USER_EMAIL}', user_email)
-            l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+            try:
+                l_prompt = context_template.replace('{USER_ID}', str(session.get('user_id', 0)))
+                l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
+                l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
+                l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+            except KeyError as e:
+                log_with_timestamp(f'AI Chat Developer - Session key error: {str(e)}')
+                l_prompt = ''
 
     return l_prompt
 
-def return_prompt_for_operator(application_name, detected_action, user_name, user_email, message, version = 'default'):
+def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, message, version = 'default'):
 
     l_prompt = ''
 
@@ -78,7 +87,6 @@ def return_prompt_for_operator(application_name, detected_action, user_name, use
                 
         if os.path.exists(context_file):
             log_with_timestamp(f'AI Chat Operator - Loading context from {detected_action.upper()}_context.md')
-            yield f"data: {json.dumps({'chunk': f'Loading context from {detected_action.upper()}_context.md'})}\n\n"
             
             with open(context_file, 'r') as f:
                 context_template = f.read()
@@ -92,21 +100,25 @@ def return_prompt_for_operator(application_name, detected_action, user_name, use
                 )
                 if app_data:
                     application_id = app_data[0]
-                    yield f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n"
+                    log_with_timestamp( f"data: {json.dumps({'chunk': f'Found application ID: {application_id} for {application_name}'})}\n\n")
                 else:
-                    yield f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n"
-            
-            # Load configuration values from database.py
+                    log_with_timestamp( f"data: {json.dumps({'chunk': f'Warning: Application {application_name} not found in database, using ID 0'})}\n\n")
+
+            # Load configuration values from database.py (unused but required for context)
             from ..database import load_deploy_config
-            NAME_OF_APPLICATION, _, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
+            _ = load_deploy_config()  # Load but don't unpack unused variables
             
             # Replace placeholders
-            l_prompt = context_template.replace('{USER_ID}', str(session['user_id']))
-            l_prompt = l_prompt.replace('{USER_NAME}', user_name)
-            l_prompt = l_prompt.replace('{USER_EMAIL}', user_email)
-            l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+            try:
+                l_prompt = context_template.replace('{USER_ID}', str(session.get('user_id', 0)))
+                l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
+                l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
+                l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+            except KeyError as e:
+                log_with_timestamp(f'AI Chat Operator - Session key error: {str(e)}')
+                l_prompt = ''
         else:
-            yield f"data: {json.dumps({'chunk': f'Context file not found: {context_file}, using default Q&A mode'})}\n\n"
+            log_with_timestamp(f'AI Chat Operator - Context file not found: {context_file}, using default Q&A mode')
             l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
 User Question: {message}
@@ -122,7 +134,7 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
         # Gitea API endpoint
         gitea_url = 'http://localhost:3000/api/v1/admin/users'
         
-        # Admin credentials (you may want to configure these)
+        # Get admin token for Gitea API
         admin_token = get_gitea_admin_token()
         
         if not admin_token:
@@ -130,11 +142,15 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
             return False
         
         # User data for Gitea
+        full_name = ''
+        if first_name or last_name:
+            full_name = f"{first_name} {last_name}".strip()
+        
         user_data = {
             'username': username,
             'email': email,
             'password': password,
-            'full_name': f"{first_name} {last_name}".strip(),
+            'full_name': full_name,
             'must_change_password': False,
             'send_notify': False
         }
@@ -144,7 +160,7 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
             'Content-Type': 'application/json'
         }
         
-        response = requests.post(gitea_url, json=user_data, headers=headers, timeout=10)
+        response = requests.post(gitea_url, json=user_data, headers=headers, timeout=TIMEOUT_GITEA_HTTP_POST)
         
         if response.status_code == 201:
             log_with_timestamp(f"[GITEA] User {username} created successfully")
@@ -163,8 +179,12 @@ def get_gitea_admin_token():
         # Try to get existing token from file
         token_file = '/tmp/gitea_admin_token'
         if os.path.exists(token_file):
-            with open(token_file, 'r') as f:
-                return f.read().strip()
+            try:
+                with open(token_file, 'r') as f:
+                    return f.read().strip()
+            except (IOError, OSError) as e:
+                log_with_timestamp(f"[GITEA] Error reading token file: {str(e)}")
+                return None
         
         # If no token file, return None (manual setup required)
         log_with_timestamp("[GITEA] No admin token found. Manual Gitea setup required.")
@@ -254,43 +274,55 @@ def api_application_actions(app_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    if request.method == 'PUT':
-        data = request.get_json()
-        name = data.get('name')
-        description = data.get('description', '')
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
         
-        if not name:
-            return jsonify({'error': 'Name required'}), 400
+        if not user or user[0] != 'admin':
+            conn.close()
+            return jsonify({'error': 'Admin access required'}), 403
         
-        git_url = data.get('git_url', '')
-        git_repo_size = data.get('git_repo_size', 50)
-        docker_build_duration = data.get('docker_build_duration')
-        docker_start_duration = data.get('docker_start_duration')
-        docker_stop_duration = data.get('docker_stop_duration')
-        docker_ps_duration = data.get('docker_ps_duration')
+        if request.method == 'PUT':
+            data = request.get_json()
+            name = data.get('name')
+            description = data.get('description', '')
+            
+            if not name:
+                conn.close()
+                return jsonify({'error': 'Name required'}), 400
+            
+            git_url = data.get('git_url', '')
+            git_repo_size = data.get('git_repo_size', 50)
+            docker_build_duration = data.get('docker_build_duration')
+            docker_start_duration = data.get('docker_start_duration')
+            docker_stop_duration = data.get('docker_stop_duration')
+            docker_ps_duration = data.get('docker_ps_duration')
+            
+            cursor.execute('''
+                UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?,
+                       docker_build_duration = ?, docker_start_duration = ?, docker_stop_duration = ?, docker_ps_duration = ?
+                WHERE id = ?
+            ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Application updated successfully'})
         
-        cursor.execute('''
-            UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?,
-                   docker_build_duration = ?, docker_start_duration = ?, docker_stop_duration = ?, docker_ps_duration = ?
-            WHERE id = ?
-        ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Application updated successfully'})
-    
-    elif request.method == 'DELETE':
-        cursor.execute('DELETE FROM applications WHERE id = ?', (app_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Application deleted successfully'})
+        elif request.method == 'DELETE':
+            cursor.execute('DELETE FROM applications WHERE id = ?', (app_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'Application deleted successfully'})
+            
+    except sqlite3.Error as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users', methods=['GET', 'POST'])
 def api_users():
@@ -298,62 +330,80 @@ def api_users():
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    if request.method == 'GET':
-        # Get all users
-        cursor.execute('SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username')
-        users = [{
-            'id': row[0],
-            'username': row[1], 
-            'email': row[2],
-            'first_name': row[3],
-            'last_name': row[4],
-            'suspended': bool(row[5]),
-            'created_at': row[6]
-        } for row in cursor.fetchall()]
-        conn.close()
-        return jsonify(users)
-    
-    elif request.method == 'POST':
-        # Add new user
-        data = request.get_json()
-        username = data.get('username')
-        email = data.get('email')
-        password = data.get('password')
-        first_name = data.get('first_name', '')
-        last_name = data.get('last_name', '')
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
         
-        if not all([username, email, password]):
-            return jsonify({'error': 'Username, email and password required'}), 400
+        if not user or user[0] != 'admin':
+            conn.close()
+            return jsonify({'error': 'Admin access required'}), 403
         
-        try:
-            password_hash = generate_password_hash(password)
-            cursor.execute('''
-                INSERT INTO users (username, email, password_hash, first_name, last_name)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (username, email, password_hash, first_name, last_name))
-            user_id = cursor.lastrowid
-            conn.commit()
+        if request.method == 'GET':
+            # Get all users
+            cursor.execute('SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username')
+            users = [{
+                'id': row[0],
+                'username': row[1], 
+                'email': row[2],
+                'first_name': row[3],
+                'last_name': row[4],
+                'suspended': bool(row[5]),
+                'created_at': row[6]
+            } for row in cursor.fetchall()]
             conn.close()
+            return jsonify(users)
+        
+        elif request.method == 'POST':
+            # Add new user
+            data = request.get_json()
+            username = data.get('username')
+            email = data.get('email')
+            password = data.get('password')
+            first_name = data.get('first_name', '')
+            last_name = data.get('last_name', '')
             
-            # Assign default applications to new user
-            from ..database import assign_default_apps_to_user
-            assign_default_apps_to_user(user_id)
+            if not all([username, email, password]):
+                conn.close()
+                return jsonify({'error': 'Username, email and password required'}), 400
             
-            # Create user in Gitea
-            create_gitea_user(username, email, password, first_name, last_name)
-            
-            return jsonify({'message': 'User created successfully'}), 201
-        except sqlite3.IntegrityError:
+            try:
+                password_hash = generate_password_hash(password)
+                cursor.execute('''
+                    INSERT INTO users (username, email, password_hash, first_name, last_name)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (username, email, password_hash, first_name, last_name))
+                user_id = cursor.lastrowid
+                conn.commit()
+                conn.close()
+                
+                # Assign default applications to new user
+                try:
+                    from ..database import assign_default_apps_to_user
+                    assign_default_apps_to_user(user_id)
+                except Exception as e:
+                    log_with_timestamp(f"Warning: Failed to assign default apps to user {user_id}: {str(e)}")
+                
+                # Create user in Gitea
+                create_gitea_user(username, email, password, first_name, last_name)
+                
+                return jsonify({'message': 'User created successfully'}), 201
+            except sqlite3.IntegrityError:
+                conn.close()
+                return jsonify({'error': 'Username or email already exists'}), 409
+            except Exception as e:
+                conn.close()
+                return jsonify({'error': f'Database error: {str(e)}'}), 500
+                
+    except sqlite3.Error as e:
+        if 'conn' in locals():
             conn.close()
-            return jsonify({'error': 'Username or email already exists'}), 409
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
 def api_user_actions(user_id):
@@ -361,49 +411,61 @@ def api_user_actions(user_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    if request.method == 'PUT':
-        data = request.get_json()
-        action = data.get('action')
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
         
-        if action == 'suspend':
-            cursor.execute('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
-        elif action == 'unsuspend':
-            cursor.execute('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
-        elif action == 'update':
-            username = data.get('username')
-            email = data.get('email')
-            first_name = data.get('first_name', '')
-            last_name = data.get('last_name', '')
-            
-            if not all([username, email]):
-                return jsonify({'error': 'Username and email required'}), 400
-            
-            try:
-                cursor.execute('''
-                    UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?
-                    WHERE id = ?
-                ''', (username, email, first_name, last_name, user_id))
-            except sqlite3.IntegrityError:
-                conn.close()
-                return jsonify({'error': 'Username or email already exists'}), 409
+        if not user or user[0] != 'admin':
+            conn.close()
+            return jsonify({'error': 'Admin access required'}), 403
         
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'User updated successfully'})
-    
-    elif request.method == 'DELETE':
-        cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'User deleted successfully'})
+        if request.method == 'PUT':
+            data = request.get_json()
+            action = data.get('action')
+            
+            if action == 'suspend':
+                cursor.execute('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
+            elif action == 'unsuspend':
+                cursor.execute('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
+            elif action == 'update':
+                username = data.get('username')
+                email = data.get('email')
+                first_name = data.get('first_name', '')
+                last_name = data.get('last_name', '')
+                
+                if not all([username, email]):
+                    conn.close()
+                    return jsonify({'error': 'Username and email required'}), 400
+                
+                try:
+                    cursor.execute('''
+                        UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?
+                        WHERE id = ?
+                    ''', (username, email, first_name, last_name, user_id))
+                except sqlite3.IntegrityError:
+                    conn.close()
+                    return jsonify({'error': 'Username or email already exists'}), 409
+            
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'User updated successfully'})
+        
+        elif request.method == 'DELETE':
+            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({'message': 'User deleted successfully'})
+            
+    except sqlite3.Error as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>/applications', methods=['GET', 'POST', 'DELETE'])
 def api_user_applications(user_id):
@@ -411,73 +473,277 @@ def api_user_applications(user_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    if request.method == 'GET':
-        # Get assigned applications for user
-        cursor.execute('''
-            SELECT a.id, a.name FROM applications a
-            JOIN user_applications ua ON a.id = ua.application_id
-            WHERE ua.user_id = ?
-        ''', (user_id,))
-        assigned = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
+        user = cursor.fetchone()
         
-        # Get all applications
-        cursor.execute('SELECT id, name FROM applications ORDER BY name')
-        all_apps = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+        if not user or user[0] != 'admin':
+            conn.close()
+            return jsonify({'error': 'Admin access required'}), 403
         
-        conn.close()
-        return jsonify({'assigned': assigned, 'all': all_apps})
-    
-    elif request.method == 'POST':
-        data = request.get_json()
-        app_id = data.get('application_id')
-        
-        if not app_id:
-            return jsonify({'error': 'Application ID required'}), 400
-        
-        try:
-            # Calculate ports for the user and application
-            from ..database import calculate_app_ports
-            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
+        if request.method == 'GET':
+            # Get assigned applications for user
+            cursor.execute('''
+                SELECT a.id, a.name FROM applications a
+                JOIN user_applications ua ON a.id = ua.application_id
+                WHERE ua.user_id = ?
+            ''', (user_id,))
+            assigned = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
             
-            # Get application name for URL generation
-            cursor.execute('SELECT name FROM applications WHERE id = ?', (app_id,))
-            app_result = cursor.fetchone()
-            if not app_result:
+            # Get all applications
+            cursor.execute('SELECT id, name FROM applications ORDER BY name')
+            all_apps = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+            
+            conn.close()
+            return jsonify({'assigned': assigned, 'all': all_apps})
+        
+        elif request.method == 'POST':
+            data = request.get_json()
+            app_id = data.get('application_id')
+            
+            if not app_id:
                 conn.close()
-                return jsonify({'error': 'Application not found'}), 404
+                return jsonify({'error': 'Application ID required'}), 400
             
-            app_name = app_result[0]
-            url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+            try:
+                # Calculate ports for the user and application
+                from ..database import calculate_app_ports
+                HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
+                
+                # Get application name for URL generation
+                cursor.execute('SELECT name FROM applications WHERE id = ?', (app_id,))
+                app_result = cursor.fetchone()
+                if not app_result:
+                    conn.close()
+                    return jsonify({'error': 'Application not found'}), 404
+                
+                app_name = app_result[0]
+                url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                
+                cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                              (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
+                conn.commit()
+                conn.close()
+                return jsonify({'message': 'Application assigned successfully'})
+            except sqlite3.IntegrityError:
+                conn.close()
+                return jsonify({'error': 'Application already assigned'}), 409
+        
+        elif request.method == 'DELETE':
+            data = request.get_json()
+            app_id = data.get('application_id')
             
-            cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                          (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
+            if not app_id:
+                conn.close()
+                return jsonify({'error': 'Application ID required'}), 400
+            
+            cursor.execute('DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
+                          (user_id, app_id))
             conn.commit()
             conn.close()
-            return jsonify({'message': 'Application assigned successfully'})
-        except sqlite3.IntegrityError:
+            return jsonify({'message': 'Application unassigned successfully'})
+            
+    except sqlite3.Error as e:
+        if 'conn' in locals():
             conn.close()
-            return jsonify({'error': 'Application already assigned'}), 409
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
+    except Exception as e:
+        if 'conn' in locals():
+            conn.close()
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path, data):
+    """Handle clone deployment action"""
+    import subprocess
+    import os
+    import shutil
+    import socket
+    from flask import Response, stream_with_context
+    import json
     
-    elif request.method == 'DELETE':
-        data = request.get_json()
-        app_id = data.get('application_id')
+    if not git_url:
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
+        return jsonify({'error': 'Git URL required for clone action'}), 400
+    
+    if not server_id:
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
+        return jsonify({'error': 'Server ID required for clone action'}), 400
+    
+    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
+    
+    # Get current and target server IPs
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        current_server_ip = s.getsockname()[0]
+        s.close()
+    except:
+        current_server_ip = "127.0.0.1"
+    
+    target_server = db_manager.execute_query(
+        'SELECT SERVER_IP FROM servers WHERE id = ?', 
+        (server_id,), fetch_one=True
+    )
+    
+    if not target_server:
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
+        return jsonify({'error': f'Server {server_id} not found'}), 400
+    
+    target_server_ip = target_server[0]
+    is_local_server = (target_server_ip == current_server_ip or target_server_ip == "127.0.0.1" or target_server_ip == "localhost")
+    
+    # Execute clone operation
+    if is_local_server:
+        if os.path.exists(deployment_path):
+            shutil.rmtree(deployment_path)
+        os.makedirs(deployment_path, exist_ok=True)
         
-        if not app_id:
-            return jsonify({'error': 'Application ID required'}), 400
+        git_env = os.environ.copy()
+        git_env.update({'GIT_CONFIG_NOSYSTEM': '1', 'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
+        result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
+                              capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+    else:
+        ssh_commands = [
+            f"rm -rf {deployment_path}",
+            f"mkdir -p {deployment_path}",
+            f"cd {os.path.dirname(deployment_path)} && git clone --recurse-submodules {git_url} {os.path.basename(deployment_path)}"
+        ]
+        ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
+        result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+    
+    # Handle result
+    output_parts = []
+    if result.stdout and result.stdout.strip():
+        output_parts.append(f"STDOUT:\n{result.stdout}")
+    if result.stderr and result.stderr.strip():
+        output_parts.append(f"STDERR:\n{result.stderr}")
+    command_output = "\n\n".join(output_parts) if output_parts else "No output"
+    
+    if result.returncode == 0:
+        status = 'cloned'
+        # Record deployment
+        existing_record = db_manager.execute_query(
+            'SELECT id FROM deployments WHERE user_id = ? AND application_name = ? AND server_id = ?',
+            (session['user_id'], app_name, server_id), fetch_one=True
+        )
         
-        cursor.execute('DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
-                      (user_id, app_id))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Application unassigned successfully'})
+        if existing_record:
+            db_manager.execute_query(
+                'UPDATE deployments SET status = ?, deployment_path = ?, git_url = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ? AND server_id = ?',
+                (status, deployment_path, git_url, session['user_id'], app_name, server_id)
+            )
+        else:
+            db_manager.execute_query(
+                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id) VALUES (?, ?, ?, ?, ?, ?)',
+                (session['user_id'], app_name, status, deployment_path, git_url, server_id)
+            )
+        
+        if data.get('stream', False):
+            def generate_clone_response():
+                yield f"data: {json.dumps({'chunk': f'Clone completed successfully for {app_name}'})}\n\n"
+                yield f"data: {json.dumps({'chunk': f'Repository cloned to: {deployment_path}'})}\n\n"
+                yield f"data: {json.dumps({'chunk': command_output})}\n\n"
+                yield f"data: {json.dumps({'done': True, 'success': True})}\n\n"
+            return Response(stream_with_context(generate_clone_response()), mimetype='text/event-stream',
+                           headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    else:
+        status = 'failed'
+        error_msg = f'Git clone failed: {result.stderr}'
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
+        return jsonify({'error': error_msg, 'logs': command_output}), 400
+    
+    return jsonify({'message': f'Clone completed for {app_name}', 'status': status, 'logs': command_output}), 202
+
+def _handle_app_action(user_id, app_name, action, data):
+    """Handle application lifecycle actions (start, stop, restart, ps, logs)"""
+    import subprocess
+    import os
+    from flask import Response, stream_with_context
+    import json
+    
+    # Check if deployment exists
+    deployment = db_manager.execute_query(
+        'SELECT deployment_path FROM deployments WHERE user_id = ? AND application_name = ? AND status != "failed" ORDER BY updated_at DESC LIMIT 1',
+        (session['user_id'], app_name), fetch_one=True
+    )
+    
+    if not deployment:
+        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
+        return jsonify({'error': 'Application not deployed. Clone first.'}), 400
+    
+    deploy_path = str(deployment[0]) if isinstance(deployment, (list, tuple)) else str(deployment)
+    deploy_script = os.path.join(deploy_path, 'deployApp.sh')
+    
+    if not os.path.exists(deploy_script):
+        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
+        return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 400
+    
+    # Get user details
+    user_details = db_manager.execute_query(
+        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
+    user_email = user_details[1] if user_details else 'user@example.com'
+    
+    # Execute action
+    if data.get('stream', False):
+        def generate():
+            import re
+            ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+            try:
+                process = subprocess.Popen(
+                    [deploy_script, action, str(session['user_id']), user_name, user_email],
+                    cwd=deploy_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                    text=True, bufsize=1
+                )
+                for line in iter(process.stdout.readline, ''):
+                    if line:
+                        clean_line = ansi_escape.sub('', line.rstrip())
+                        if clean_line:
+                            yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
+                process.wait()
+                status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+                db_manager.execute_query(
+                    'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
+                    (status, session['user_id'], app_name)
+                )
+                if action in ['start', 'stop'] and process.returncode == 0:
+                    from .billing_routes import record_billing_activity
+                    record_billing_activity(session['user_id'], app_name, action)
+                yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        return Response(stream_with_context(generate()), mimetype='text/event-stream',
+                       headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    else:
+        result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
+                              cwd=deploy_path, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+        
+        output_parts = []
+        if result.stdout and result.stdout.strip():
+            output_parts.append(f"STDOUT:\n{result.stdout}")
+        if result.stderr and result.stderr.strip():
+            output_parts.append(f"STDERR:\n{result.stderr}")
+        command_output = "\n\n".join(output_parts) if output_parts else "No output"
+        
+        status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+        db_manager.execute_query(
+            'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
+            (status, session['user_id'], app_name)
+        )
+        
+        if action in ['start', 'stop'] and result.returncode == 0:
+            from .billing_routes import record_billing_activity
+            record_billing_activity(session['user_id'], app_name, action)
+        
+        return jsonify({
+            'message': f'{action.capitalize()} completed for {app_name}',
+            'status': status,
+            'logs': command_output
+        }), 202
 
 @api_bp.route('/deployments', methods=['GET', 'POST'])
 def api_deployments():
@@ -505,23 +771,14 @@ def api_deployments():
         ''', (session['user_id'],), fetch_all=True)
         
         deployments = [{
-            'id': row[0],
-            'application_name': row[1],
-            'status': row[2],
-            'deployment_path': row[3],
-            'git_url': row[4],
-            'created_at': row[5],
-            'updated_at': row[6],
-            'server_id': row[7]
+            'id': row[0], 'application_name': row[1], 'status': row[2], 'deployment_path': row[3],
+            'git_url': row[4], 'created_at': row[5], 'updated_at': row[6], 'server_id': row[7]
         } for row in deployments_data]
         
         log_with_timestamp(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
         return jsonify(deployments)
     
     elif request.method == 'POST':
-        import subprocess
-        import os
-        import shutil
         data = request.get_json()
         action = data.get('action')
         app_name = data.get('application_name')
@@ -540,326 +797,16 @@ def api_deployments():
             (session['user_id'],), fetch_one=True
         )
         username = user[0] if user else f'user_{session["user_id"]}'
-        
         deployment_path = f'/home/ubuntu/deployments/{username}/{app_name.lower().replace(" ", "-")}'
-        log_with_timestamp(f"[DEPLOYMENT API] POST - Deployment path: {deployment_path}")
         
         try:
             if action == 'clone':
-                if not git_url:
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
-                    return jsonify({'error': 'Git URL required for clone action'}), 400
-                
-                if not server_id:
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
-                    return jsonify({'error': 'Server ID required for clone action'}), 400
-                
-                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
-                
-                # Get current server IP and target server IP
-                import socket
-                try:
-                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.connect(("8.8.8.8", 80))
-                    current_server_ip = s.getsockname()[0]
-                    s.close()
-                except:
-                    current_server_ip = "127.0.0.1"
-                
-                # Get target server IP
-                target_server = db_manager.execute_query(
-                    'SELECT SERVER_IP FROM servers WHERE id = ?', 
-                    (server_id,), fetch_one=True
-                )
-                
-                if not target_server:
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
-                    return jsonify({'error': f'Server {server_id} not found'}), 400
-                
-                target_server_ip = target_server[0]
-                is_local_server = (target_server_ip == current_server_ip or target_server_ip == "127.0.0.1" or target_server_ip == "localhost")
-                
-                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Current server: {current_server_ip}, Target server: {target_server_ip}, Local: {is_local_server}")
-                
-                if is_local_server:
-                    # Execute locally
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Executing locally")
-                    
-                    # Remove existing directory if it exists
-                    if os.path.exists(deployment_path):
-                        log_with_timestamp(f"[DEPLOYMENT API] CLONE - Removing existing directory: {deployment_path}")
-                        shutil.rmtree(deployment_path)
-                    
-                    # Create full directory path recursively
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Creating directory structure: {deployment_path}")
-                    os.makedirs(deployment_path, exist_ok=True)
-                    
-                    # Clone repository with proper Git environment
-                    git_env = os.environ.copy()
-                    git_env.update({
-                        'GIT_CONFIG_NOSYSTEM': '1',
-                        'HOME': '/home/ubuntu',
-                        'USER': 'ubuntu'
-                    })
-                    result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
-                                          capture_output=True, text=True, timeout=600, env=git_env)
-                else:
-                    # Execute on remote server via SSH
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Executing on remote server {target_server_ip}")
-                    
-                    ssh_commands = [
-                        f"rm -rf {deployment_path}",
-                        f"mkdir -p {deployment_path}",
-                        f"cd {os.path.dirname(deployment_path)} && git clone --recurse-submodules {git_url} {os.path.basename(deployment_path)}"
-                    ]
-                    
-                    ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
-                    result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=600)
-
-                # Build command output only for non-empty content
-                output_parts = []
-                if result.stdout and result.stdout.strip():
-                    output_parts.append(f"STDOUT:\n{result.stdout}")
-                if result.stderr and result.stderr.strip():
-                    output_parts.append(f"STDERR:\n{result.stderr}")
-                command_output = "\n\n".join(output_parts) if output_parts else "No output"
-                
-                if result.returncode == 0:
-                    status = 'cloned'
-                    error_msg = None
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - SUCCESS - Repository cloned to {deployment_path}")
-                    
-                    # Copy SSL certificates to cloned application
-                    try:
-                        ssl_source_dir = '/home/ubuntu/ai-swautomorph/ssl/'
-                        ssl_dest_dir = os.path.join(deployment_path, 'ssl')
-                        
-                        if is_local_server:
-                            # Local server - direct copy
-                            log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copying SSL certificates locally to {ssl_dest_dir}")
-                            os.makedirs(ssl_dest_dir, exist_ok=True)
-                            
-                            # Copy specific SSL files
-                            ssl_files = [
-                                'STAR_swautomorph_com.crt',
-                                'privateKey_STAR_swautomorph_com.key'
-                            ]
-                            
-                            for ssl_file in ssl_files:
-                                src_file = os.path.join(ssl_source_dir, ssl_file)
-                                if os.path.exists(src_file):
-                                    shutil.copy2(src_file, ssl_dest_dir)
-                                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copied {ssl_file} to {ssl_dest_dir}")
-                        else:
-                            # Remote server - rsync via SSH
-                            log_with_timestamp(f"[DEPLOYMENT API] CLONE - Copying SSL certificates to remote server {target_server_ip}")
-                            
-                            # Create ssl directory on remote server
-                            ssh_mkdir = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {ssl_dest_dir}'"
-                            subprocess.run(ssh_mkdir, shell=True, capture_output=True, text=True, timeout=600)
-                            
-                            # Rsync SSL certificates
-                            rsync_cmd = f"rsync -avz -e 'ssh -o StrictHostKeyChecking=no' {ssl_source_dir}STAR_swautomorph_com.crt {ssl_source_dir}privateKey_STAR_swautomorph_com.key ubuntu@{target_server_ip}:{ssl_dest_dir}/"
-                            rsync_result = subprocess.run(rsync_cmd, shell=True, capture_output=True, text=True, timeout=600)
-                            
-                            if rsync_result.returncode == 0:
-                                log_with_timestamp(f"[DEPLOYMENT API] CLONE - SSL certificates copied successfully to {target_server_ip}:{ssl_dest_dir}")
-                            else:
-                                log_with_timestamp(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {rsync_result.stderr}")
-                                
-                    except Exception as ssl_error:
-                        log_with_timestamp(f"[DEPLOYMENT API] CLONE - WARNING - SSL certificate copy failed: {str(ssl_error)}")
-                        # Don't fail the entire clone operation for SSL copy issues
-                        
-                else:
-                    status = 'failed'
-                    error_msg = f'Git clone failed: {result.stderr}'
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
-                    deployment_path = None
-                
-                # Record deployment
-                log_with_timestamp(f"[DEPLOYMENT API] CLONE - Recording deployment in database with status: {status}")
-                
-                # Check if record exists for this user, app, and server
-                existing_record = db_manager.execute_query('''
-                    SELECT id FROM deployments 
-                    WHERE user_id = ? AND application_name = ? AND server_id = ?
-                ''', (session['user_id'], app_name, server_id), fetch_one=True)
-                
-                if existing_record:
-                    # Update existing record
-                    db_manager.execute_query('''
-                        UPDATE deployments SET status = ?, deployment_path = ?, git_url = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE user_id = ? AND application_name = ? AND server_id = ?
-                    ''', (status, deployment_path, git_url, session['user_id'], app_name, server_id))
-                    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Database record updated")
-                else:
-                    # Insert new record
-                    db_manager.execute_query('''
-                        INSERT INTO deployments 
-                        (user_id, application_name, status, deployment_path, git_url, server_id)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (session['user_id'], app_name, status, deployment_path, git_url, server_id))
-
-                if status == 'failed':
-                    return jsonify({'error': error_msg, 'logs': command_output}), 400
-                
-                # Check if streaming is requested for clone
-                stream_output = data.get('stream', False)
-                if stream_output:
-                    # Return streaming response for clone
-                    def generate_clone_response():
-                        import json
-                        yield f"data: {json.dumps({'chunk': f'Clone completed successfully for {app_name}'})}" + "\n\n"
-                        yield f"data: {json.dumps({'chunk': f'Repository cloned to: {deployment_path}'})}" + "\n\n"
-                        yield f"data: {json.dumps({'chunk': command_output})}" + "\n\n"
-                        yield f"data: {json.dumps({'done': True, 'success': True})}" + "\n\n"
-                    
-                    return Response(stream_with_context(generate_clone_response()), mimetype='text/event-stream',
-                                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
-                
+                return _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path, data)
             elif action in ['start', 'stop', 'restart', 'ps', 'logs']:
-                # Check if deployment exists
-                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Looking for existing deployment for app '{app_name}'")
-                deployment = db_manager.execute_query('''
-                    SELECT deployment_path FROM deployments 
-                    WHERE user_id = ? AND application_name = ? AND status != 'failed'
-                    ORDER BY updated_at DESC LIMIT 1
-                ''', (session['user_id'], app_name), fetch_one=True)
+                return _handle_app_action(user_id, app_name, action, data)
+            else:
+                return jsonify({'error': f'Unknown action: {action}'}), 400
                 
-                if not deployment:
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
-                    return jsonify({'error': 'Application not deployed. Clone first.'}), 400
-                
-                # Debug deployment data type and content
-                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - deployment type: {type(deployment)}, content: {deployment}")
-                
-                # Extract deployment path safely
-                deploy_path = None
-                try:
-                    if deployment:
-                        if isinstance(deployment, (list, tuple)) and len(deployment) > 0:
-                            deploy_path = str(deployment[0])
-                        elif hasattr(deployment, '__getitem__'):
-                            deploy_path = str(deployment[0])
-                        elif isinstance(deployment, str):
-                            deploy_path = deployment
-                        else:
-                            log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Unexpected deployment type: {type(deployment)}")
-                            return jsonify({'error': f'Invalid deployment data type: {type(deployment)}'}), 500
-                    
-                    if not deploy_path:
-                        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Could not extract deployment path")
-                        return jsonify({'error': 'Could not extract deployment path'}), 500
-                        
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - Extracted deploy_path: {deploy_path} (type: {type(deploy_path)})")
-                    
-                except Exception as path_error:
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - Path extraction failed: {str(path_error)}")
-                    return jsonify({'error': f'Path extraction failed: {str(path_error)}'}), 500
-                
-                # Debug the deploy_path before using it in os.path.join
-                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - DEBUG - About to call os.path.join with deploy_path: {deploy_path} (type: {type(deploy_path)})")
-                
-                try:
-                    deploy_script = os.path.join(deploy_path, 'deployApp.sh')
-                except Exception as join_error:
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - os.path.join failed: {str(join_error)}")
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - ERROR - deploy_path value: {repr(deploy_path)}")
-                    return jsonify({'error': f'Path join failed: {str(join_error)}'}), 500
-                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Found deployment at: {deploy_path}")
-                log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Looking for deploy script: {deploy_script}")
-                
-                if not os.path.exists(deploy_script):
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
-                    return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 400
-                
-                # Get user details for deployApp.sh
-                user_details = db_manager.execute_query(
-                    'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
-                    (session['user_id'],), fetch_one=True
-                )
-                user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
-                user_email = user_details[1] if user_details else 'user@example.com'
-                
-                # Check if streaming is requested
-                stream_output = data.get('stream', False)
-                
-                if stream_output:
-                    # Stream output in real-time
-                    def generate():
-                        import re
-                        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-                        
-                        try:
-                            process = subprocess.Popen(
-                                [deploy_script, action, str(session['user_id']), user_name, user_email],
-                                cwd=deploy_path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, bufsize=1
-                            )
-                            
-                            for line in iter(process.stdout.readline, ''):
-                                if line:
-                                    clean_line = ansi_escape.sub('', line.rstrip())
-                                    if clean_line:
-                                        yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
-                            
-                            process.wait()
-                            status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
-                            
-                            db_manager.execute_query('''
-                                UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
-                                WHERE user_id = ? AND application_name = ?
-                            ''', (status, session['user_id'], app_name))
-                            
-                            if action in ['start', 'stop'] and process.returncode == 0:
-                                from .billing_routes import record_billing_activity
-                                record_billing_activity(session['user_id'], app_name, action)
-                            
-                            yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
-                        except Exception as e:
-                            yield f"data: {json.dumps({'error': str(e)})}\n\n"
-                    
-                    return Response(stream_with_context(generate()), mimetype='text/event-stream',
-                                   headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
-                else:
-                    # Execute deployApp.sh with action and user environment variables
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Executing: {deploy_script} {action} '' {session['user_id']} '{user_name}' {user_email}")
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Working directory: {deploy_path}")
-                    result = subprocess.run([deploy_script, action, str(session['user_id']), user_name, user_email], 
-                                              cwd=deploy_path, capture_output=True, text=True, timeout=600)
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Command completed with return code: {result.returncode}")
-                    
-                    # Build command output only for non-empty content
-                    output_parts = []
-                    if result.stdout and result.stdout.strip():
-                        output_parts.append(f"STDOUT:\n{result.stdout}")
-                    if result.stderr and result.stderr.strip():
-                        output_parts.append(f"STDERR:\n{result.stderr}")
-                    command_output = "\n\n".join(output_parts) if output_parts else "No output"
-                    
-                    status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
-                    
-                    # Update deployment status
-                    db_manager.execute_query('''
-                        UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP
-                        WHERE user_id = ? AND application_name = ?
-                    ''', (status, session['user_id'], app_name))
-                    log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Database status updated = {status} for application {app_name}")
-                    
-                    # Record billing activity for start/stop actions
-                    if action in ['start', 'stop'] and result.returncode == 0:
-                        from .billing_routes import record_billing_activity
-                        record_billing_activity(session['user_id'], app_name, action)
-                        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - Billing activity recorded for user {session['user_id']} and app {app_name}")
-            
-            log_with_timestamp(f"[DEPLOYMENT API] POST - SUCCESS - Action '{action}' completed for app '{app_name}' by user {user_id}")
-            return jsonify({
-                'message': f'{action.capitalize()} completed for {app_name}',
-                'status': status,
-                'logs': command_output if 'command_output' in locals() else 'No output captured'
-            }), 202
-            
         except subprocess.TimeoutExpired:
             log_with_timestamp(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
             return jsonify({'error': 'Operation timed out'}), 408
@@ -889,12 +836,7 @@ def api_deployment_logs(deployment_id):
         return jsonify({'error': 'Deployment not found'}), 404
     
     # Extract deployment path safely
-    if isinstance(deployment, (list, tuple)) and len(deployment) > 0:
-        deploy_path = str(deployment[0])
-    elif hasattr(deployment, '__getitem__'):
-        deploy_path = str(deployment[0])
-    else:
-        deploy_path = str(deployment)
+    deploy_path = str(deployment[0] if isinstance(deployment, (list, tuple)) else deployment)
     
     log_file = os.path.join(deploy_path, 'deployment.log')
     
@@ -963,19 +905,22 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            l_prompt = return_prompt_for_developer(detected_action, application_name, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
+            l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/dev_prompt_generated.txt'
-            with open(prompt_file_path, 'w') as f:
-                f.write(l_prompt+"\n")
+            try:
+                with open(prompt_file_path, 'w') as f:
+                    f.write(l_prompt+"\n")
+            except (IOError, OSError) as e:
+                yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}"
 
             # Find qchat command
             qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
             qchat_cmd = None
             for path in qchat_paths:
                 try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=600)
+                    result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
@@ -1004,7 +949,7 @@ def api_qchat_developer():
             import time
             
             # Set a longer timeout for Q Chat operations (30 minutes)
-            timeout_seconds = 1800
+            timeout_seconds = TIMEOUT_QCHAT_DEVELOPER_RUN
             start_time = time.time()
             
             try:
@@ -1023,7 +968,7 @@ def api_qchat_developer():
                             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                         break
                 
-                process.wait(timeout=60)  # Wait up to 1 minute for clean shutdown
+                process.wait(timeout=TIMEOUT_CLEAN_SHUTDOWN)  # Wait up to 1 minute for clean shutdown
                 
             except subprocess.TimeoutExpired:
                 yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
@@ -1093,8 +1038,13 @@ def api_qchat_operations():
                 yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
 
                 # 🧠 Prompt complet envoyé à Q Chat
-                l_prompt = return_prompt_for_operator(application_name, detected_action, message, app_folder, context)
-                log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
+                try:
+                    l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, message)
+                    log_with_timestamp(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
+                except Exception as e:
+                    log_with_timestamp(f'AI Chat Operator - Error generating prompt: {str(e)}')
+                    yield f"data: {json.dumps({'error': f'Failed to generate prompt: {str(e)}'})}\n\n"
+                    return
 
             else:
                 # Simple prompt for Q&A without code execution
@@ -1117,7 +1067,7 @@ User Question: {message}. Provide a helpful and informative response.
             qchat_cmd = None
             for path in qchat_paths:
                 try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=600)
+                    result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
@@ -1132,9 +1082,12 @@ User Question: {message}. Provide a helpful and informative response.
             
             # Use --trust-all-tools if action detected (needs command execution)
             cmd_args = [qchat_cmd, 'chat']
-            if detected_action:
-                cmd_args.extend(['--trust-all-tools'])
-            cmd_args.append(l_prompt)
+            try:
+                if 'detected_action' in locals() and detected_action:
+                    cmd_args.extend(['--trust-all-tools'])
+                cmd_args.append(l_prompt)
+            except NameError:
+                cmd_args.append(l_prompt)
             
             qchat_env = os.environ.copy()
             qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
@@ -1152,7 +1105,7 @@ User Question: {message}. Provide a helpful and informative response.
             import time
             
             # Set a longer timeout for Q Chat operations (30 minutes)
-            timeout_seconds = 1800
+            timeout_seconds = TIMEOUT_QCHAT_OPERATOR_RUN
             start_time = time.time()
             
             try:
@@ -1171,7 +1124,7 @@ User Question: {message}. Provide a helpful and informative response.
                             os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                         break
                 
-                process.wait(timeout=60)  # Wait up to 1 minute for clean shutdown
+                process.wait(timeout=TIMEOUT_CLEAN_SHUTDOWN)  # Wait up to 1 minute for clean shutdown
                 
             except subprocess.TimeoutExpired:
                 yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
@@ -1249,6 +1202,11 @@ def api_database_table(table_name):
     elif request.method == 'POST':
         try:
             data = request.get_json()
+            if not data or not isinstance(data, dict):
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            
+            if not data.keys():
+                return jsonify({'error': 'No data provided'}), 400
             
             # Build INSERT query dynamically
             columns = list(data.keys())
@@ -1329,9 +1287,16 @@ def api_server_actions(server_id):
         return jsonify({'error': 'Admin access required'}), 403
     
     if request.method == 'PUT':
-        data = request.get_json()
-        
         try:
+            data = request.get_json()
+            if not data or not isinstance(data, dict):
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            
+            required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
+                             'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+            if not all(field in data for field in required_fields):
+                return jsonify({'error': 'Missing required fields'}), 400
+            
             db_manager.execute_query('''
                 UPDATE servers SET SERVER_IP = ?, SERVER_NAME = ?, 
                                  SERVER_CAPACITY_USER_MAX = ?, SERVER_CAPACITY_APPLI_MAX = ?,
@@ -1345,19 +1310,19 @@ def api_server_actions(server_id):
             return jsonify({'error': str(e)}), 500
     
     elif request.method == 'DELETE':
-        # Check if server is ACTIVE
-        server = db_manager.execute_query(
-            'SELECT SERVER_STATUS FROM servers WHERE id = ?', 
-            (server_id,), fetch_one=True
-        )
-        
-        if not server:
-            return jsonify({'error': 'Server not found'}), 404
-        
-        if server[0] == 'ACTIVE':
-            return jsonify({'error': 'Cannot delete ACTIVE server'}), 400
-        
         try:
+            # Check if server is ACTIVE
+            server = db_manager.execute_query(
+                'SELECT SERVER_STATUS FROM servers WHERE id = ?', 
+                (server_id,), fetch_one=True
+            )
+            
+            if not server:
+                return jsonify({'error': 'Server not found'}), 404
+            
+            if server[0] == 'ACTIVE':
+                return jsonify({'error': 'Cannot delete ACTIVE server'}), 400
+            
             db_manager.execute_query('DELETE FROM servers WHERE id = ?', (server_id,))
             return jsonify({'message': 'Server deleted successfully'})
         except Exception as e:
@@ -1369,39 +1334,38 @@ def api_server_allocate():
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
-    data = request.get_json()
-    application_name = data.get('application_name')
-    
-    if not application_name:
-        return jsonify({'error': 'Application name required'}), 400
-    
     try:
-        # Find available server based on capacity constraints
+        data = request.get_json()
+        application_name = data.get('application_name')
+        
+        if not application_name:
+            return jsonify({'error': 'Application name required'}), 400
+        
+        # Find available server based on capacity constraints with usage counts
         servers = db_manager.execute_query('''
-            SELECT id, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX 
-            FROM servers 
-            WHERE SERVER_STATUS = 'STAND_BY' OR SERVER_STATUS = 'ACTIVE'
-            ORDER BY SERVER_STATUS ASC
+            SELECT s.id, s.SERVER_CAPACITY_USER_MAX, s.SERVER_CAPACITY_APPLI_MAX,
+                   COALESCE(user_counts.user_count, 0) as current_users,
+                   COALESCE(app_counts.app_count, 0) as current_apps
+            FROM servers s
+            LEFT JOIN (
+                SELECT server_id, COUNT(DISTINCT user_id) as user_count
+                FROM deployments
+                GROUP BY server_id
+            ) user_counts ON s.id = user_counts.server_id
+            LEFT JOIN (
+                SELECT server_id, COUNT(DISTINCT application_name) as app_count
+                FROM deployments
+                GROUP BY server_id
+            ) app_counts ON s.id = app_counts.server_id
+            WHERE s.SERVER_STATUS = 'STAND_BY' OR s.SERVER_STATUS = 'ACTIVE'
+            ORDER BY s.SERVER_STATUS ASC
         ''', fetch_all=True)
         
         if not servers:
             return jsonify({'error': 'No standby servers available'}), 503
         
         for server in servers:
-            server_id, user_max, appli_max = server
-            
-            # Check current usage for this server
-            user_count = db_manager.execute_query('''
-                SELECT COUNT(DISTINCT user_id) 
-                FROM deployments 
-                WHERE server_id = ?
-            ''', (server_id,), fetch_one=True)[0] or 0
-            
-            appli_count = db_manager.execute_query('''
-                SELECT COUNT(DISTINCT application_name) 
-                FROM deployments 
-                WHERE server_id = ?
-            ''', (server_id,), fetch_one=True)[0] or 0
+            server_id, user_max, appli_max, user_count, appli_count = server
             
             # Check if server has capacity
             if user_count < user_max and appli_count < appli_max:
@@ -1445,15 +1409,20 @@ def api_database_record(table_name, record_id):
     if request.method == 'PUT':
         try:
             data = request.get_json()
+            if not data or not isinstance(data, dict):
+                return jsonify({'error': 'Invalid JSON data'}), 400
             
             # Build UPDATE query dynamically
             set_clauses = []
             values = []
             
-            for column, value in data.items():
-                if column.lower() != 'id':  # Don't update ID
-                    set_clauses.append(f'{column} = ?')
-                    values.append(value)
+            try:
+                for column, value in data.items():
+                    if column.lower() != 'id':  # Don't update ID
+                        set_clauses.append(f'{column} = ?')
+                        values.append(value)
+            except (AttributeError, TypeError) as e:
+                return jsonify({'error': 'Invalid data format'}), 400
             
             if not set_clauses:
                 return jsonify({'error': 'No fields to update'}), 400
