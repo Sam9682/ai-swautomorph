@@ -35,11 +35,8 @@
                 </button>
             </div>
             {% endif %}
-            <h3>{{ app[1] }}</h3>
+            <h3>{{ app[1] }} (Id={{ app[0] }})</h3>
             <p>{{ app[3] or get_text('no_description') }}</p>
-            <div class="app-identity">
-                <small><strong>{{ get_text('app_identity') }}:</strong> {{ app[0] }}</small>
-            </div>
             <div class="app-buttons">
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
