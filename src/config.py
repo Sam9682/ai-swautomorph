@@ -240,11 +240,11 @@ TRANSLATIONS = {
         'server_management': 'Server Management',
         'database_management': 'Database Management',
         'virtual_agents_ready': '🤖 Virtual Agents ready. Select an application and action to get started.',
-        'modify_code_option': '👨‍💻 MODIFY THE CODE OF THE APPLICATION (IT Developer)',
-        'start_app_option': '▶️ START THE APPLICATION (IT Operator)',
-        'stop_app_option': '⏹️ STOP THE APPLICATION (IT Operator)',
-        'display_logs_option': '📋 DISPLAY THE LOGS OF THE APPLICATION (IT Operator)',
-        'display_ps_option': '🔍 DISPLAY THE STATUS OF THE APPLICATION (IT Operator)'
+        'modify_code_option': '👨‍💻 MODIFY the code of the application (IT Developer)',
+        'start_app_option': '▶️ START the application (IT Operator)',
+        'stop_app_option': '⏹️ STOP the application (IT Operator)',
+        'display_logs_option': '📋 DISPLAY the logs of the application (IT Operator)',
+        'display_ps_option': '🔍 VERIFY the status/ps of the application (IT Operator)'
     },
     'fr': {
         'login': 'Connexion',
@@ -444,10 +444,10 @@ TRANSLATIONS = {
         'server_management': 'Gestion des Serveurs',
         'database_management': 'Gestion de la Base de Données',
         'virtual_agents_ready': '🤖 Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.',
-        'modify_code_option': '👨‍💻 MODIFIER LE CODE DE L\'APPLICATION (Développeur IT)',
-        'start_app_option': '▶️ DÉMARRER L\'APPLICATION (Opérateur IT)',
-        'stop_app_option': '⏹️ ARRÊTER L\'APPLICATION (Opérateur IT)',
-        'display_logs_option': '📋 AFFICHER LES JOURNAUX DE L\'APPLICATION (Opérateur IT)',
-        'display_ps_option': '🔍 AFFICHER LE STATUS DE L\'APPLICATION (Opérateur IT)'
+        'modify_code_option': '👨‍💻 MODIFIER le code de l\'application (Développeur IT)',
+        'start_app_option': '▶️ DÉMARRER l\'application (Opérateur IT)',
+        'stop_app_option': '⏹️ ARRÊTER l\'application (Opérateur IT)',
+        'display_logs_option': '📋 AFFICHER les logs de l\'application (Opérateur IT)',
+        'display_ps_option': '🔍 VERIFIER le status/état de l\'application (Opérateur IT)'
     }
 }
