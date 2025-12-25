@@ -938,7 +938,7 @@ def api_qchat_developer():
             branch_name = f"{session['user_id']}-automorph-{application_name}-{timestamp}"
 
             log_with_timestamp(f'AI Chat Developer - Detected action: {detected_action}')
-            yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
+            yield f"data: {json.dumps({'chunk': f'AI Chat Developer - Detected action: {detected_action}'})}\n\n"
 
             # Use provided app folder or default REPO_DIR
             repo_dir = application_folder if application_folder else "/home/ubuntu/deployments/"
