@@ -17,8 +17,11 @@ def get_language():
     return session.get('language', 'en')
 
 def get_text(key):
-    lang = get_language()
-    return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+    try:
+        lang = get_language()
+        return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+    except (KeyError, AttributeError, TypeError):
+        return key
 
 def log_with_timestamp(message):
     """Log message with datetime timestamp"""
@@ -39,8 +42,20 @@ def return_prompt_for_developer(detected_action, application_name, application_f
 
     # 🧠 Prompt complet envoyé à Q Chat
     if (version == 'default'):
-
-        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+        # Sanitize detected_action to prevent path traversal
+        if not detected_action or not isinstance(detected_action, str):
+            log_with_timestamp(f'AI Chat Developer - Security: Invalid detected_action input rejected: {repr(detected_action)}')
+            return ''
+        
+        # Remove any path traversal characters and limit to alphanumeric + underscore
+        original_action = detected_action
+        safe_action = ''.join(c for c in detected_action.upper() if c.isalnum() or c == '_')[:50]
+        if not safe_action or safe_action != original_action.upper():
+            log_with_timestamp(f'AI Chat Developer - Security: Potentially malicious detected_action sanitized from "{original_action}" to "{safe_action}"')
+            if not safe_action:
+                return ''
+        
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{safe_action}_context.md"
         
         if os.path.exists(context_file):
             log_with_timestamp(f'AI Chat Developer - Loading context from {detected_action.upper()}_context.md')
@@ -71,11 +86,20 @@ def return_prompt_for_developer(detected_action, application_name, application_f
                 l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
                 l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
                 l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder)
             except KeyError as e:
                 log_with_timestamp(f'AI Chat Developer - Session key error: {str(e)}')
                 l_prompt = ''
 
     return l_prompt
+
+def _create_fallback_prompt(message):
+    """Create fallback Q&A prompt for invalid actions"""
+    return f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
+Do not execute any commands or modify any files. Just provide helpful information and guidance.
+User Question: {message}
+Provide a helpful and informative response.
+"""
 
 def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, message, version = 'default'):
 
@@ -83,7 +107,18 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
 
     # 🧠 Prompt sent to Q Chat
     if (version == 'default'):
-        context_file = f"/home/ubuntu/ai-swautomorph/shared/{detected_action.upper()}_context.md"
+        # Sanitize detected_action to prevent path traversal
+        if not detected_action or not isinstance(detected_action, str):
+            log_with_timestamp(f'AI Chat Operator - Context file not found: invalid action, using default Q&A mode')
+            return _create_fallback_prompt(message)
+        
+        # Remove any path traversal characters and limit to alphanumeric + underscore
+        safe_action = ''.join(c for c in detected_action.upper() if c.isalnum() or c == '_')[:50]
+        if not safe_action:
+            log_with_timestamp(f'AI Chat Operator - Context file not found: invalid action, using default Q&A mode')
+            return _create_fallback_prompt(message)
+        
+        context_file = f"/home/ubuntu/ai-swautomorph/shared/{safe_action}_context.md"
                 
         if os.path.exists(context_file):
             log_with_timestamp(f'AI Chat Operator - Loading context from {detected_action.upper()}_context.md')
@@ -114,16 +149,13 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
                 l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
                 l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
                 l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
+                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder)
             except KeyError as e:
                 log_with_timestamp(f'AI Chat Operator - Session key error: {str(e)}')
                 l_prompt = ''
         else:
             log_with_timestamp(f'AI Chat Operator - Context file not found: {context_file}, using default Q&A mode')
-            l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
-Do not execute any commands or modify any files. Just provide helpful information and guidance.
-User Question: {message}
-Provide a helpful and informative response.
-"""
+            l_prompt = _create_fallback_prompt(message)
             log_with_timestamp(f'AI Chat Operator - (Context {context_file} not found) Prompt : {l_prompt[:120]}')
 
     return l_prompt
@@ -579,7 +611,8 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         s.connect(("8.8.8.8", 80))
         current_server_ip = s.getsockname()[0]
         s.close()
-    except:
+    except (OSError, socket.error) as e:
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - Warning: Failed to get current server IP: {str(e)}")
         current_server_ip = "127.0.0.1"
     
     target_server = db_manager.execute_query(
@@ -838,7 +871,17 @@ def api_deployment_logs(deployment_id):
     # Extract deployment path safely
     deploy_path = str(deployment[0] if isinstance(deployment, (list, tuple)) else deployment)
     
+    # Validate deployment path to prevent path traversal
+    if not deploy_path or '..' in deploy_path or not deploy_path.startswith('/home/ubuntu/deployments/'):
+        log_with_timestamp(f"[DEPLOYMENT LOGS] SECURITY - Invalid deployment path: {deploy_path} for user {user_id}")
+        return jsonify({'error': 'Invalid deployment path'}), 400
+    
     log_file = os.path.join(deploy_path, 'deployment.log')
+    
+    # Additional security check for log file path
+    if not log_file.startswith('/home/ubuntu/deployments/') or '..' in log_file:
+        log_with_timestamp(f"[DEPLOYMENT LOGS] SECURITY - Invalid log file path: {log_file} for user {user_id}")
+        return jsonify({'error': 'Invalid log file path'}), 400
     
     try:
         if os.path.exists(log_file):
@@ -905,10 +948,11 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, repo_dir, repo_github_url, message, repo_gitea_url, branch_name, user_id, user_name)
+            l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/dev_prompt_generated.txt'
+            from ..config import get_logs_dir
+            prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
             try:
                 with open(prompt_file_path, 'w') as f:
                     f.write(l_prompt+"\n")
@@ -916,7 +960,8 @@ def api_qchat_developer():
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}"
 
             # Find qchat command
-            qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+            from ..config import get_qchat_paths
+            qchat_paths = get_qchat_paths()
             qchat_cmd = None
             for path in qchat_paths:
                 try:
@@ -924,7 +969,11 @@ def api_qchat_developer():
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
-                except:
+                except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+                    log_with_timestamp(f'AI Chat Developer - Failed to check qchat at {path}: {str(e)}')
+                    continue
+                except Exception as e:
+                    log_with_timestamp(f'AI Chat Developer - Unexpected error checking qchat at {path}: {str(e)}')
                     continue
             
             if not qchat_cmd:
@@ -1050,20 +1099,25 @@ def api_qchat_operations():
                 # Simple prompt for Q&A without code execution
                 l_prompt = f"""You are a helpful Virtual Advisor assistant. Answer the user's question clearly and concisely.
 Do not execute any commands or modify any files. Just provide helpful information and guidance.
-User Question: {message}. Provide a helpful and informative response.
-"""
+User Question: {message}. Provide a helpful and informative response."""
                 log_with_timestamp(f'AI Chat Operator - (Simple Q&A) Prompt : {l_prompt[:120]}')
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            prompt_file_path = '/home/ubuntu/ai-swautomorph/logs/ope_prompts_generated.log'
-            with open(prompt_file_path, 'w') as f:
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                f.write(f"----------------- Generated Prompt for Virtual Operator at {timestamp}: \n")
-                f.write(l_prompt+"\n")
-                f.write(f"----------------- END OF Generated Prompt for Virtual Operator at {timestamp}: \n")
+            from ..config import get_logs_dir
+            prompt_file_path = os.path.join(get_logs_dir(), 'ope_prompts_generated.log')
+            try:
+                with open(prompt_file_path, 'w') as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"----------------- Generated Prompt for Virtual Operator at {timestamp}: \n")
+                    f.write(l_prompt+"\n")
+                    f.write(f"----------------- END OF Generated Prompt for Virtual Operator at {timestamp}: \n")
+            except (IOError, OSError) as e:
+                log_with_timestamp(f'AI Chat Operator - Warning: Failed to write prompt to file: {str(e)}')
+                yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
 
             # Find qchat command
-            qchat_paths = ['/home/ubuntu/.local/bin/qchat', '/usr/local/bin/qchat', '/usr/bin/qchat', 'qchat']
+            from ..config import get_qchat_paths
+            qchat_paths = get_qchat_paths()
             qchat_cmd = None
             for path in qchat_paths:
                 try:
@@ -1071,7 +1125,11 @@ User Question: {message}. Provide a helpful and informative response.
                     if result.returncode == 0:
                         qchat_cmd = path
                         break
-                except:
+                except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+                    log_with_timestamp(f'AI Chat Operator - Failed to check qchat at {path}: {str(e)}')
+                    continue
+                except Exception as e:
+                    log_with_timestamp(f'AI Chat Operator - Unexpected error checking qchat at {path}: {str(e)}')
                     continue
             
             if not qchat_cmd:
@@ -1092,12 +1150,14 @@ User Question: {message}. Provide a helpful and informative response.
             qchat_env = os.environ.copy()
             qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
             
-            log_with_timestamp(f'AI Chat Operator - Executing Q Chat command at: {qchat_cmd}...')
-            yield f"data: {json.dumps({'chunk': 'Executing Q Chat command...'})}\n\n"
-            
             # Start process with longer timeout and better error handling
-            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                      text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
+            try:
+                process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                          text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
+            except (OSError, subprocess.SubprocessError) as e:
+                log_with_timestamp(f'AI Chat Operator - Failed to start process: {str(e)}')
+                yield f"data: {json.dumps({'error': f'Failed to start Q Chat process: {str(e)}'})}\n\n"
+                return
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             
@@ -1258,6 +1318,15 @@ def api_servers():
     
     elif request.method == 'POST':
         data = request.get_json()
+        
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Invalid JSON data'}), 400
+        
+        required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
+                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+        
+        if not all(field in data for field in required_fields):
+            return jsonify({'error': 'Missing required fields'}), 400
         
         try:
             db_manager.execute_query('''
