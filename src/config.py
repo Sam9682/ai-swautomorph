@@ -243,7 +243,8 @@ TRANSLATIONS = {
         'modify_code_option': 'MODIFY THE CODE OF THE APPLICATION (IT Developer)',
         'start_app_option': 'START THE APPLICATION (IT Operator)',
         'stop_app_option': 'STOP THE APPLICATION (IT Operator)',
-        'display_logs_option': 'DISPLAY THE LOGS OF THE APPLICATION (IT Operator)'
+        'display_logs_option': 'DISPLAY THE LOGS OF THE APPLICATION (IT Operator)',
+        'display_ps_option': 'DISPLAY THE STATUS OF THE APPLICATION (IT Operator)'
     },
     'fr': {
         'login': 'Connexion',
@@ -446,6 +447,7 @@ TRANSLATIONS = {
         'modify_code_option': 'MODIFIER LE CODE DE L\'APPLICATION (Développeur IT)',
         'start_app_option': 'DÉMARRER L\'APPLICATION (Opérateur IT)',
         'stop_app_option': 'ARRÊTER L\'APPLICATION (Opérateur IT)',
-        'display_logs_option': 'AFFICHER LES JOURNAUX DE L\'APPLICATION (Opérateur IT)'
+        'display_logs_option': 'AFFICHER LES JOURNAUX DE L\'APPLICATION (Opérateur IT)',
+        'display_ps_option': 'AFFICHER LE STATUS DE L\'APPLICATION (Opérateur IT)'
     }
 }

@@ -48,10 +48,10 @@
                     {% if username == 'admin' %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start', null, {{ app[6] or 30 }})" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop', null, null, {{ app[8] or 10 }})" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
-                    {% endif %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small" id="logsBtn-{{ app[1] | replace(' ', '-') | lower }}">📋 {{ get_text('logs') }}</button>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -395,6 +395,7 @@
                             <option value="START">{{ get_text('start_app_option') }}</option>
                             <option value="STOP">{{ get_text('stop_app_option') }}</option>
                             <option value="LOGS">{{ get_text('display_logs_option') }}</option>
+                            <option value="PS">{{ get_text('display_ps_option') }}</option>
                         </select>
                     </div>
                     <div id="unifiedMessages" class="messages-area"></div>
@@ -1594,7 +1595,7 @@ function sendUnifiedMessageWithText(message) {
             }
         });
     } else {
-        // Handle operations (START, STOP, LOGS)
+        // Handle operations (START, STOP, LOGS, PS)
         const fullMessage = `[ACTION:${selectedAction}] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
         
         addAgentMessage('unified', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
