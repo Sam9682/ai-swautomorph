@@ -659,7 +659,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         # Record deployment
         existing_record = db_manager.execute_query(
             'SELECT id FROM deployments WHERE user_id = ? AND application_name = ? AND server_id = ?',
-            (session['user_id'], app_name, server_id), fetch_one=True
+            (user_id, app_name, server_id), fetch_one=True
         )
         
         if existing_record:
@@ -699,7 +699,7 @@ def _handle_app_action(user_id, app_name, action, data):
     # Check if deployment exists
     deployment = db_manager.execute_query(
         'SELECT deployment_path FROM deployments WHERE user_id = ? AND application_name = ? AND status != "failed" ORDER BY updated_at DESC LIMIT 1',
-        (session['user_id'], app_name), fetch_one=True
+        (user_id, app_name), fetch_one=True
     )
     
     if not deployment:
@@ -716,7 +716,7 @@ def _handle_app_action(user_id, app_name, action, data):
     # Get user details
     user_details = db_manager.execute_query(
         'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
-        (session['user_id'],), fetch_one=True
+        (user_id,), fetch_one=True
     )
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
     user_email = user_details[1] if user_details else 'user@example.com'
@@ -741,11 +741,11 @@ def _handle_app_action(user_id, app_name, action, data):
                 status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
                 db_manager.execute_query(
                     'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
-                    (status, session['user_id'], app_name)
+                    (status, user_id, app_name)
                 )
                 if action in ['start', 'stop'] and process.returncode == 0:
                     from .billing_routes import record_billing_activity
-                    record_billing_activity(session['user_id'], app_name, action)
+                    record_billing_activity(user_id, app_name, action)
                 yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"

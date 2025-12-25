@@ -1282,7 +1282,9 @@ initializeButtonStates();
 function checkAllApplicationStatus() {
     const appCards = document.querySelectorAll('.app-card');
     appCards.forEach(card => {
-        const appName = card.querySelector('h3').textContent;
+        // only take the first word of the card.querySelector('h3').textContent to be the name of app
+
+        const appName = card.querySelector('h3').textContent.split(' ')[0];
         checkApplicationStatus(appName);
     });
 }
