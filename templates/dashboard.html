@@ -1431,6 +1431,7 @@ function updateApplicationButtonStatus(appName, logs) {
                 openBtn.classList.add('btn-success');
                 openBtn.style.pointerEvents = 'auto';
                 openBtn.style.opacity = '1';
+                OpenBtn.innerHTML = '🟢 {{ get_text("app_is_running") }}'
                 openBtn.title = '🟢 {{ get_text("app_is_running") }}';
             }
             
@@ -1453,7 +1454,7 @@ function updateApplicationButtonStatus(appName, logs) {
                 openBtn.classList.add('btn-danger');
                 openBtn.style.pointerEvents = 'none';
                 openBtn.style.opacity = '0.6';
-                openBtn.innerHTML = 'Not Running';
+                openBtn.innerHTML = '🔴 {{ get_text("app_is_not_running") }}';
                 openBtn.title = '🔴 {{ get_text("app_is_not_running") }}';
             }
             
