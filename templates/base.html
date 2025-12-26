@@ -89,10 +89,13 @@
                 </div>
             </div>
             <div class="lang-toggle">
+                <button id="layoutToggle" class="btn-icon" onclick="toggleLayout()" title="Toggle Layout" style="margin-right: 10px; background: none; border: none; font-size: 16px; cursor: pointer;">
+                    📱
+                </button>
                 <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
                 <a href="{{ url_for('main.set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
             </div>
-            <button class="mobile-menu-btn" onclick="toggleMobileMenu()">☰</button>
+            <button class="mobile-menu-btn" onclick="toggleMobileMenu()" style="color: #333;">☰</button>
         </div>
         <div class="mobile-nav" id="mobileNav">
             <div class="mobile-nav-content">
@@ -116,6 +119,9 @@
                     <a href="{{ url_for('main.index') }}">{{ get_text('login') }}</a>
                 {% endif %}
                 <div class="lang-toggle">
+                    <button id="layoutToggleMobile" class="btn-icon" onclick="toggleLayout()" title="Toggle Layout" style="margin-right: 10px; background: none; border: none; font-size: 16px; cursor: pointer; color: white;">
+                        📱
+                    </button>
                     <a href="{{ url_for('main.set_language', language='en') }}" class="lang-btn {% if current_lang == 'en' %}active{% endif %}">EN</a>
                     <a href="{{ url_for('main.set_language', language='fr') }}" class="lang-btn {% if current_lang == 'fr' %}active{% endif %}">FR</a>
                 </div>
@@ -221,6 +227,35 @@
             } else {
                 // If not on dashboard, redirect to dashboard with tab
                 window.location.href = '/dashboard#' + tabName;
+            }
+        }
+        
+        // Layout toggle function
+        function toggleLayout() {
+            const dashboardLayout = document.querySelector('.dashboard-layout');
+            const layoutToggle = document.getElementById('layoutToggle');
+            const layoutToggleMobile = document.getElementById('layoutToggleMobile');
+            
+            if (dashboardLayout && dashboardLayout.classList.contains('vertical')) {
+                dashboardLayout.classList.remove('vertical');
+                if (layoutToggle) {
+                    layoutToggle.innerHTML = '📱';
+                    layoutToggle.title = 'Switch to Vertical Layout';
+                }
+                if (layoutToggleMobile) {
+                    layoutToggleMobile.innerHTML = '📱';
+                    layoutToggleMobile.title = 'Switch to Vertical Layout';
+                }
+            } else if (dashboardLayout) {
+                dashboardLayout.classList.add('vertical');
+                if (layoutToggle) {
+                    layoutToggle.innerHTML = '🖥️';
+                    layoutToggle.title = 'Switch to Horizontal Layout';
+                }
+                if (layoutToggleMobile) {
+                    layoutToggleMobile.innerHTML = '🖥️';
+                    layoutToggleMobile.title = 'Switch to Horizontal Layout';
+                }
             }
         }
     </script>

@@ -157,6 +157,8 @@ body {
 
 .mobile-nav-content a,
 .mobile-nav-content .nav-user {
+    color: white;
+    text-decoration: none;
     padding: 0.75rem;
     border-radius: 4px;
     text-align: center;
@@ -345,11 +347,12 @@ body {
 
 .applications-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3rem;
     margin-top: 0;
     align-content: start;
+    width: 100%;
 }
 
 .app-card {
@@ -1968,6 +1971,8 @@ body {
     padding: 1rem;
     background: #f8f9fa;
     -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    max-height: 400px;
 }
 
 .message {
@@ -2123,6 +2128,11 @@ body {
     padding: 1rem;
 }
 
+/* Vertical Layout */
+.dashboard-layout.vertical {
+    flex-direction: column;
+}
+
 .main-panel {
     flex: 1;
     overflow-y: auto;
@@ -2138,45 +2148,14 @@ body {
     position: relative;
 }
 
-/* Resize Handle */
-.resize-handle {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 6px;
-    cursor: col-resize;
-    background: transparent;
-    z-index: 1000;
-    transition: background-color 0.2s;
+/* Vertical layout adjustments */
+.dashboard-layout.vertical .agents-panel {
+    flex: 0 0 40%;
+    min-width: auto;
+    min-height: 300px;
 }
 
-.resize-handle:hover {
-    background: rgba(102, 126, 234, 0.3);
-}
 
-.resize-handle.resizing {
-    background: rgba(102, 126, 234, 0.5);
-}
-
-.resize-handle::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 3px;
-    height: 30px;
-    background: rgba(102, 126, 234, 0.4);
-    border-radius: 2px;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.resize-handle:hover::before,
-.resize-handle.resizing::before {
-    opacity: 1;
-}
 
 .dashboard-container {
     margin: 0;
@@ -2238,7 +2217,9 @@ body {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255,255,255,0.2);
-    overflow: hidden;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .virtual-agents-panel.collapsed {
@@ -2325,10 +2306,6 @@ body {
         height: 500px;
     }
     
-    .resize-handle {
-        display: none;
-    }
-    
     .virtual-agents-panel {
         height: 100%;
     }
@@ -2350,10 +2327,6 @@ body {
     .agents-panel {
         height: 60vh;
         min-height: 400px;
-    }
-    
-    .resize-handle {
-        display: none;
     }
     
     .virtual-agents-panel {

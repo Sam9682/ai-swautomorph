@@ -35,8 +35,8 @@
                 </button>
             </div>
             {% endif %}
-            <h3>{{ app[1] }} (Id={{ app[0] }})</h3>
-            <p>{{ app[3] or get_text('no_description') }}</p>
+            <h3>{{ app[1] }}</h3>
+            <p> (Id={{ app[0] }}) {{ app[3] or get_text('no_description') }}</p>
             <div class="app-buttons">
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
@@ -370,7 +370,6 @@
     
     <!-- Virtual Agents Panel -->
     <div class="agents-panel" id="agentsPanel">
-        <div class="resize-handle" id="resizeHandle"></div>
         <div id="virtualAgentsPanel" class="virtual-agents-panel resizable">
             <div class="panel-header">
                 <h3>{{ get_text('virtual_agents') }}</h3>
@@ -476,8 +475,24 @@
 
 
 <script>
+// Layout toggle function
+function toggleLayout() {
+    const dashboardLayout = document.querySelector('.dashboard-layout');
+    const layoutToggle = document.getElementById('layoutToggle');
+    
+    if (dashboardLayout.classList.contains('vertical')) {
+        dashboardLayout.classList.remove('vertical');
+        layoutToggle.innerHTML = '📱'; // Mobile/vertical icon
+        layoutToggle.title = 'Switch to Vertical Layout';
+    } else {
+        dashboardLayout.classList.add('vertical');
+        layoutToggle.innerHTML = '🖥️'; // Desktop/horizontal icon
+        layoutToggle.title = 'Switch to Horizontal Layout';
+    }
+}
+
 // Constants for easier maintenance
-const APP_NOT_DEPLOYED_MESSAGE = 'Application not deployed. Clone first';
+const APP_NOT_DEPLOYED_MESSAGE = 'deployApp.sh not found';
 
 // Make showTab available globally for base template
 window.showDashboardTab = showTab;
@@ -1233,10 +1248,11 @@ function appendLog(message) {
     logsContent.scrollTop = logsContent.scrollHeight;
 }
 
-// Check application status on page load and every 10 seconds
+// Check application status on page load and every 3 seconds
 document.addEventListener('DOMContentLoaded', function() {
     checkAllApplicationStatus();
-    setInterval(checkAllApplicationStatus, 10000);
+    setInterval(checkAllApplicationStatus, 3000);
+    
 });
 
 function checkAllApplicationStatus() {
@@ -1262,7 +1278,7 @@ function checkApplicationStatus(appName, openBtn) {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.error && data.error.includes('deployApp.sh not found')) {
+        if (data.error && data.error.includes(APP_NOT_DEPLOYED_MESSAGE)) {
             // Application is not cloned
             updateApplicationButtonStatus(appName, data.error);
         } else if (data.logs) {
@@ -1276,23 +1292,29 @@ function checkApplicationStatus(appName, openBtn) {
     .catch(error => {
         console.log('Status check failed for', appName, error.message);
         // On network error, assume not cloned to be safe
-        updateApplicationButtonStatus(appName, 'deployApp.sh not found');
+        updateApplicationButtonStatus(appName, APP_NOT_DEPLOYED_MESSAGE);
     });
 }
 
 function updateApplicationButtonStatus(appName, logs) {
-    const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const stopBtn = document.getElementById(`stopBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    const virtualAgentOption = document.getElementById(`virtualAgent-${appName.replace(/\s+/g, '-').toLowerCase()}`);
-    if (!openBtn) return;
+    
+    // Find the app card element
+    const appCards = document.querySelectorAll('.app-card');
+    let appCard = null;
+    
+    for (const card of appCards) {
+        const cardTitle = card.querySelector('h3').textContent.split(' ')[0];
+        if (cardTitle.includes(appName)) {
+            appCard = card;
+            break;
+        }
+    }
+    
+    if (!appCard) return;
     
     // Check if application is not cloned/installed
     const isNotCloned = logs.toLowerCase().includes(APP_NOT_DEPLOYED_MESSAGE.toLowerCase());
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
     
     let isRunning = false;
     let isNotRunning = false;
@@ -1317,104 +1339,193 @@ function updateApplicationButtonStatus(appName, logs) {
         }
     }
     
+    // Remove or add application from list based on status
     if (isNotCloned) {
-        // Application is not cloned - GRAY and only Clone enabled
-        openBtn.classList.remove('btn-primary', 'btn-success');
-        openBtn.classList.add('btn-danger');
-        openBtn.style.pointerEvents = 'none';
-        openBtn.style.opacity = '0.6';
-        openBtn.title = 'Application is not cloned yet';
+        // Keep app card visible in main panel but hide from virtual agent dropdown
+        appCard.style.display = 'block';
         
-        // Disable virtual agent option for non-cloned applications
+        // Remove from virtual agent dropdown only
+        const virtualAgentOption = document.getElementById(`virtualAgent-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         if (virtualAgentOption) {
-            virtualAgentOption.disabled = true;
-            virtualAgentOption.style.color = '#999';
-            virtualAgentOption.title = 'Application must be cloned first';
+            virtualAgentOption.style.display = 'none';
         }
         
-        // Only Clone button enabled
+        // Update button states for not cloned applications
+        const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const stopBtn = document.getElementById(`stopBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        
+        if (openBtn) {
+            openBtn.classList.remove('btn-primary', 'btn-success', 'btn-danger');
+            openBtn.classList.add('btn-secondary');
+            openBtn.style.pointerEvents = 'none';
+            openBtn.style.opacity = '0.5';
+            openBtn.innerHTML = '{{ get_text("not_cloned") }}';
+            openBtn.title = 'Application must be cloned first';
+        }
+        
         if (cloneBtn) {
             cloneBtn.style.display = 'inline-block';
             cloneBtn.style.pointerEvents = 'auto';
             cloneBtn.style.opacity = '1';
-            cloneBtn.title = 'Clone application first';
-        }
-        // Hide all other buttons
-        if (startBtn) {
-            startBtn.style.display = 'none';
-        }
-        if (stopBtn) {
-            stopBtn.style.display = 'none';
-        }
-        if (restartBtn) {
-            restartBtn.style.display = 'none';
-        }
-        if (psBtn) {
-            psBtn.style.display = 'none';
-        }
-        if (logsBtn) {
-            logsBtn.style.display = 'none';
-        }
-    } else if (isRunning) {
-        // Application is running
-        openBtn.classList.remove('btn-primary', 'btn-danger');
-        openBtn.classList.add('btn-success');
-        openBtn.style.pointerEvents = 'auto';
-        openBtn.style.opacity = '1';
-        openBtn.title = '🟢 Application is running';
-        
-        // Enable virtual agent option for cloned applications
-        if (virtualAgentOption) {
-            virtualAgentOption.disabled = false;
-            virtualAgentOption.style.color = '';
-            virtualAgentOption.title = '';
+            cloneBtn.innerHTML = '📥 {{ get_text("first_clone") }}';
+            cloneBtn.title = '📥 {{ get_text("first_clone") }}';
         }
         
-        if (cloneBtn) cloneBtn.style.display = 'none';
         if (startBtn) startBtn.style.display = 'none';
-        if (psBtn) psBtn.style.display = 'inline-block';
-        if (stopBtn) {
-            stopBtn.style.display = 'inline-block';
-            stopBtn.style.pointerEvents = 'auto';
-            stopBtn.style.opacity = '1';
-            stopBtn.title = 'Stop application';
-        }
-        if (logsBtn) logsBtn.style.display = 'inline-block';
+        if (stopBtn) stopBtn.style.display = 'none';
         if (restartBtn) restartBtn.style.display = 'none';
-    } else if (isNotRunning) {
-        // Application is cloned but not running
-        openBtn.classList.remove('btn-primary', 'btn-success');
-        openBtn.classList.add('btn-danger');
-        openBtn.style.pointerEvents = 'none';
-        openBtn.style.opacity = '0.6';
-        openBtn.title = 'Application is not running';
+        if (psBtn) psBtn.style.display = 'none';
+        if (logsBtn) logsBtn.style.display = 'none';
+
+        // Reset action dropdown to default when no cloned app is selected
+        if (virtualAgentOption && (selectedApp === appName)) {
+            // If this not-cloned app is currently selected, empty the actions
+            updateActionDropdown([]);
+        }
+
+    } else {
+        // Show the app card for cloned applications
+        appCard.style.display = 'block';
         
-        // Enable virtual agent option for cloned applications
+        // Show in virtual agent dropdown
+        const virtualAgentOption = document.getElementById(`virtualAgent-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         if (virtualAgentOption) {
+            virtualAgentOption.style.display = 'block';
             virtualAgentOption.disabled = false;
             virtualAgentOption.style.color = '';
             virtualAgentOption.title = '';
+            virtualAgentOption.style.textDecoration = 'none';
         }
         
-        if (cloneBtn) {
-            cloneBtn.style.display = 'inline-block';
-            cloneBtn.style.pointerEvents = 'auto';
-            cloneBtn.style.opacity = '1';
-            cloneBtn.title = 'Re-clone application';
+        // Update button states for visible applications
+        const openBtn = document.getElementById(`openBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const startBtn = document.getElementById(`startBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const stopBtn = document.getElementById(`stopBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const virtualAgentAction = document.getElementById('unifiedAction');
+        
+        if (isRunning) {
+            // Application is running
+            if (openBtn) {
+                openBtn.classList.remove('btn-primary', 'btn-danger');
+                openBtn.classList.add('btn-success');
+                openBtn.style.pointerEvents = 'auto';
+                openBtn.style.opacity = '1';
+                openBtn.title = '🟢 {{ get_text("app_is_running") }}';
+            }
+            
+            if (cloneBtn) cloneBtn.style.display = 'none';
+            if (startBtn) startBtn.style.display = 'none';
+            if (psBtn) psBtn.style.display = 'inline-block';
+            if (stopBtn) {
+                stopBtn.style.display = 'inline-block';
+                stopBtn.style.pointerEvents = 'auto';
+                stopBtn.style.opacity = '1';
+                stopBtn.title = 'Stop application';
+            }
+            if (logsBtn) logsBtn.style.display = 'inline-block';
+            if (restartBtn) restartBtn.style.display = 'none';
+
+            // Update action dropdown for running applications
+            // if app is selected
+            if (virtualAgentAction && (selectedApp === appName)) {
+                updateActionDropdown(['STOP', 'PS', 'LOGS']);
+            }
+
+        } else if (isNotRunning) {
+            // Application is cloned but not running
+            if (openBtn) {
+                openBtn.classList.remove('btn-primary', 'btn-success', 'btn-secondary');
+                openBtn.classList.add('btn-danger');
+                openBtn.style.pointerEvents = 'none';
+                openBtn.style.opacity = '0.6';
+                openBtn.innerHTML = 'Not Running';
+                openBtn.title = '🔴 {{ get_text("app_is_not_running") }}';
+            }
+            
+            if (cloneBtn) {
+                cloneBtn.style.display = 'inline-block';
+                cloneBtn.style.pointerEvents = 'auto';
+                cloneBtn.style.opacity = '1';
+                cloneBtn.innerHTML = '🔄 Re-clone';
+                cloneBtn.title = 'Re-clone application';
+            }
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '▶️ START';
+                startBtn.style.display = 'inline-block';
+                startBtn.style.pointerEvents = 'auto';
+                startBtn.style.opacity = '1';
+                startBtn.title = 'Start application';
+            }
+            if (psBtn) psBtn.style.display = 'inline-block';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (logsBtn) logsBtn.style.display = 'inline-block';
+            if (restartBtn) restartBtn.style.display = 'none';
+
+            // Update action dropdown for not running applications
+            if (virtualAgentAction && (selectedApp === appName)) {
+                updateActionDropdown(['MODIFY_CODE', 'START', 'PS']);
+            }
+            
         }
-        if (startBtn) {
-            startBtn.disabled = false;
-            startBtn.innerHTML = '▶️ START';
-            startBtn.style.display = 'inline-block';
-            startBtn.style.pointerEvents = 'auto';
-            startBtn.style.opacity = '1';
-            startBtn.title = 'Start application';
-        }
-        if (psBtn) psBtn.style.display = 'inline-block';
-        if (stopBtn) stopBtn.style.display = 'none';
-        if (logsBtn) logsBtn.style.display = 'inline-block';
-        if (restartBtn) restartBtn.style.display = 'none';
     }
+}
+
+// Function to update action dropdown based on application status
+function updateActionDropdown(allowedActions) {
+    const actionSelect = document.getElementById('unifiedAction');
+    if (!actionSelect) return;
+    
+    // Store current selection
+    const currentValue = actionSelect.value;
+    
+    // Clear all options
+    actionSelect.innerHTML = '';
+    
+    // If no actions allowed, leave dropdown empty
+    if (allowedActions.length === 0) {
+        // Update input text and button state
+        updateUnifiedInputText();
+        updateSendButtonState();
+        return;
+    }
+    
+    // Define all possible actions with their labels
+    const actionLabels = {
+        'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
+        'START': '{{ get_text("start_app_option") }}',
+        'STOP': '{{ get_text("stop_app_option") }}',
+        'LOGS': '{{ get_text("display_logs_option") }}',
+        'PS': '{{ get_text("display_ps_option") }}'
+    };
+    
+    // Add only allowed actions
+    allowedActions.forEach(action => {
+        const option = document.createElement('option');
+        option.value = action;
+        option.textContent = actionLabels[action] || action;
+        actionSelect.appendChild(option);
+    });
+    
+    // Restore selection if still valid, otherwise select first option
+    if (allowedActions.includes(currentValue)) {
+        actionSelect.value = currentValue;
+    } else {
+        actionSelect.value = allowedActions[0] || '';
+    }
+    
+    // Update input text and button state
+    updateUnifiedInputText();
+    updateSendButtonState();
 }
 
 // Virtual Agents Panel functions - Unified
@@ -1681,75 +1792,6 @@ function sendUnifiedMessageWithText(message) {
     }
 }
 
-// Make Virtual Agents panel resizable
-function makeResizable() {
-    const agentsPanel = document.getElementById('agentsPanel');
-    const resizeHandle = document.getElementById('resizeHandle');
-    const mainPanel = document.querySelector('.main-panel');
-    
-    if (!agentsPanel || !resizeHandle || !mainPanel) return;
-    
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
-    
-    resizeHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startX = e.clientX;
-        startWidth = agentsPanel.offsetWidth;
-        
-        document.addEventListener('mousemove', handleResize);
-        document.addEventListener('mouseup', stopResize);
-        
-        // Add visual feedback
-        resizeHandle.classList.add('resizing');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-        
-        e.preventDefault();
-    });
-    
-    function handleResize(e) {
-        if (!isResizing) return;
-        
-        const deltaX = startX - e.clientX; // Reversed for right-to-left resize
-        const newWidth = Math.max(300, Math.min(window.innerWidth * 0.6, startWidth + deltaX));
-        
-        agentsPanel.style.flex = `0 0 ${newWidth}px`;
-        agentsPanel.style.minWidth = `${newWidth}px`;
-    }
-    
-    function stopResize() {
-        isResizing = false;
-        
-        document.removeEventListener('mousemove', handleResize);
-        document.removeEventListener('mouseup', stopResize);
-        
-        // Remove visual feedback
-        resizeHandle.classList.remove('resizing');
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-    }
-}
-
-function addAgentMessage(agent, type, message) {
-    const messagesDiv = document.getElementById('unifiedMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
-    
-    const icon = type === 'error' ? '❌' : type === 'system' ? '💬' : '👤';
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">${icon}</span>
-            <span class="message-time">${new Date().toLocaleTimeString()}</span>
-        </div>
-        <div class="message-content">${message}</div>
-    `;
-    
-    messagesDiv.appendChild(messageDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}
-
 function toggleAgentsPanel() {
     const panel = document.getElementById('virtualAgentsPanel');
     const toggleBtn = document.getElementById('togglePanel');
@@ -1774,6 +1816,16 @@ document.addEventListener('keydown', function(e) {
 
 // Auto-populate text when application or action is selected
 document.getElementById('unifiedAppSelect').addEventListener('change', function() {
+    const selectedApp = this.value;
+    
+    if (selectedApp) {
+        // Check the status of the selected application and update actions accordingly
+        checkApplicationStatusForActions(selectedApp);
+    } else {
+        // Empty the actions dropdown when no application is selected
+        updateActionDropdown([]);
+    }
+
     updateUnifiedInputText();
     updateSendButtonState();
 });
@@ -1795,8 +1847,78 @@ function updateUnifiedInputText() {
             text = `I need an operations specialist to execute the [[${selectedAction}]] action on the application ${selectedApp}`;
         }
         document.getElementById('unifiedInput').value = text;
-        updateSendButtonState();
+    } else {
+        // Clear input if no app or action selected
+        document.getElementById('unifiedInput').value = '';
     }
+    updateSendButtonState();
+}
+
+function checkApplicationStatusForActions(appName) {
+    // Only update actions if this app is currently selected
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
+    if (selectedApp !== appName) {
+        return;
+    }
+    
+    // Check status to determine available actions
+    const data = {
+        action: 'ps',
+        application_name: appName,
+        local_mode: true
+    };
+    
+    fetch('/api/deployments', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error && data.error.includes(APP_NOT_DEPLOYED_MESSAGE)) {
+            // Application is not cloned - empty the action dropdown
+            updateActionDropdown([]);
+        } else if (data.logs) {
+            // Application is cloned, check running status
+            let isRunning = false;
+            let isNotRunning = false;
+            
+            try {
+                const lines = data.logs.split('\n');
+                const stdoutIndex = lines.findIndex(line => line.includes('STDOUT:'));
+                const jsonLines = stdoutIndex >= 0 ? lines.slice(stdoutIndex + 1) : lines;
+                const jsonString = jsonLines.join('\n').trim();
+                
+                const statusData = JSON.parse(jsonString);
+                if (statusData.docker_compose_ps) {
+                    isRunning = statusData.docker_compose_ps === 'IS_RUNNING';
+                    isNotRunning = statusData.docker_compose_ps === 'IS_NOT_RUNNING';
+                }
+            } catch (e) {
+                // Fallback to old text parsing
+                isRunning = data.logs.includes('IS_RUNNING');
+                isNotRunning = data.logs.includes('IS_NOT_RUNNING');
+            }
+            
+            if (isRunning) {
+                // Running: can modify code, stop, check status, view logs
+                updateActionDropdown(['MODIFY_CODE', 'STOP', 'PS', 'LOGS']);
+            } else if (isNotRunning) {
+                // Not running: can modify code, start, check status, view logs
+                updateActionDropdown(['MODIFY_CODE', 'START', 'PS', 'LOGS']);
+            } else {
+                // Unknown status, empty the dropdown
+                updateActionDropdown([]);
+            }
+        } else {
+            // Other error, empty the dropdown
+            updateActionDropdown([]);
+        }
+    })
+    .catch(error => {
+        // On error, empty the dropdown
+        updateActionDropdown([]);
+    });
 }
 
 function getAvailableServerId(applicationName) {
@@ -1829,8 +1951,8 @@ document.addEventListener('DOMContentLoaded', function() {
         addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
     }
     
-    // Make Virtual Agents panel resizable
-    makeResizable();
+    // Initialize action dropdown as empty (no application selected by default)
+    updateActionDropdown([]);
     
     showTab('apps'); // Show applications tab by default
 });
@@ -2463,6 +2585,13 @@ function showBriefLoadingIndicator(action, appName) {
     }
     
     document.body.appendChild(indicator);
+}
+
+function hideBriefLoadingIndicator() {
+    const indicator = document.getElementById('briefLoadingIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
 }
 
 
