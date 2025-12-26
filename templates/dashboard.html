@@ -402,6 +402,9 @@
                             <label>
                                 <input type="checkbox" id="unifiedAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
+                            <label>
+                                <input type="checkbox" id="unifiedFilterLogs" checked> Filter logs
+                            </label>
                             <button id="unifiedSendBtn" class="send-btn" onclick="sendUnifiedMessage()" disabled>{{ get_text('send') }}</button>
                         </div>
                     </div>
@@ -491,6 +494,7 @@ function toggleLayout() {
         layoutToggle.title = 'Switch to Horizontal Layout';
     }
 }
+
 
 // Constants for easier maintenance
 const APP_NOT_DEPLOYED_MESSAGE = 'deployApp.sh not found';
