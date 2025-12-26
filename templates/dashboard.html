@@ -1234,8 +1234,6 @@ document.getElementById('automorphForm').addEventListener('submit', function(e) 
     });
 });
 
-
-
 function appendLog(message) {
     const logsContent = document.getElementById('deploymentLogsContent');
     if (!logsContent) return;
@@ -1268,7 +1266,7 @@ function checkAllApplicationStatus() {
     });
 }
 
-function checkApplicationStatus(appName, openBtn) {
+function checkApplicationStatus(appName) {
     // Always check status to determine if app is cloned or not
     const data = {
         action: 'ps',
@@ -1431,7 +1429,7 @@ function updateApplicationButtonStatus(appName, logs) {
                 openBtn.classList.add('btn-success');
                 openBtn.style.pointerEvents = 'auto';
                 openBtn.style.opacity = '1';
-                OpenBtn.innerHTML = '🟢 {{ get_text("app_is_running") }}'
+                openBtn.innerHTML = '🟢 {{ get_text("app_is_running") }}'
                 openBtn.title = '🟢 {{ get_text("app_is_running") }}';
             }
             
