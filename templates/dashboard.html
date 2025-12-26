@@ -19,6 +19,7 @@
     <div class="applications-grid">
         {% for app in applications %}
         <div class="app-card">
+            <input type="hidden" class="application_status" value="is_not_cloned">
             {% if username == 'admin' %}
             <div class="app-actions">
                 <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[5] or 50 }}, {{ app[6] or 'null' }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }})" class="btn-icon" title="Edit">
@@ -1318,6 +1319,7 @@ function updateApplicationButtonStatus(appName, logs) {
     
     let isRunning = false;
     let isNotRunning = false;
+    let applicationStatus = 'is_not_cloned';
     
     if (!isNotCloned) {
         try {
@@ -1337,6 +1339,18 @@ function updateApplicationButtonStatus(appName, logs) {
             isRunning = logs.includes('IS_RUNNING');
             isNotRunning = logs.includes('IS_NOT_RUNNING');
         }
+        
+        if (isRunning) {
+            applicationStatus = 'cloned_and_running';
+        } else if (isNotRunning) {
+            applicationStatus = 'cloned_but_not_running';
+        }
+    }
+    
+    // Update the hidden status field
+    const statusField = appCard.querySelector('.application_status');
+    if (statusField) {
+        statusField.value = applicationStatus;
     }
     
     // Remove or add application from list based on status
@@ -1381,12 +1395,6 @@ function updateApplicationButtonStatus(appName, logs) {
         if (restartBtn) restartBtn.style.display = 'none';
         if (psBtn) psBtn.style.display = 'none';
         if (logsBtn) logsBtn.style.display = 'none';
-
-        // Reset action dropdown to default when no cloned app is selected
-        if (virtualAgentOption && (selectedApp === appName)) {
-            // If this not-cloned app is currently selected, empty the actions
-            updateActionDropdown([]);
-        }
 
     } else {
         // Show the app card for cloned applications
@@ -1434,12 +1442,6 @@ function updateApplicationButtonStatus(appName, logs) {
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
 
-            // Update action dropdown for running applications
-            // if app is selected
-            if (virtualAgentAction && (selectedApp === appName)) {
-                updateActionDropdown(['STOP', 'PS', 'LOGS']);
-            }
-
         } else if (isNotRunning) {
             // Application is cloned but not running
             if (openBtn) {
@@ -1471,25 +1473,23 @@ function updateApplicationButtonStatus(appName, logs) {
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
 
-            // Update action dropdown for not running applications
-            if (virtualAgentAction && (selectedApp === appName)) {
-                updateActionDropdown(['MODIFY_CODE', 'START', 'PS']);
-            }
-            
         }
     }
 }
 
 // Function to update action dropdown based on application status
 function updateActionDropdown(allowedActions) {
-    const actionSelect = document.getElementById('unifiedAction');
-    if (!actionSelect) return;
-    
+    const ActionSelected = document.getElementById('unifiedAction');
+    const AppSelected = document.getElementById('unifiedAppSelect');
+        
     // Store current selection
-    const currentValue = actionSelect.value;
-    
+    const currentValue = ActionSelected.value;
     // Clear all options
-    actionSelect.innerHTML = '';
+    ActionSelected.innerHTML = '';
+
+    if (!AppSelected) {     
+        return; 
+    }
     
     // If no actions allowed, leave dropdown empty
     if (allowedActions.length === 0) {
@@ -1513,7 +1513,7 @@ function updateActionDropdown(allowedActions) {
         const option = document.createElement('option');
         option.value = action;
         option.textContent = actionLabels[action] || action;
-        actionSelect.appendChild(option);
+        ActionSelected.appendChild(option);
     });
     
     // Restore selection if still valid, otherwise select first option
@@ -1861,64 +1861,35 @@ function checkApplicationStatusForActions(appName) {
         return;
     }
     
-    // Check status to determine available actions
-    const data = {
-        action: 'ps',
-        application_name: appName,
-        local_mode: true
-    };
+    // Find the app card and get status from hidden field
+    const appCards = document.querySelectorAll('.app-card');
+    let applicationStatus = 'is_not_cloned';
     
-    fetch('/api/deployments', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error && data.error.includes(APP_NOT_DEPLOYED_MESSAGE)) {
-            // Application is not cloned - empty the action dropdown
-            updateActionDropdown([]);
-        } else if (data.logs) {
-            // Application is cloned, check running status
-            let isRunning = false;
-            let isNotRunning = false;
-            
-            try {
-                const lines = data.logs.split('\n');
-                const stdoutIndex = lines.findIndex(line => line.includes('STDOUT:'));
-                const jsonLines = stdoutIndex >= 0 ? lines.slice(stdoutIndex + 1) : lines;
-                const jsonString = jsonLines.join('\n').trim();
-                
-                const statusData = JSON.parse(jsonString);
-                if (statusData.docker_compose_ps) {
-                    isRunning = statusData.docker_compose_ps === 'IS_RUNNING';
-                    isNotRunning = statusData.docker_compose_ps === 'IS_NOT_RUNNING';
-                }
-            } catch (e) {
-                // Fallback to old text parsing
-                isRunning = data.logs.includes('IS_RUNNING');
-                isNotRunning = data.logs.includes('IS_NOT_RUNNING');
+    for (const card of appCards) {
+        const cardTitle = card.querySelector('h3').textContent.split(' ')[0];
+        if (cardTitle.includes(appName)) {
+            const statusField = card.querySelector('.application_status');
+            if (statusField) {
+                applicationStatus = statusField.value;
             }
-            
-            if (isRunning) {
-                // Running: can modify code, stop, check status, view logs
-                updateActionDropdown(['MODIFY_CODE', 'STOP', 'PS', 'LOGS']);
-            } else if (isNotRunning) {
-                // Not running: can modify code, start, check status, view logs
-                updateActionDropdown(['MODIFY_CODE', 'START', 'PS', 'LOGS']);
-            } else {
-                // Unknown status, empty the dropdown
-                updateActionDropdown([]);
-            }
-        } else {
-            // Other error, empty the dropdown
-            updateActionDropdown([]);
+            break;
         }
-    })
-    .catch(error => {
-        // On error, empty the dropdown
+    }
+    
+    // Update actions based on status
+    if (applicationStatus === 'is_not_cloned') {
+        // Application is not cloned - empty the action dropdown
         updateActionDropdown([]);
-    });
+    } else if (applicationStatus === 'cloned_and_running') {
+        // Running: can stop, check status, view logs
+        updateActionDropdown(['STOP', 'PS', 'LOGS']);
+    } else if (applicationStatus === 'cloned_but_not_running') {
+        // Not running: can modify code, start, view logs
+        updateActionDropdown(['MODIFY_CODE', 'START', 'LOGS']);
+    } else {
+        // Unknown status, empty the dropdown
+        updateActionDropdown([]);
+    }
 }
 
 function getAvailableServerId(applicationName) {
@@ -1936,14 +1907,6 @@ function getAvailableServerId(applicationName) {
     });
 }
 
-
-
-
-
-
-
-
-
 // Initialize panel on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize unified agent area
@@ -1956,8 +1919,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     showTab('apps'); // Show applications tab by default
 });
-
-
 
 // Billing functions
 function loadBillingData() {
