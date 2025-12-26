@@ -1518,9 +1518,9 @@ function updateActionDropdown(allowedActions) {
     
     // Restore selection if still valid, otherwise select first option
     if (allowedActions.includes(currentValue)) {
-        actionSelect.value = currentValue;
+        ActionSelected.value = currentValue;
     } else {
-        actionSelect.value = allowedActions[0] || '';
+        ActionSelected.value = allowedActions[0] || '';
     }
     
     // Update input text and button state
@@ -1562,6 +1562,12 @@ function sendUnifiedMessageWithText(message) {
     
     if (!selectedApp) {
         addAgentMessage('unified', 'error', 'Please select an application before sending your request.');
+        // Reset send button
+        const sendBtn = document.getElementById('unifiedSendBtn');
+        if (sendBtn) {
+            sendBtn.textContent = '{{ get_text("send") }}';
+            updateSendButtonState();
+        }
         return;
     }
     
@@ -1569,6 +1575,12 @@ function sendUnifiedMessageWithText(message) {
     const virtualAgentOption = document.getElementById(`virtualAgent-${selectedApp.replace(/\s+/g, '-').toLowerCase()}`);
     if (virtualAgentOption && virtualAgentOption.disabled) {
         addAgentMessage('unified', 'error', `Application "${selectedApp}" must be cloned first before using the Virtual Agent.`);
+        // Reset send button
+        const sendBtn = document.getElementById('unifiedSendBtn');
+        if (sendBtn) {
+            sendBtn.textContent = '{{ get_text("send") }}';
+            updateSendButtonState();
+        }
         return;
     }
     
@@ -1905,6 +1917,29 @@ function getAvailableServerId(applicationName) {
         }
         return data.server_id;
     });
+}
+
+// Add agent message function
+function addAgentMessage(agentType, messageType, message) {
+    const messagesDiv = document.getElementById('unifiedMessages');
+    if (!messagesDiv) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${messageType}-message`;
+    
+    const icon = messageType === 'system' ? '🤖' : messageType === 'user' ? '👤' : messageType === 'error' ? '❌' : '💬';
+    const time = new Date().toLocaleTimeString();
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="message-icon">${icon}</span>
+            <span class="message-time">${time}</span>
+        </div>
+        <div class="message-content">${message}</div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
 // Initialize panel on page load
