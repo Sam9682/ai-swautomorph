@@ -371,17 +371,17 @@
     
     <!-- Virtual Agents Panel -->
     <div class="agents-panel" id="agentsPanel">
-        <div id="virtualAgentsPanel" class="virtual-agents-panel resizable" style="background-color: gray;">
+        <div id="virtualAgentsPanel" class="virtual-agents-panel" style="background-color: rgb(177, 177, 177);">
             <div class="panel-header">
-                <h3>{{ get_text('virtual_agents') }}</h3>
+                <h3>🤖 {{ get_text('virtual_agents') }}</h3>
                 <button id="togglePanel" class="toggle-btn" onclick="toggleAgentsPanel()">−</button>
             </div>
             
             <div class="panel-content">
                 <!-- Unified Agent Area -->
-                <div class="agent-content" id="unifiedContent" style="background-color: gray;">
+                <div class="agent-content" id="unifiedContent" style="background-color: rgb(177, 177, 177);">
                     <div class="unified-controls">
-                        <select id="unifiedAppSelect">
+                        <select id="unifiedAppSelect" title="{{ get_text('select_app_tooltip') }}">
                             <option value="">{{ get_text('select_application_option') }}</option>
                             {% for app in applications %}
                             <option value="{{ app[1] }}" id="virtualAgent-{{ app[1] | replace(' ', '-') | lower }}">{{ app[1] }}</option>
@@ -395,14 +395,17 @@
                             <option value="PS">{{ get_text('display_ps_option') }}</option>
                         </select>
                     </div>
-                    <div id="unifiedMessages" class="messages-area" style="background-color: gray;"></div>
-                    <div class="input-area" style="background-color: gray;">
-                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="3" oninput="updateSendButtonState()"></textarea>
+                        <!-- Persistent message container -->
+                        <div class="message operations-assistant" id="persistentMessageContainer" style="width: 100%; height: 100%;">
+                            <div class="message-content" id="persistentMessageContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; padding: 0rem; border-radius: 0px; border: 0px solid #e0e0e0; width: 100%; height: 100%; overflow-y: auto; color: darkblue;">Virtual Agents ready for commands...</div>
+                        </div>
+                    <div class="input-area" style="background-color: rgb(177, 177, 177);">
+                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="2" oninput="updateSendButtonState()"></textarea>
                         <div class="input-controls">
-                            <label>
+                            <label style="display: none;">
                                 <input type="checkbox" id="unifiedAutoApprove" checked> {{ get_text('auto_approve') }}
                             </label>
-                            <label>
+                            <label style="display: none;">
                                 <input type="checkbox" id="unifiedFilterLogs" checked> Filter logs
                             </label>
                             <button id="unifiedSendBtn" class="send-btn" onclick="sendUnifiedMessage()" disabled>{{ get_text('send') }}</button>
@@ -1609,19 +1612,11 @@ function sendUnifiedMessageWithText(message) {
         addAgentMessage('unified', 'user', message);
         addAgentMessage('unified', 'system', `Virtual Developer is processing code modification for ${selectedApp}...`);
         
-        // Create streaming message container
-        const messagesDiv = document.getElementById('unifiedMessages');
-        const streamDiv = document.createElement('div');
-        streamDiv.className = 'message developer-assistant';
-        streamDiv.innerHTML = `
-            <div class="message-header">
-                <span class="message-icon">🤖</span>
-                <span class="message-time">${new Date().toLocaleTimeString()}</span>
-            </div>
-            <div class="message-content" style="white-space: pre-wrap;"></div>
-        `;
-        messagesDiv.appendChild(streamDiv);
-        const contentDiv = streamDiv.querySelector('.message-content');
+        // Use persistent message container
+        const contentDiv = document.getElementById('persistentMessageContent');
+        
+        // Clear previous content and add new message
+        contentDiv.textContent = `Developer processing: ${selectedApp}\n`;
         
         // Stream from Developer API
         fetch('/api/qchat_developer', {
@@ -1658,7 +1653,7 @@ function sendUnifiedMessageWithText(message) {
                                 const data = JSON.parse(line.substring(6));
                                 if (data.chunk) {
                                     contentDiv.textContent += data.chunk + '\n';
-                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                    contentDiv.scrollTop = contentDiv.scrollHeight;
                                 } else if (data.error) {
                                     contentDiv.textContent += `\n❌ Error: ${data.error}`;
                                 } else if (data.done) {
@@ -1698,19 +1693,11 @@ function sendUnifiedMessageWithText(message) {
         // Add header to logs without switching tabs
         appendLog(`\n=== OPERATIONS ${selectedAction} ${selectedApp} ===`);
         
-        // Create streaming message container
-        const messagesDiv = document.getElementById('unifiedMessages');
-        const streamDiv = document.createElement('div');
-        streamDiv.className = 'message operations-assistant';
-        streamDiv.innerHTML = `
-            <div class="message-header">
-                <span class="message-icon">💡</span>
-                <span class="message-time">${new Date().toLocaleTimeString()}</span>
-            </div>
-            <div class="message-content" style="white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f9fa; padding: 0.5rem; border-radius: 4px; border: 1px solid #e0e0e0; min-height: 50px; max-height: 300px; overflow-y: auto;"></div>
-        `;
-        messagesDiv.appendChild(streamDiv);
-        const contentDiv = streamDiv.querySelector('.message-content');
+        // Use persistent message container
+        const contentDiv = document.getElementById('persistentMessageContent');
+        
+        // Clear previous content and add new message
+        contentDiv.textContent = `Operations processing: ${selectedAction} for ${selectedApp}\n`;
         
         // Initialize with loading message
         contentDiv.textContent = 'Connecting to Q Chat...\n';
@@ -1766,7 +1753,6 @@ function sendUnifiedMessageWithText(message) {
                                     contentDiv.textContent += data.chunk + '\n';
                                     // Force immediate DOM update
                                     contentDiv.scrollTop = contentDiv.scrollHeight;
-                                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                                     // Force browser repaint
                                     contentDiv.offsetHeight;
                                     appendLog(data.chunk);
@@ -1934,31 +1920,24 @@ function getAvailableServerId(applicationName) {
 
 // Add agent message function
 function addAgentMessage(agentType, messageType, message) {
-    const messagesDiv = document.getElementById('unifiedMessages');
-    if (!messagesDiv) return;
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${messageType}-message`;
+    const contentDiv = document.getElementById('persistentMessageContent');
+    if (!contentDiv) return;
     
     const icon = messageType === 'system' ? '🤖' : messageType === 'user' ? '👤' : messageType === 'error' ? '❌' : '💬';
     const time = new Date().toLocaleTimeString();
     
-    messageDiv.innerHTML = `
-        <div class="message-header">
-            <span class="message-icon">${icon}</span>
-            <span class="message-time">${time}</span>
-        </div>
-        <div class="message-content">${message}</div>
-    `;
+    // Append message to persistent content div
+    contentDiv.textContent += `\n[${time}] ${icon} ${message}`;
     
-    messagesDiv.appendChild(messageDiv);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    // Auto-scroll to bottom
+    contentDiv.scrollTop = contentDiv.scrollHeight;
 }
 
 // Initialize panel on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize unified agent area
-    if (document.getElementById('unifiedMessages').innerHTML === '') {
+    const contentDiv = document.getElementById('persistentMessageContent');
+    if (contentDiv && contentDiv.textContent.trim() === 'Virtual Agents ready for commands...') {
         addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
     }
     
