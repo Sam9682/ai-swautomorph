@@ -1456,31 +1456,29 @@ body {
 }
 /* Platform Description Styles */
 .auth-container {
-    display: grid;
-    grid-template-columns: 1fr 400px;
-    gap: 3rem;
+    display: flex;
+    flex-direction: column;
     max-width: 1200px;
     margin: 2rem auto;
     padding: 2rem;
-    align-items: start;
+    gap: 2rem;
 }
 
-.platform-description {
+.platform-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 2rem;
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    text-align: center;
 }
 
-.platform-description h1 {
+.platform-header h1 {
     font-size: 2.5rem;
     margin-bottom: 0.5rem;
-    text-align: center;
 }
 
-.platform-description h3 {
-    text-align: center;
+.platform-header h3 {
     margin-bottom: 1.5rem;
     opacity: 0.9;
     font-weight: 300;
@@ -1489,12 +1487,19 @@ body {
 .mission-statement {
     font-size: 1.1rem;
     line-height: 1.7;
-    margin-bottom: 2rem;
-    text-align: center;
+    margin: 0;
     background: rgba(255,255,255,0.1);
     padding: 1.5rem;
     border-radius: 8px;
     border-left: 4px solid #f1c40f;
+}
+
+.platform-description {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
 }
 
 .target-audience, .platform-features {
@@ -1550,22 +1555,20 @@ body {
 
 @media (max-width: 768px) {
     .auth-container {
-        grid-template-columns: 1fr;
-        gap: 2rem;
         padding: 1rem;
+        gap: 1.5rem;
     }
     
-    .platform-description {
-        order: 2;
+    .platform-header {
         padding: 1.5rem;
     }
     
-    .platform-description h1 {
+    .platform-header h1 {
         font-size: 2rem;
     }
     
-    .auth-form {
-        order: 1;
+    .platform-description {
+        padding: 1.5rem;
     }
 }
 /* Legal Footer Styles */

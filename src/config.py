@@ -254,6 +254,10 @@ TRANSLATIONS = {
         'display_ps_option': '🔍 VERIFY the status/ps of the application (IT Operator)',
         'account_activation_message_title': '⚠️ Account Activation Required',
         'account_activation_message_body': 'Your account will not be activated by default. It will be activated by AUTOMORPH since the usage generates costs.',
+        'dev_modify_code_request1': 'J’ai besoin d’un spécialiste développeur pour modifier le code de l’application',
+        'dev_modify_code_request2': 'Veuillez trouver ci-dessous la spécification de la demande :',
+        'ops_exec_request1': 'J’ai besoin d’un spécialiste des opérations pour exécuter',
+        'ops_exec_request2': 'l’action sur l’application',
     },
     'fr': {
         'login': 'Connexion',
@@ -459,7 +463,7 @@ TRANSLATIONS = {
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
         'database_management': 'Gestion de la Base de Données',
-        'virtual_agents_ready': '🤖 Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.',
+        'virtual_agents_ready': 'Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.',
         'modify_code_option': "👨‍💻 MODIFIER le code du logiciel (Développeur IT)",
         'start_app_option': "▶️ DÉMARRER le logiciel (Opérateur IT)",
         'stop_app_option': "⏹️ ARRÊTER le logiciel (Opérateur IT)",
@@ -467,5 +471,9 @@ TRANSLATIONS = {
         'display_ps_option': "🔍 VERIFIER le status/état du logiciel (Opérateur IT)",
         'account_activation_message_title': '⚠️ Activation du compte nécessaire',
         'account_activation_message_body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',
+        'dev_modify_code_request1': 'I need a developer specialist to modify the code of the application',
+        'dev_modify_code_request2': 'Please, hereafter is the specification of the request :',
+        'ops_exec_request1': 'I need an operations specialist to execute the',
+        'ops_exec_request2': 'action on the application',
     }
 }

@@ -1867,9 +1867,9 @@ function updateUnifiedInputText() {
     if (selectedApp && selectedAction) {
         let text = '';
         if (selectedAction === 'MODIFY_CODE') {
-            text = `I need a developer specialist to modify the code of the application ${selectedApp}. Please, hereafter is the specification of the request :`;
+            text = `{{ get_text("dev_modify_code_request1") }} ${selectedApp}. {{ get_text("dev_modify_code_request2") }}`;
         } else {
-            text = `I need an operations specialist to execute the [[${selectedAction}]] action on the application ${selectedApp}`;
+            text = `{{ get_text("ops_exec_request1") }} [[${selectedAction}]] {{ get_text("ops_exec_request2") }} ${selectedApp}`;
         }
         document.getElementById('unifiedInput').value = text;
     } else {

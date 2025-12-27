@@ -4,12 +4,33 @@
 
 {% block content %}
 <div class="auth-container">
-    <div class="platform-description">
+    <div class="platform-header">
         <h1>🚀 AI-SwAutoMorph</h1>
         <h3>🤖 {{ get_text('replace_it_team') }}</h3>
         <p class="mission-statement">
             {{ get_text('stop_waiting_message') }}
         </p>
+    </div>
+    
+    <div class="auth-form">
+        <h2>{{ get_text('login') }}</h2>
+        <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
+            <div class="form-group">
+                <label for="username">{{ get_text('username') }}:</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="password">{{ get_text('password') }}:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">{{ get_text('login') }}</button>
+        </form>
+        <p class="auth-link">
+            {{ get_text('no_account') }} <a href="{{ url_for('auth.register') }}">{{ get_text('register_here') }}</a>
+        </p>
+    </div>
+    
+    <div class="platform-description">
         <div class="target-audience">
             <h4>💡 {{ get_text('what_ai_agents_do') }}</h4>
             <ul>
@@ -34,23 +55,6 @@
                 🚨 <em><strong>{{ get_text('disruption_warning') }}</strong></em>
             </p>
         </div>
-    </div>
-    <div class="auth-form">
-        <h2>{{ get_text('login') }}</h2>
-        <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
-            <div class="form-group">
-                <label for="username">{{ get_text('username') }}:</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div class="form-group">
-                <label for="password">{{ get_text('password') }}:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">{{ get_text('login') }}</button>
-        </form>
-        <p class="auth-link">
-            {{ get_text('no_account') }} <a href="{{ url_for('auth.register') }}">{{ get_text('register_here') }}</a>
-        </p>
     </div>
 </div>
 
