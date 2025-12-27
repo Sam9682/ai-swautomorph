@@ -516,6 +516,16 @@ function showTab(tab) {
     const databaseSection = document.getElementById('databaseSection');
     if (databaseSection) databaseSection.style.display = 'none';
     
+    // Control virtual agents panel visibility
+    const agentsPanel = document.getElementById('agentsPanel');
+    if (agentsPanel) {
+        if (tab === 'apps') {
+            agentsPanel.style.display = 'block';
+        } else {
+            agentsPanel.style.display = 'none';
+        }
+    }
+    
     // Show selected section
     if (tab === 'apps') {
         document.getElementById('appsSection').style.display = 'block';
@@ -1452,7 +1462,7 @@ function updateApplicationButtonStatus(appName, logs) {
                 openBtn.classList.add('btn-danger');
                 openBtn.style.pointerEvents = 'none';
                 openBtn.style.opacity = '0.6';
-                openBtn.innerHTML = '🔴 {{ get_text("app_is_not_running") }}';
+                openBtn.innerHTML = ' {{ get_text("app_is_not_running") }}';
                 openBtn.title = '🔴 {{ get_text("app_is_not_running") }}';
             }
             
@@ -1460,16 +1470,16 @@ function updateApplicationButtonStatus(appName, logs) {
                 cloneBtn.style.display = 'inline-block';
                 cloneBtn.style.pointerEvents = 'auto';
                 cloneBtn.style.opacity = '1';
-                cloneBtn.innerHTML = '🔄 Re-clone';
-                cloneBtn.title = 'Re-clone application';
+                cloneBtn.innerHTML = '🔄 {{ get_text("clone") }}';
+                cloneBtn.title = '🔄 {{ get_text("reclone") }}';
             }
             if (startBtn) {
                 startBtn.disabled = false;
-                startBtn.innerHTML = '▶️ START';
+                startBtn.innerHTML = '▶️ {{ get_text("start") }}';
                 startBtn.style.display = 'inline-block';
                 startBtn.style.pointerEvents = 'auto';
                 startBtn.style.opacity = '1';
-                startBtn.title = 'Start application';
+                startBtn.title = '▶️ {{ get_text("start_app") }}';
             }
             if (psBtn) psBtn.style.display = 'inline-block';
             if (stopBtn) stopBtn.style.display = 'none';

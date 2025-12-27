@@ -7,8 +7,8 @@
     <div class="auth-form">
         <h2>{{ get_text('register') }}</h2>
         <div class="activation-notice" style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin-bottom: 20px; border-radius: 5px; color: #856404;">
-            <strong>⚠️ Account Activation Required</strong><br>
-            Your account will not be activated by default. It will be activated by AUTOMORPH since the usage generates costs.
+            <strong>{{ get_text('account_activation_message_title') }}</strong><br>
+            {{ get_text('account_activation_message_body') }}
         </div>
         <form id="registerForm" method="POST" action="/register">
             <div class="form-group">
