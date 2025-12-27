@@ -253,7 +253,7 @@ TRANSLATIONS = {
         'display_logs_option': '📋 DISPLAY the logs of the application (IT Operator)',
         'display_ps_option': '🔍 VERIFY the status/ps of the application (IT Operator)',
         'account_activation_message_title': '⚠️ Account Activation Required',
-        'account_activation_message-body': 'Your account will not be activated by default. It will be activated by AUTOMORPH since the usage generates costs.',
+        'account_activation_message_body': 'Your account will not be activated by default. It will be activated by AUTOMORPH since the usage generates costs.',
     },
     'fr': {
         'login': 'Connexion',
@@ -466,6 +466,6 @@ TRANSLATIONS = {
         'display_logs_option': "📋 AFFICHER les logs du logiciel (Opérateur IT)",
         'display_ps_option': "🔍 VERIFIER le status/état du logiciel (Opérateur IT)",
         'account_activation_message_title': '⚠️ Activation du compte nécessaire',
-        'account_activation_message-body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',
+        'account_activation_message_body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',
     }
 }
