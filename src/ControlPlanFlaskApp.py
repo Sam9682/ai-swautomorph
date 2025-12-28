@@ -9,6 +9,7 @@ from .routes.main_routes import main_bp
 from .routes.auth_routes import auth_bp
 from .routes.sso_routes import sso_bp
 from .routes.api_routes import api_bp
+from .routes.genai_routes import genai_bp
 from .routes.billing_routes import billing_bp
 
 # Redirect all print() statements to log files
@@ -63,6 +64,7 @@ def create_app():
     app.register_blueprint(auth_bp)
     app.register_blueprint(sso_bp)
     app.register_blueprint(api_bp)
+    app.register_blueprint(genai_bp)
     app.register_blueprint(billing_bp)
     
     return app

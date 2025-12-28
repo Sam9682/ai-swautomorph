@@ -52,9 +52,9 @@ def get_billing_activities():
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.created_at >= ?
+            WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
             ORDER BY ba.created_at DESC
-        ''', (start_date.isoformat(),), fetch_all=True)
+        ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     else:
         # Regular user sees only their activities for the period
         activities = db_manager.execute_query('''
@@ -63,9 +63,9 @@ def get_billing_activities():
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND ba.created_at >= ?
+            WHERE ba.user_id = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
             ORDER BY ba.created_at DESC
-        ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
+        ''', (session['user_id'], start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     
     return jsonify([{
         'id': row[0],

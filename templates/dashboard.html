@@ -183,7 +183,6 @@
     <div id="billingSection" class="tab-content" style="display: none;">
         <h2>{{ get_text('billing_management') }}</h2>
         
-        {% if username == 'admin' %}
         <!-- Admin Billing Controls -->
         <div class="billing-controls">
             <div class="period-selector">
@@ -197,6 +196,7 @@
             <button class="btn btn-primary" onclick="showCostManagement()">{{ get_text('manage_costs') }}</button>
         </div>
         
+        {% if username == 'admin' %}
         <!-- Cost Management Form -->
         <div id="costManagementForm" class="cost-form" style="display: none;">
             <h3>{{ get_text('application_costs') }}</h3>
