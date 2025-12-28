@@ -46,21 +46,27 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 └── 🚀 deployControlPlan.sh          # Main deployment control script
 ```
 
-#### 2. 🤖 AI Agent Integration
+#### 2. 🤖 Virtual AI Agents Integration
 
-The platform provides **two specialized AI agents**:
+The platform provides **two specialized AI agents** with context-aware prompts:
 
 **🔧 Q Chat Developer Agent** (`/api/qchat_developer`):
 - 💻 Code modification and feature development
 - 🗣️ Natural language to code translation
 - 🌿 Git branch management with timestamps
 - 🧪 Automatic testing and deployment
+- 🎯 Context-aware prompts from shared/ directory (MODIFY_CODE_context.md)
+- ⚡ Streaming responses with Server-Sent Events
+- 🔄 Timeout management (30 minutes) with graceful cleanup
 
 **🚀 Q Chat Operations Agent** (`/api/qchat_operations`):
-- ⚡ Deployment operations (START, STOP, RESTART)
+- ⚡ Deployment operations (START, STOP, RESTART, PS, LOGS)
 - 🏗️ Infrastructure management
 - 📊 Application monitoring and troubleshooting
 - 📈 Server capacity management
+- 🎯 Context-aware prompts for each operation type
+- 💰 Automatic billing activity recording
+- 🔄 Fallback Q&A mode for invalid actions
 
 #### 3. 🌍 Multi-Language Support
 
@@ -70,20 +76,29 @@ The platform provides **two specialized AI agents**:
 - **📖 Documentation Viewer**: Markdown files with bilingual sections
 - **⚡ Dynamic Content**: JavaScript-based language switching for documentation
 
-#### 4. 🗄️ Database Schema
+#### 4. 🗄️ Enhanced Database Schema
 
 ```sql
--- 🏢 Core entities with multi-server support
+-- 🏢 Core entities with multi-server support and billing
 👥 Users: id, username, email, password_hash, first_name, last_name, suspended, created_at
-📱 Applications: id, name, description, git_url, created_at
-🔗 User_Applications: id, user_id, application_id, url, http_port, https_port, created_at
+📱 Applications: id, name, description, git_url, git_repo_size, docker_*_duration, created_at
+🔗 User_Applications: id, user_id, application_id, url, http_port, https_port, http_port2, https_port2, created_at
 🚀 Deployments: id, user_id, application_name, status, deployment_path, git_url, server_id, created_at, updated_at
 🖥️ Servers: id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
 🔑 Auth_Tokens: id, user_id, token_hash, expires_at, created_at
 💰 Application_Costs: id, application_id, cost_per_day, created_at, updated_at
 📊 Billing_Activities: id, user_id, application_id, action, started_at, stopped_at, duration_seconds, cost_amount, created_at
 📝 Users_Logs: id, user_id, username, action, datetime
+💳 Payment_Modes: id, user_id, payment_type, bank_account, paypal_email, card_last_four, card_type, is_default, created_at
+🧾 Invoicing: id, user_id, invoice_month, total_amount, status, payment_date, payment_mode_id, created_at
 ```
+
+**Database Features**:
+- 🔄 WAL (Write-Ahead Logging) mode for better concurrency
+- 🧵 Thread-safe operations with connection pooling
+- ⏱️ Automatic retry mechanism for locked database scenarios
+- 📊 Health monitoring with detailed statistics
+- 💾 Automated hourly backups with S3 sync
 
 #### 5. 🧭 Navigation Architecture
 

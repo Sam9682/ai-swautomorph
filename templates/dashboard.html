@@ -1551,11 +1551,11 @@ function updateActionDropdown(allowedActions) {
     
     // Define all possible actions with their labels
     const actionLabels = {
-        'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
         'START': '{{ get_text("start_app_option") }}',
         'STOP': '{{ get_text("stop_app_option") }}',
         'LOGS': '{{ get_text("display_logs_option") }}',
-        'PS': '{{ get_text("display_ps_option") }}'
+        'PS': '{{ get_text("display_ps_option") }}',
+        'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
     };
     
     // Add only allowed actions
@@ -1597,13 +1597,34 @@ function sendUnifiedMessage() {
     const message = input.value.trim();
     if (!message) return;
     
-    // Update button to show action is ongoing
+    // Update button to show action is ongoing with timer
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Processing...';
+    startProcessingTimer(sendBtn);
     
     sendUnifiedMessageWithText(message);
     input.value = '';
     updateSendButtonState();
+}
+
+function startProcessingTimer(button) {
+    let seconds = 0;
+    button.innerHTML = '⏳ Processing... 0s';
+    
+    // Store the interval ID on the button element
+    button.processingInterval = setInterval(() => {
+        seconds++;
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        const timeStr = minutes > 0 ? `${minutes}m ${remainingSeconds}s` : `${seconds}s`;
+        button.innerHTML = `⏳ Processing... ${timeStr}`;
+    }, 1000);
+}
+
+function stopProcessingTimer(button) {
+    if (button && button.processingInterval) {
+        clearInterval(button.processingInterval);
+        button.processingInterval = null;
+    }
 }
 
 function sendUnifiedMessageWithText(message) {
@@ -1615,6 +1636,7 @@ function sendUnifiedMessageWithText(message) {
         // Reset send button
         const sendBtn = document.getElementById('unifiedSendBtn');
         if (sendBtn) {
+            stopProcessingTimer(sendBtn);
             sendBtn.textContent = '{{ get_text("send") }}';
             updateSendButtonState();
         }
@@ -1628,6 +1650,7 @@ function sendUnifiedMessageWithText(message) {
         // Reset send button
         const sendBtn = document.getElementById('unifiedSendBtn');
         if (sendBtn) {
+            stopProcessingTimer(sendBtn);
             sendBtn.textContent = '{{ get_text("send") }}';
             updateSendButtonState();
         }
@@ -1672,6 +1695,7 @@ function sendUnifiedMessageWithText(message) {
                         // Reset send button when action is complete
                         const sendBtn = document.getElementById('unifiedSendBtn');
                         if (sendBtn) {
+                            stopProcessingTimer(sendBtn);
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
                         }
@@ -1700,6 +1724,7 @@ function sendUnifiedMessageWithText(message) {
                                     // Reset send button when action is complete
                                     const sendBtn = document.getElementById('unifiedSendBtn');
                                     if (sendBtn) {
+                                        stopProcessingTimer(sendBtn);
                                         sendBtn.textContent = '{{ get_text("send") }}';
                                         updateSendButtonState();
                                     }
@@ -1717,6 +1742,7 @@ function sendUnifiedMessageWithText(message) {
             // Reset send button on error
             const sendBtn = document.getElementById('unifiedSendBtn');
             if (sendBtn) {
+                stopProcessingTimer(sendBtn);
                 sendBtn.textContent = '{{ get_text("send") }}';
                 updateSendButtonState();
             }
@@ -1771,6 +1797,7 @@ function sendUnifiedMessageWithText(message) {
                         // Reset send button when stream is complete
                         const sendBtn = document.getElementById('unifiedSendBtn');
                         if (sendBtn) {
+                            stopProcessingTimer(sendBtn);
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
                         }
@@ -1808,6 +1835,7 @@ function sendUnifiedMessageWithText(message) {
                                     // Reset send button when action is complete
                                     const sendBtn = document.getElementById('unifiedSendBtn');
                                     if (sendBtn) {
+                                        stopProcessingTimer(sendBtn);
                                         sendBtn.textContent = '{{ get_text("send") }}';
                                         updateSendButtonState();
                                     }
@@ -1826,6 +1854,7 @@ function sendUnifiedMessageWithText(message) {
                     // Reset send button on error
                     const sendBtn = document.getElementById('unifiedSendBtn');
                     if (sendBtn) {
+                        stopProcessingTimer(sendBtn);
                         sendBtn.textContent = '{{ get_text("send") }}';
                         updateSendButtonState();
                     }
@@ -1840,6 +1869,7 @@ function sendUnifiedMessageWithText(message) {
             // Reset send button on error
             const sendBtn = document.getElementById('unifiedSendBtn');
             if (sendBtn) {
+                stopProcessingTimer(sendBtn);
                 sendBtn.textContent = '{{ get_text("send") }}';
                 updateSendButtonState();
             }

@@ -10,20 +10,22 @@ AI-SwAutoMorph is a centralized application deployment and management platform d
 
 - 🔐 User registration and authentication with Gitea integration
 - 🌐 Web-based dashboard with multi-language support (EN/FR)
-- 📱 Application management with SQLite database storage
+- 📱 Application management with SQLite database storage (WAL mode)
 - 🔑 SSO Identity Provider with token-based authentication
 - 🚀 **Application deployment system** (Clone, Start, Stop, Monitor, Logs)
 - 🐳 Docker containerization with docker-compose
 - 🖥️ Command-line interface (CLI) with comprehensive commands
-- 🔌 REST API endpoints with streaming support
+- 🔌 REST API endpoints with streaming support (Server-Sent Events)
 - 🤖 MCP (Model Context Protocol) support
 - 🛡️ ModSecurity WAF protection with OWASP CRS rules
 - 🔄 Automated database backups with S3 sync
-- 💰 Billing and cost tracking system
-- 🤖 Q Chat Developer and DevOps AI assistants
+- 💰 Billing and cost tracking system with activity logging
+- 🤖 **Virtual AI Agents**: Q Chat Developer and Operations assistants
 - 📊 Database health monitoring and statistics
-- 🌐 Multi-server deployment support
+- 🌐 Multi-server deployment support with capacity management
 - 📖 Comprehensive user guide and documentation
+- 🔧 Thread-safe database operations with connection pooling
+- 🎯 Context-aware AI prompts for specialized operations
 
 ## Installation Methods
 
@@ -146,34 +148,46 @@ curl -X POST https://www.swautomorph.com/api/deployments \
   -d '{"application_name":"MyApp","action":"start"}'
 ```
 
-### Server Management
+### Enhanced Server Management
 ```bash
-# List servers
+# List servers with capacity information
 curl https://www.swautomorph.com/api/servers
 
-# Allocate server for deployment
+# Allocate server for deployment (automatic capacity-based selection)
 curl -X POST https://www.swautomorph.com/api/server/allocate \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"application_name":"MyApp"}'
+
+# Add new server (admin required)
+curl -X POST https://www.swautomorph.com/api/servers \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"SERVER_IP":"192.168.1.100","SERVER_NAME":"worker-01","SERVER_CAPACITY_USER_MAX":20,"SERVER_CAPACITY_APPLI_MAX":100,"SERVER_STATUS":"STAND_BY","SERVER_TYPE":"worker"}'
 ```
 
-### AI Assistant Integration
+### Virtual AI Agents Integration
 ```bash
-# Q Chat Developer (code modifications)
+# Q Chat Developer Agent (code modifications)
 curl -X POST https://www.swautomorph.com/api/qchat_developer \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
-  -d '{"message":"Add a new API endpoint for user management","application_name":"MyApp","application_folder":"/path/to/app"}'
+  -d '{"message":"Add a new API endpoint for user management","application_name":"MyApp","application_folder":"/path/to/app","action_operation":"MODIFY_CODE"}'
 
-# Q Chat DevOps (deployment operations)
-curl -X POST https://www.swautomorph.com/api/qchat_devops \
+# Q Chat Operations Agent (deployment operations)
+curl -X POST https://www.swautomorph.com/api/qchat_operations \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
-  -d '{"message":"[START] Start the application","application_name":"MyApp","application_folder":"/path/to/app"}'
+  -d '{"message":"[START] Start the application","application_name":"MyApp","application_folder":"/path/to/app","action_operation":"START"}'
+
+# Streaming deployment with real-time logs
+curl -X POST https://www.swautomorph.com/api/deployments \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"application_name":"MyApp","action":"start","stream":true}'
 ```
 
-### CLI Interface
+### Enhanced CLI Interface
 ```bash
 # Register user
 python3 ./scripts/cli.py register --username agent --email agent@example.com --password secure_pass
@@ -187,11 +201,14 @@ python3 ./scripts/cli.py add-app --name MyApp --url https://myapp.com --descript
 # Validate SSO token
 python3 ./scripts/cli.py validate-token --token your-sso-token
 
-# Database health check
+# Database health check with detailed statistics
 python3 ./scripts/cli.py db-health
 
-# Mount S3 storage
+# Mount S3 storage for backups
 python3 ./scripts/cli.py mount-s3fs softfluid /mnt/s3
+
+# Initialize database with thread-safe operations
+python3 ./scripts/cli.py init-db
 ```
 
 ### MCP Protocol
@@ -217,16 +234,19 @@ python3 ./scripts/mcp_server.py
 ./deployControlPlan.sh stop
 ```
 
-### Health Checks
+### Enhanced Health Checks
 ```bash
 # API health check
 curl https://www.swautomorph.com/api/auth/status
 
-# Database health check (admin required)
+# Database health check with statistics (admin required)
 curl https://www.swautomorph.com/api/health/database
 
 # Check Docker services
 docker-compose ps
+
+# Check deployment logs with streaming
+curl https://www.swautomorph.com/api/deployments/1/logs
 ```
 
 ### Database Management
@@ -247,11 +267,12 @@ python3 ./scripts/cli.py db-health
 - **API Endpoint**: https://www.swautomorph.com/api
 - **Gitea Server**: https://www.swautomorph.com/gitea (port 3000)
 - **MCP Server**: Available via scripts/mcp_server.py
-- **Database**: SQLite (softfluid/db/ai_swautomorph.db)
+- **Database**: SQLite with WAL mode (softfluid/db/ai_swautomorph.db)
 - **Deployment Directory**: /home/ubuntu/deployments/[username]/[appname]
 - **SSL Certificates**: ssl/ directory
-- **Logs**: logs/ directory with daily rotation
-- **Backups**: softfluid/db/backup/ with S3 sync
+- **Logs**: logs/ directory with daily rotation and Gunicorn logging
+- **Backups**: softfluid/db/backup/ with S3 sync and hourly automated backups
+- **Virtual Agents**: Q Chat Developer and Operations with context-aware prompts
 
 ## Architecture
 
@@ -260,28 +281,47 @@ python3 ./scripts/cli.py db-health
 ai-swautomorph/
 ├── src/                    # Main application source
 │   ├── routes/            # Flask route blueprints
-│   ├── ControlPlanFlaskApp.py            # Main Flask application
-│   ├── database.py       # Database management
-│   └── config.py         # Configuration settings
+│   │   ├── main_routes.py        # Dashboard & documentation
+│   │   ├── auth_routes.py        # User authentication
+│   │   ├── sso_routes.py         # Single Sign-On
+│   │   ├── api_routes.py         # REST API with streaming
+│   │   ├── genai_routes.py       # Virtual AI agents
+│   │   └── billing_routes.py     # Billing & cost tracking
+│   ├── ControlPlanFlaskApp.py    # Main Flask application
+│   ├── database.py               # Thread-safe database manager
+│   ├── config.py                 # Configuration & multi-language
+│   └── auth.py                   # Authentication utilities
 ├── scripts/               # CLI tools and utilities
-├── templates/            # HTML templates
+│   ├── cli.py                    # Command-line interface
+│   └── mcp_server.py             # Model Context Protocol server
+├── templates/            # HTML templates with EN/FR support
 ├── static/               # CSS, JS, and static files
 ├── ssl/                  # SSL certificates
-├── logs/                 # Application logs
-├── softfluid/db/         # Database and backups
+├── logs/                 # Application logs with Gunicorn support
+├── softfluid/db/         # Database and automated backups
+├── shared/               # Context files for virtual agents
+├── docs/                 # Comprehensive documentation
+│   ├── USER_GUIDE.md             # AI agent usage guide
+│   ├── ARCHITECTURE_GUIDE.md     # System architecture
+│   ├── DEPLOYMENT_GUIDE.md       # Deployment procedures
+│   ├── DATABASE_IMPROVEMENTS.md  # Database enhancements
+│   └── VIRTUAL_AGENTS_API.md     # Virtual agents API reference
 ├── conf/                 # Configuration files
 └── deployControlPlan.sh  # Main deployment script
 ```
 
 ### Key Components
 
-- **Flask Application**: Multi-blueprint architecture with modular routes
-- **Database**: SQLite with WAL mode for better concurrency
-- **Authentication**: Session-based with SSO token support
-- **Deployment**: Multi-server support with capacity management
-- **Security**: ModSecurity WAF with OWASP CRS rules
-- **Monitoring**: Health checks and database statistics
-- **AI Integration**: Q Chat for development and DevOps tasks
+- **Flask Application**: Multi-blueprint architecture with modular routes and virtual AI agents
+- **Database**: SQLite with WAL mode for better concurrency and thread-safe operations with connection pooling
+- **Authentication**: Session-based with SSO token support and comprehensive user management
+- **Deployment**: Multi-server support with capacity management, automatic allocation, and streaming APIs
+- **Security**: ModSecurity WAF with OWASP CRS rules and input validation
+- **Monitoring**: Health checks, database statistics, real-time streaming logs, and performance metrics
+- **Virtual AI Agents**: Q Chat Developer and Operations assistants with context-aware prompts
+- **Billing System**: Comprehensive cost tracking with activity logging, usage monitoring, and automated invoicing
+- **Multi-language**: English/French support with session-based language switching and bilingual documentation
+- **Backup System**: Automated hourly backups with S3 sync and interactive recovery tools
 
 ## Troubleshooting
 

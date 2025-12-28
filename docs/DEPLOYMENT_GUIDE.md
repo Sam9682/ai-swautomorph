@@ -150,28 +150,36 @@ Content-Type: application/json
 }
 ```
 
-##### GenAI Integration
+##### Enhanced GenAI Integration
 ```bash
-# Q Chat Developer for code modification
+# Q Chat Developer for code modification with context-aware prompts
 POST /api/qchat_developer
 Content-Type: application/json
 {
-  "message": "Add a health check endpoint",
-  "auto_approve": true,
+  "message": "Add a health check endpoint with monitoring",
   "application_name": "AI HACCP",
   "application_folder": "/home/ubuntu/deployments/user/ai-haccp",
-  "gitea_url": "http://localhost:3000/gitadmin/branch-name",
-  "userid": "1",
-  "username": "user"
+  "action_operation": "MODIFY_CODE"
 }
 
-# Q Chat Operations for deployment operations
+# Q Chat Operations for deployment operations with streaming
 POST /api/qchat_operations
 Content-Type: application/json
 {
-  "message": "[START] Start the application",
+  "message": "[START] Start the application with full monitoring",
   "application_name": "AI HACCP",
-  "application_folder": "/home/ubuntu/deployments/user/ai-haccp"
+  "application_folder": "/home/ubuntu/deployments/user/ai-haccp",
+  "action_operation": "START"
+}
+
+# Streaming deployment with real-time progress
+POST /api/deployments
+Content-Type: application/json
+{
+  "action": "start",
+  "application_name": "AI HACCP",
+  "stream": true,
+  "server_id": 1
 }
 ```
 
