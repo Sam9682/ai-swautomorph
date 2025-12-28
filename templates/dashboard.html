@@ -2824,10 +2824,8 @@ function showResultInWaitingBox(results) {
     const tipsDiv = document.querySelector('.loading-tips');
     if (tipsDiv) {
         tipsDiv.innerHTML = `
-            <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
-                <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Results</h4>
-                <pre style="background: #f8f9fa; padding: 0.75rem; border-radius: 4px; font-size: 0.8rem; color: #495057; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin: 0; border: 1px solid #dee2e6;">${results}</pre>
-            </div>
+            <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Results</h4>
+            <p style="word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; overflow: hidden;">${results}</p>
         `;
     }
 }
