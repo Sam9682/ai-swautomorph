@@ -1937,9 +1937,7 @@ function addAgentMessage(agentType, messageType, message) {
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize unified agent area
     const contentDiv = document.getElementById('persistentMessageContent');
-    if (contentDiv && contentDiv.textContent.trim() === '{{ get_text("virtual_agents_ready") }}') {
-        addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
-    }
+    addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
     
     // Initialize action dropdown as empty (no application selected by default)
     updateActionDropdown([]);
