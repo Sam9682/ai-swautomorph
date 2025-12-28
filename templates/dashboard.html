@@ -1555,7 +1555,7 @@ function updateActionDropdown(allowedActions) {
         'STOP': '{{ get_text("stop_app_option") }}',
         'LOGS': '{{ get_text("display_logs_option") }}',
         'PS': '{{ get_text("display_ps_option") }}',
-        'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
+        'MODIFY_CODE': '{{ get_text("modify_code_option") }}'
     };
     
     // Add only allowed actions
@@ -1970,7 +1970,7 @@ function checkApplicationStatusForActions(appName) {
         updateActionDropdown(['STOP', 'PS', 'LOGS']);
     } else if (applicationStatus === 'cloned_but_not_running') {
         // Not running: can modify code, start, view logs
-        updateActionDropdown(['MODIFY_CODE', 'START', 'LOGS']);
+        updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE']);
     } else {
         // Unknown status, empty the dropdown
         updateActionDropdown([]);
