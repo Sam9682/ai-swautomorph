@@ -294,6 +294,19 @@ backup_database() {
     fi
 }
 
+# Logs backup function
+backup_logs() {
+    echo "📋 Creating logs backup..."
+    
+    if [ -d "logs" ] && [ "$(ls -A logs 2>/dev/null)" ]; then
+        echo "  📄 Syncing logs to S3..."
+        aws s3 sync ./logs s3://softfluid/logs --profile OVH-SWAUTOMORPH
+        echo -e "  $OK Logs backup completed"
+    else
+        echo -e "  $WARN No logs directory or logs found - skipping backup"
+    fi
+}
+
 # Database recovery function
 recover_database() {
     echo "🔄 Database Recovery Tool"
@@ -395,6 +408,9 @@ stop_services() {
     
     # Create database backup before stopping services
     backup_database
+    
+    # Create logs backup before stopping services
+    backup_logs
     
     CLEANUP_NEEDED=false
     

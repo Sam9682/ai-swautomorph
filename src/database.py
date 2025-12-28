@@ -305,6 +305,38 @@ def init_db():
         )
     ''')
     
+    # Payment modes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payment_modes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            payment_type TEXT NOT NULL,
+            bank_account TEXT,
+            paypal_email TEXT,
+            card_last_four TEXT,
+            card_type TEXT,
+            is_default INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    # Invoicing table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS invoicing (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            invoice_month TEXT NOT NULL,
+            total_amount REAL NOT NULL,
+            status TEXT DEFAULT 'unpaid',
+            payment_date TIMESTAMP,
+            payment_mode_id INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (payment_mode_id) REFERENCES payment_modes (id)
+        )
+    ''')
+    
     # Insert default applications if none exist
     cursor.execute('SELECT COUNT(*) FROM applications')
     if cursor.fetchone()[0] == 0:
@@ -372,6 +404,14 @@ def init_db():
             cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id[0],))
             if cursor.fetchone()[0] == 0:
                 cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
+        
+        # Create default payment mode for admin
+        cursor.execute('SELECT COUNT(*) FROM payment_modes WHERE user_id = ?', (admin_id,))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute('''
+                INSERT INTO payment_modes (user_id, payment_type, is_default)
+                VALUES (?, ?, ?)
+            ''', (admin_id, 'bank_transfer', 1))
     
     # Update existing user_applications records with port information if missing
     cursor.execute('SELECT id, user_id, application_id FROM user_applications WHERE http_port IS NULL OR https_port IS NULL')

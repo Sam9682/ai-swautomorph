@@ -183,39 +183,71 @@
     <div id="billingSection" class="tab-content" style="display: none;">
         <h2>{{ get_text('billing_management') }}</h2>
         
-        <!-- Admin Billing Controls -->
-        <div class="billing-controls">
-            <div class="period-selector">
-                <label>{{ get_text('period') }}:</label>
-                <select id="billingPeriod" onchange="loadBillingSummary()">
-                    <option value="day">{{ get_text('today') }}</option>
-                    <option value="week">{{ get_text('this_week') }}</option>
-                    <option value="month" selected>{{ get_text('this_month') }}</option>
-                </select>
+        <!-- Billing Submenu -->
+        <div class="billing-submenu" style="margin-bottom: 20px;">
+            <button class="btn btn-secondary" onclick="showBillingTab('overview')" id="billingOverviewBtn">Overview</button>
+            <button class="btn btn-secondary" onclick="showBillingTab('invoices')" id="billingInvoicesBtn">Invoices</button>
+            {% if username == 'admin' %}
+            <button class="btn btn-secondary" onclick="showBillingTab('costs')" id="billingCostsBtn">Manage Costs</button>
+            {% endif %}
+        </div>
+        
+        <!-- Billing Overview Tab -->
+        <div id="billingOverviewTab" class="billing-tab-content">
+            <!-- Admin Billing Controls -->
+            <div class="billing-controls">
+                <div class="period-selector">
+                    <label>{{ get_text('period') }}:</label>
+                    <select id="billingPeriod" onchange="loadBillingData()">
+                        <option value="day">{{ get_text('today') }}</option>
+                        <option value="week">{{ get_text('this_week') }}</option>
+                        <option value="month" selected>{{ get_text('this_month') }}</option>
+                    </select>
+                </div>
             </div>
-            <button class="btn btn-primary" onclick="showCostManagement()">{{ get_text('manage_costs') }}</button>
+            
+            <!-- Billing Summary -->
+            <div class="billing-summary">
+                <h3>{{ get_text('usage_summary') }}</h3>
+                <div id="billingSummaryContent">{{ get_text('loading') }}</div>
+            </div>
+            
+            <!-- Billing Activities -->
+            <div class="billing-activities">
+                <h3>{{ get_text('activity_log') }}</h3>
+                <div id="billingActivitiesContent">{{ get_text('loading') }}</div>
+            </div>
+        </div>
+        
+        <!-- Invoices Tab -->
+        <div id="billingInvoicesTab" class="billing-tab-content" style="display: none;">
+            <h3>Invoices</h3>
+            
+            <!-- Invoice Generation -->
+            <div class="invoice-generation" style="margin-bottom: 20px;">
+                <h4>Generate New Invoice</h4>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="invoiceMonthSelect">
+                        <option value="">Select Month</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="generateInvoice()">Generate Invoice</button>
+                </div>
+            </div>
+            
+            <!-- Invoices List -->
+            <div class="invoices-list">
+                <h4>Previous Invoices</h4>
+                <div id="invoicesContent">Loading invoices...</div>
+            </div>
         </div>
         
         {% if username == 'admin' %}
-        <!-- Cost Management Form -->
-        <div id="costManagementForm" class="cost-form" style="display: none;">
+        <!-- Cost Management Tab -->
+        <div id="billingCostsTab" class="billing-tab-content" style="display: none;">
             <h3>{{ get_text('application_costs') }}</h3>
             <div id="costsList"></div>
-            <button type="button" class="btn btn-secondary" onclick="hideCostManagement()">{{ get_text('close') }}</button>
         </div>
         {% endif %}
-        
-        <!-- Billing Summary -->
-        <div class="billing-summary">
-            <h3>{{ get_text('usage_summary') }}</h3>
-            <div id="billingSummaryContent">{{ get_text('loading') }}</div>
-        </div>
-        
-        <!-- Billing Activities -->
-        <div class="billing-activities">
-            <h3>{{ get_text('activity_log') }}</h3>
-            <div id="billingActivitiesContent">{{ get_text('loading') }}</div>
-        </div>
     </div>
     
     {% if username == 'admin' %}
@@ -534,7 +566,7 @@ function showTab(tab) {
         document.getElementById('appsSection').style.display = 'block';
     } else if (tab === 'billing') {
         document.getElementById('billingSection').style.display = 'block';
-        loadBillingData();
+        showBillingTab('overview'); // Show overview tab by default
     } else if (tab === 'users') {
         if (usersSection) {
             usersSection.style.display = 'block';
@@ -1951,6 +1983,46 @@ function loadBillingData() {
     loadBillingActivities();
 }
 
+function showBillingTab(tab) {
+    // Hide all billing tabs
+    document.getElementById('billingOverviewTab').style.display = 'none';
+    document.getElementById('billingInvoicesTab').style.display = 'none';
+    const costsTab = document.getElementById('billingCostsTab');
+    if (costsTab) costsTab.style.display = 'none';
+    
+    // Remove active class from all buttons
+    document.getElementById('billingOverviewBtn').classList.remove('btn-primary');
+    document.getElementById('billingOverviewBtn').classList.add('btn-secondary');
+    document.getElementById('billingInvoicesBtn').classList.remove('btn-primary');
+    document.getElementById('billingInvoicesBtn').classList.add('btn-secondary');
+    const costsBtn = document.getElementById('billingCostsBtn');
+    if (costsBtn) {
+        costsBtn.classList.remove('btn-primary');
+        costsBtn.classList.add('btn-secondary');
+    }
+    
+    // Show selected tab and activate button
+    if (tab === 'overview') {
+        document.getElementById('billingOverviewTab').style.display = 'block';
+        document.getElementById('billingOverviewBtn').classList.remove('btn-secondary');
+        document.getElementById('billingOverviewBtn').classList.add('btn-primary');
+        loadBillingData();
+    } else if (tab === 'invoices') {
+        document.getElementById('billingInvoicesTab').style.display = 'block';
+        document.getElementById('billingInvoicesBtn').classList.remove('btn-secondary');
+        document.getElementById('billingInvoicesBtn').classList.add('btn-primary');
+        loadInvoices();
+        loadAvailableMonths();
+    } else if (tab === 'costs' && costsTab) {
+        costsTab.style.display = 'block';
+        if (costsBtn) {
+            costsBtn.classList.remove('btn-secondary');
+            costsBtn.classList.add('btn-primary');
+        }
+        loadApplicationCosts();
+    }
+}
+
 function loadBillingSummary() {
     const period = document.getElementById('billingPeriod')?.value || 'month';
     fetch(`/api/billing/summary?period=${period}`)
@@ -2083,6 +2155,116 @@ function updateCost(appId) {
     .catch(error => {
         alert('Error updating cost.');
     });
+}
+
+// Invoice functions
+function loadInvoices() {
+    fetch('/api/billing/invoices')
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('invoicesContent');
+            if (data.length === 0) {
+                content.innerHTML = '<p>No invoices found.</p>';
+                return;
+            }
+            
+            let html = '<table class="billing-table"><thead><tr><th>Invoice #</th><th>Month</th><th>Amount</th><th>Status</th><th>Payment Date</th><th>Actions</th></tr></thead><tbody>';
+            
+            data.forEach(invoice => {
+                const paymentDate = invoice.payment_date ? new Date(invoice.payment_date).toLocaleDateString() : '-';
+                const statusClass = invoice.status === 'paid' ? 'status-paid' : 'status-unpaid';
+                
+                html += `<tr>
+                    <td>#${invoice.id}</td>
+                    <td>${invoice.invoice_month}</td>
+                    <td>$${parseFloat(invoice.total_amount).toFixed(2)}</td>
+                    <td><span class="${statusClass}">${invoice.status}</span></td>
+                    <td>${paymentDate}</td>
+                    <td>
+                        <button onclick="viewInvoicePDF(${invoice.id})" class="btn-small">View PDF</button>
+                        ${invoice.status === 'unpaid' ? `<button onclick="markAsPaid(${invoice.id})" class="btn-small btn-success">Mark Paid</button>` : ''}
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('invoicesContent').innerHTML = '<p>Error loading invoices.</p>';
+        });
+}
+
+function loadAvailableMonths() {
+    fetch('/api/billing/invoices/months')
+        .then(response => response.json())
+        .then(months => {
+            const select = document.getElementById('invoiceMonthSelect');
+            select.innerHTML = '<option value="">Select Month</option>';
+            
+            months.forEach(month => {
+                const option = document.createElement('option');
+                option.value = month;
+                option.textContent = new Date(month + '-01').toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading available months:', error);
+        });
+}
+
+function generateInvoice() {
+    const month = document.getElementById('invoiceMonthSelect').value;
+    if (!month) {
+        alert('Please select a month.');
+        return;
+    }
+    
+    fetch('/api/billing/invoices/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({month: month})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert(`Invoice generated successfully! Total: $${data.total_amount.toFixed(2)}`);
+            loadInvoices();
+            loadAvailableMonths();
+        }
+    })
+    .catch(error => {
+        alert('Error generating invoice.');
+    });
+}
+
+function viewInvoicePDF(invoiceId) {
+    window.open(`/api/billing/invoices/${invoiceId}/pdf`, '_blank');
+}
+
+function markAsPaid(invoiceId) {
+    if (confirm('Mark this invoice as paid?')) {
+        // This would need to be implemented in the backend
+        fetch(`/api/billing/invoices/${invoiceId}/pay`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert('Invoice marked as paid!');
+                loadInvoices();
+            }
+        })
+        .catch(error => {
+            alert('Error updating invoice status.');
+        });
+    }
 }
 
 // Database management functions
