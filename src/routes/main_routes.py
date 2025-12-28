@@ -98,8 +98,6 @@ def userguide():
     except Exception as e:
         return f"Error reading file: {str(e)}", 500
 
-
-
 @main_bp.route('/favicon.ico')
 def favicon():
     """Serve favicon.ico"""

@@ -2806,7 +2806,6 @@ function hideBriefLoadingIndicator() {
 }
 
 
-
 // Function to show results in waiting box
 function showResultInWaitingBox(results) {
     // Stop the progress timer
@@ -2824,8 +2823,10 @@ function showResultInWaitingBox(results) {
     const tipsDiv = document.querySelector('.loading-tips');
     if (tipsDiv) {
         tipsDiv.innerHTML = `
-            <h4 style="margin: 0 0 0.5rem 0; color: #155724; font-size: 1rem;">✅ Results</h4>
-            <p style="word-wrap: break-word; overflow-wrap: break-word; max-width: 100%; overflow: hidden;">${results}</p>
+            <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left; max-width: 100%; box-sizing: border-box;">
+                <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4; word-wrap: break-word;">💡 <strong>Tip:</strong> ✅ Results</p>
+                <div style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4; word-wrap: break-word; white-space: pre-wrap; max-height: 300px; overflow-y: auto; padding: 0.5rem; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">${results}</div>
+            </div>
         `;
     }
 }
@@ -2865,44 +2866,54 @@ function showLoadingMessage(action, appName, repoSize, startDuration, stopDurati
     loadingDiv.className = 'loading-message';
     loadingDiv.style.cssText = `
         background: white !important;
-        padding: 2rem !important;
-        border-radius: 12px !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2) !important;
-        max-width: 700px !important;
-        width: 90% !important;
+        padding: 1rem !important;
+        border-radius: 2px !important;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
+        width: 450px !important;
+        height: 600px !important;
+        overflow-y: auto !important;
         text-align: center !important;
         position: relative !important;
         z-index: 10001 !important;
+        box-sizing: border-box !important;
+        margin: 0.5rem !important;
     `;
+    
+    // Mobile-specific adjustments
+    if (window.innerWidth <= 768) {
+        loadingDiv.style.width = '320px';
+        loadingDiv.style.height = '400px';
+        loadingDiv.style.padding = '0.8rem';
+    }
     
     if (action === 'clone') {
         // Enhanced clone loading with progress and time estimation
         loadingDiv.innerHTML = `
             <div class="loading-spinner" style="width: 40px; height: 40px; border: 4px solid rgba(255, 255, 255, 0.3); border-top: 4px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem auto;"></div>
             <div class="loading-content">
-                <h3 style="margin: 0 0 1.5rem 0; color: #2c3e50; font-size: 1.4rem;">🔄 Cloning ${appName}</h3>
-                <div class="progress-container" style="margin: 1.5rem 0;">
-                    <div class="progress-bar" style="width: 100%; height: 8px; background: #ecf0f1; border-radius: 4px; overflow: hidden; margin-bottom: 0.5rem;">
-                        <div class="progress-fill" id="cloneProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 4px;"></div>
+                <h3 style="margin: 0 0 1rem 0; color: #2c3e50; font-size: 1.1rem; word-wrap: break-word;">🔄 Cloning ${appName}</h3>
+                <div class="progress-container" style="margin: 1rem 0;">
+                    <div class="progress-bar" style="width: 100%; height: 6px; background: #ecf0f1; border-radius: 3px; overflow: hidden; margin-bottom: 0.4rem;">
+                        <div class="progress-fill" id="cloneProgress" style="height: 100%; background: linear-gradient(90deg, #3498db, #2ecc71); width: 0%; transition: width 0.3s ease; border-radius: 3px;"></div>
                     </div>
-                    <div class="progress-text" id="progressText" style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 1rem;">Initializing clone...</div>
+                    <div class="progress-text" id="progressText" style="font-size: 0.75rem; color: #7f8c8d; margin-bottom: 0.8rem;">Initializing clone...</div>
                 </div>
-                <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: left;">
-                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📊 Estimated time:</span>
-                        <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600;">Calculating...</span>
+                <div class="time-estimation" id="timeEstimation" style="background: #f8f9fa; padding: 0.6rem; border-radius: 6px; margin: 0.6rem 0; text-align: left; word-wrap: break-word;">
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0.3rem; font-size: 0.7rem; word-wrap: break-word;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500; flex-shrink: 0; margin-right: 0.3rem;">📊 Time:</span>
+                        <span class="estimate-value" id="estimatedTime" style="color: #2c3e50; font-weight: 600; text-align: right;">Calculating...</span>
                     </div>
-                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.9rem;">
-                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500;">📦 Repository size:</span>
-                        <span class="estimate-value" id="repoSize" style="color: #2c3e50; font-weight: 600;">${formatRepoSize(repoSize || 50)}</span>
+                    <div class="estimate-item" style="display: flex; justify-content: space-between; margin-bottom: 0; font-size: 0.7rem; word-wrap: break-word;">
+                        <span class="estimate-label" style="color: #7f8c8d; font-weight: 500; flex-shrink: 0; margin-right: 0.3rem;">📦 Size:</span>
+                        <span class="estimate-value" id="repoSize" style="color: #2c3e50; font-weight: 600; text-align: right;">${formatRepoSize(repoSize || 50)}</span>
                     </div>
                 </div>
-                <div class="loading-tips" style="background: #e8f4fd; padding: 1rem; border-radius: 8px; margin-top: 1rem; text-align: left;">
-                    <p style="margin: 0 0 0.5rem 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">💡 <strong>Tip:</strong> Clone time depends on repository size and network speed</p>
-                    <p style="margin: 0; font-size: 0.85rem; color: #34495e; line-height: 1.4;">📋 Typical times: 30Mb for 1 sec</p>
+                <div class="loading-tips" style="background: #e8f4fd; padding: 0.6rem; border-radius: 6px; margin-top: 0.8rem; text-align: left; word-wrap: break-word; overflow-wrap: break-word;">
+                    <p style="margin: 0 0 0.3rem 0; font-size: 0.7rem; color: #34495e; line-height: 1.2; word-wrap: break-word;">💡 Clone time varies by size</p>
+                    <p style="margin: 0; font-size: 0.7rem; color: #34495e; line-height: 1.2; word-wrap: break-word;">📋 ~30MB takes 1 sec</p>
                 </div>
-                <div class="loading-actions" style="margin-top: 1.5rem; text-align: center;">
-                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.5rem 1rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">Close</button>
+                <div class="loading-actions" style="margin-top: 0.8rem; text-align: center;">
+                    <button onclick="hideLoadingMessage()" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">Close</button>
                 </div>
             </div>
         `;
