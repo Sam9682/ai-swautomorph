@@ -221,10 +221,10 @@ def record_billing_activity(user_id, application_name, action):
             ''', (user_id, application_id, action))
             
             if result is not None:
-                logger.info(f"record_billing_activity(): Successfully recorded start activity for {application_name}")
+                logger.info(f"record_billing_activity(): Successfully recorded START activity for {application_name}")
                 return True
             else:
-                logger.error(f"record_billing_activity(): Failed to record start activity for {application_name}")
+                logger.error(f"record_billing_activity(): Failed to record START activity for {application_name}")
                 return False
         
         elif action.upper()  == 'STOP':
@@ -237,7 +237,7 @@ def record_billing_activity(user_id, application_name, action):
             
             if start_activity:
                 start_id, started_at = start_activity
-                logger.debug(f"record_billing_activity(): Found matching start activity: {start_id}")
+                logger.debug(f"record_billing_activity(): Found matching START activity: {start_id}")
                 
                 # Calculate duration and cost
                 start_time = datetime.fromisoformat(started_at)
