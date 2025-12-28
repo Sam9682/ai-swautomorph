@@ -231,7 +231,7 @@ def record_billing_activity(user_id, application_name, action):
             # Find the most recent start activity for this user and app
             start_activity = db_manager.execute_query('''
                 SELECT id, started_at FROM billing_activities
-                WHERE user_id = ? AND application_id = ? AND action = 'start' AND stopped_at IS NULL
+                WHERE user_id = ? AND application_id = ? AND (action = 'start' OR action = 'START') AND stopped_at IS NULL
                 ORDER BY created_at DESC LIMIT 1
             ''', (user_id, application_id), fetch_one=True)
             
