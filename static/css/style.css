@@ -1688,7 +1688,7 @@ body {
     font-weight: bold;
 }
 
-.action-start {
+.action-start, .action-START {
     background-color: #27ae60;
     color: white;
     padding: 0.25rem 0.5rem;
@@ -1697,7 +1697,7 @@ body {
     font-weight: bold;
 }
 
-.action-stop {
+.action-stop, .action-STOP {
     background-color: #e74c3c;
     color: white;
     padding: 0.25rem 0.5rem;

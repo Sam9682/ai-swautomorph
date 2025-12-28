@@ -768,12 +768,12 @@ def _handle_app_action(user_id, app_name, action, data):
             (status, session['user_id'], app_name)
         )
         
-        if action.upper() in ['start', 'stop'] and result.returncode == 0:
+        if action.upper() in ['START', 'STOP'] and result.returncode == 0:
             from .billing_routes import record_billing_activity
             record_billing_activity(session['user_id'], app_name, action)
         
         return jsonify({
-            'message': f'{action.capitalize()} completed for {app_name}',
+            'message': f'{action.upper()} completed for {app_name}',
             'status': status,
             'logs': command_output
         }), 200

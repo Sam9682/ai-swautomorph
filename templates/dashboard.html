@@ -1989,7 +1989,8 @@ function loadBillingSummary() {
 }
 
 function loadBillingActivities() {
-    fetch('/api/billing/activities')
+    const period = document.getElementById('billingPeriod')?.value || 'month';
+    fetch(`/api/billing/activities?period=${period}`)
         .then(response => response.json())
         .then(data => {
             const content = document.getElementById('billingActivitiesContent');
