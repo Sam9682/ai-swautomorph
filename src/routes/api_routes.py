@@ -738,12 +738,12 @@ def _handle_app_action(user_id, app_name, action, data):
                         if clean_line:
                             yield f"data: {json.dumps({'chunk': clean_line})}\n\n"
                 process.wait()
-                status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+                status = 'running' if action.upper() == 'START' else 'STOPPED' if action.upper() == 'STOP' else 'COMPLETED'
                 db_manager.execute_query(
                     'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
                     (status, user_id, app_name)
                 )
-                if action in ['start', 'stop'] and process.returncode == 0:
+                if action.upper() in ['START', 'STOP'] and process.returncode == 0:
                     from .billing_routes import record_billing_activity
                     record_billing_activity(user_id, app_name, action)
                 yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0})}\n\n"
@@ -762,13 +762,13 @@ def _handle_app_action(user_id, app_name, action, data):
             output_parts.append(f"STDERR:\n{result.stderr}")
         command_output = "\n\n".join(output_parts) if output_parts else "No output"
         
-        status = 'running' if action == 'start' else 'stopped' if action == 'stop' else 'completed'
+        status = 'RUNNING' if action.upper() == 'START' else 'STOPPED' if action.upper() == 'STOP' else 'COMPLETED'
         db_manager.execute_query(
             'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
             (status, session['user_id'], app_name)
         )
         
-        if action in ['start', 'stop'] and result.returncode == 0:
+        if action.upper() in ['start', 'stop'] and result.returncode == 0:
             from .billing_routes import record_billing_activity
             record_billing_activity(session['user_id'], app_name, action)
         
@@ -835,7 +835,7 @@ def api_deployments():
         try:
             if action == 'clone':
                 return _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path, data)
-            elif action in ['start', 'stop', 'restart', 'ps', 'logs']:
+            elif action.upper() in ['START', 'STOP', 'RESTART', 'PS', 'LOGS']:
                 return _handle_app_action(user_id, app_name, action, data)
             else:
                 return jsonify({'error': f'Unknown action: {action}'}), 400
@@ -1192,7 +1192,7 @@ User Question: {message}. Provide a helpful and informative response."""
                 process.returncode = -1
             
             # Record billing activity for START and STOP actions if successful
-            if (detected_action == 'START' or detected_action == 'STOP') and process.returncode == 0 and application_name:
+            if (detected_action.upper() == 'START' or detected_action.upper() == 'STOP') and process.returncode == 0 and application_name:
                 try:
                     from .billing_routes import record_billing_activity
                     record_billing_activity(session['user_id'], application_name, detected_action)

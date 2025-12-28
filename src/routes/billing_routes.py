@@ -21,9 +21,11 @@ billing_bp = Blueprint('billing', __name__)
 
 @billing_bp.route('/api/billing/activities')
 def get_billing_activities():
-    """Get billing activities based on user role"""
+    """Get billing activities based on user role and period"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
+    
+    period = request.args.get('period', 'month')  # day, week, month
     
     # Check if user is admin
     user = db_manager.execute_query(
@@ -32,27 +34,38 @@ def get_billing_activities():
     )
     is_admin = user and user[0] == 'admin'
     
+    # Calculate date range
+    now = datetime.now()
+    if period == 'day':
+        start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == 'week':
+        start_date = now - timedelta(days=now.weekday())
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:  # month
+        start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    
     if is_admin:
-        # Admin sees all activities
+        # Admin sees all activities for the period
         activities = db_manager.execute_query('''
             SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
             JOIN applications a ON ba.application_id = a.id
+            WHERE ba.created_at >= ?
             ORDER BY ba.created_at DESC
-        ''', fetch_all=True)
+        ''', (start_date.isoformat(),), fetch_all=True)
     else:
-        # Regular user sees only their activities
+        # Regular user sees only their activities for the period
         activities = db_manager.execute_query('''
             SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ?
+            WHERE ba.user_id = ? AND ba.created_at >= ?
             ORDER BY ba.created_at DESC
-        ''', (session['user_id'],), fetch_all=True)
+        ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
     
     return jsonify([{
         'id': row[0],
