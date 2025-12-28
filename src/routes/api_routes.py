@@ -481,7 +481,8 @@ def api_database_table(table_name):
     # Validate table name to prevent SQL injection
     allowed_tables = [
         'users', 'applications', 'auth_tokens', 'user_applications', 
-        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs'
+        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs',
+        'payment_modes', 'invoicing'
     ]
     
     if table_name not in allowed_tables:
@@ -717,7 +718,8 @@ def api_database_record(table_name, record_id):
     # Validate table name
     allowed_tables = [
         'users', 'applications', 'auth_tokens', 'user_applications', 
-        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs'
+        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs',
+        'payment_modes', 'invoicing'
     ]
     
     if table_name not in allowed_tables:

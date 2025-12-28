@@ -369,6 +369,8 @@
                 <option value="application_costs">{{ get_text('application_costs') }}</option>
                 <option value="billing_activities">{{ get_text('billing_activities') }}</option>
                 <option value="users_logs">{{ get_text('users_logs') }}</option>
+                <option value="payment_modes">Payment Modes</option>
+                <option value="invoicing">Invoicing</option>
             </select>
             <button class="btn btn-primary" onclick="refreshTable()">{{ get_text('refresh') }}</button>
             <button class="btn btn-secondary" onclick="showAddRecordForm()">{{ get_text('add_record') }}</button>
@@ -1673,6 +1675,11 @@ function sendUnifiedMessageWithText(message) {
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
                         }
+                        // Refresh action dropdown based on current application status
+                        const selectedApp = document.getElementById('unifiedAppSelect').value;
+                        if (selectedApp) {
+                            checkApplicationStatusForActions(selectedApp);
+                        }
                         return;
                     }
                     
@@ -1766,6 +1773,11 @@ function sendUnifiedMessageWithText(message) {
                         if (sendBtn) {
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
+                        }
+                        // Refresh action dropdown based on current application status
+                        const selectedApp = document.getElementById('unifiedAppSelect').value;
+                        if (selectedApp) {
+                            checkApplicationStatusForActions(selectedApp);
                         }
                         return;
                     }
