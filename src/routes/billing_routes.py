@@ -1,9 +1,21 @@
 """Billing management routes"""
 from flask import Blueprint, request, jsonify, session
 import sqlite3
+import logging
+import os
 from datetime import datetime, timedelta
-from ..config import DB_PATH
+from ..config import DB_PATH, get_logs_dir
 from ..database import db_manager
+
+# Configure logging for billing activities
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(get_logs_dir(), 'billing_activities.log')),
+        logging.StreamHandler()
+    ]
+)
 
 billing_bp = Blueprint('billing', __name__)
 
@@ -184,58 +196,95 @@ def update_application_cost(app_id):
 
 def record_billing_activity(user_id, application_name, action):
     """Record billing activity for application start/stop"""
-    # Get application ID
-    app_result = db_manager.execute_query(
-        'SELECT id FROM applications WHERE name = ?', 
-        (application_name,), fetch_one=True
-    )
-    if not app_result:
-        return
+    logger = logging.getLogger('billing_activities')
     
-    application_id = app_result[0]
-    
-    if action == 'start':
-        # Record start activity
-        db_manager.execute_query('''
-            INSERT INTO billing_activities (user_id, application_id, action, started_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (user_id, application_id, action))
-    
-    elif action == 'stop':
-        # Find the most recent start activity for this user and app
-        start_activity = db_manager.execute_query('''
-            SELECT id, started_at FROM billing_activities
-            WHERE user_id = ? AND application_id = ? AND action = 'start' AND stopped_at IS NULL
-            ORDER BY created_at DESC LIMIT 1
-        ''', (user_id, application_id), fetch_one=True)
+    try:
+        logger.info(f"Recording billing activity: user_id={user_id}, app={application_name}, action={action}")
         
-        if start_activity:
-            start_id, started_at = start_activity
-            
-            # Calculate duration and cost
-            start_time = datetime.fromisoformat(started_at)
-            stop_time = datetime.now()
-            duration_seconds = int((stop_time - start_time).total_seconds())
-            
-            # Get cost per day for this application
-            cost_result = db_manager.execute_query(
-                'SELECT cost_per_day FROM application_costs WHERE application_id = ?', 
-                (application_id,), fetch_one=True
-            )
-            cost_per_day = cost_result[0] if cost_result else 1.0
-            
-            # Calculate cost (cost per day / 86400 seconds * duration)
-            cost_amount = (cost_per_day / 86400) * duration_seconds
-            
-            # Update the start activity with stop information
-            db_manager.execute_query('''
-                UPDATE billing_activities 
-                SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = ?, cost_amount = ?
-                WHERE id = ?
-            ''', (duration_seconds, cost_amount, start_id))
+        # Get application ID
+        app_result = db_manager.execute_query(
+            'SELECT id FROM applications WHERE name = ?', 
+            (application_name,), fetch_one=True
+        )
+        if not app_result:
+            logger.error(f"record_billing_activity(): Application not found: {application_name}")
+            return False
         
-        # Also record the stop activity
-        db_manager.execute_query('''
-            INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        ''', (user_id, application_id, action))
+        application_id = app_result[0]
+        logger.debug(f"record_billing_activity(): Found application_id: {application_id}")
+        
+        if action.upper() == 'START':
+            # Record start activity
+            result = db_manager.execute_query('''
+                INSERT INTO billing_activities (user_id, application_id, action, started_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (user_id, application_id, action))
+            
+            if result is not None:
+                logger.info(f"record_billing_activity(): Successfully recorded start activity for {application_name}")
+                return True
+            else:
+                logger.error(f"record_billing_activity(): Failed to record start activity for {application_name}")
+                return False
+        
+        elif action.upper()  == 'STOP':
+            # Find the most recent start activity for this user and app
+            start_activity = db_manager.execute_query('''
+                SELECT id, started_at FROM billing_activities
+                WHERE user_id = ? AND application_id = ? AND action = 'start' AND stopped_at IS NULL
+                ORDER BY created_at DESC LIMIT 1
+            ''', (user_id, application_id), fetch_one=True)
+            
+            if start_activity:
+                start_id, started_at = start_activity
+                logger.debug(f"record_billing_activity(): Found matching start activity: {start_id}")
+                
+                # Calculate duration and cost
+                start_time = datetime.fromisoformat(started_at)
+                stop_time = datetime.now()
+                duration_seconds = int((stop_time - start_time).total_seconds())
+                
+                # Get cost per day for this application
+                cost_result = db_manager.execute_query(
+                    'SELECT cost_per_day FROM application_costs WHERE application_id = ?', 
+                    (application_id,), fetch_one=True
+                )
+                cost_per_day = cost_result[0] if cost_result else 1.0
+                
+                # Calculate cost (cost per day / 86400 seconds * duration)
+                cost_amount = (cost_per_day / 86400) * duration_seconds
+                
+                logger.info(f"Calculated billing: duration={duration_seconds}s, cost=${cost_amount:.4f}")
+                
+                # Update the start activity with stop information
+                update_result = db_manager.execute_query('''
+                    UPDATE billing_activities 
+                    SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = ?, cost_amount = ?
+                    WHERE id = ?
+                ''', (duration_seconds, cost_amount, start_id))
+                
+                if update_result is None:
+                    logger.error(f"record_billing_activity(): Failed to update START activity {start_id} with STOP information")
+            else:
+                logger.warning(f"record_billing_activity(): No matching START activity found for STOP action: {application_name}")
+            
+            # Also record the stop activity
+            result = db_manager.execute_query('''
+                INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (user_id, application_id, action))
+            
+            if result is not None:
+                logger.info(f"record_billing_activity(): Successfully recorded STOP activity for {application_name}")
+                return True
+            else:
+                logger.error(f"record_billing_activity(): Failed to record STOP activity for {application_name}")
+                return False
+        
+        else:
+            logger.warning(f"record_billing_activity(): Unknown action: {action}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"record_billing_activity(): Error recording billing activity: {str(e)}")
+        return False
