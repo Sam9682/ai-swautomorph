@@ -836,13 +836,16 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         status = 'cloned'
         
         # Copy SSL certificates after successful clone
+        ssl_env = os.environ.copy()
+        ssl_env['USER'] = 'ubuntu'
+        
         if is_local_server:
-            ssl_command = f"mkdir -p {deployment_path}/ssl && if [[ -f {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt && -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key {deployment_path}/ssl/privkey.pem; elif command -v certbot &> /dev/null; then sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R $USER:$USER {deployment_path}/ssl/; fi"
+            ssl_command = f"mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi"
         else:
-            ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [[ -f {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt && -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key {deployment_path}/ssl/privkey.pem; elif command -v certbot &> /dev/null; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R $USER:$USER {deployment_path}/ssl/; fi'"
+            ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi'"
 
-        subprocess.run(ssl_command, shell=True, capture_output=True, text=True)
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - {ssl_command}")
+        ssl_result = subprocess.run(ssl_command, shell=True, capture_output=True, text=True, env=ssl_env)
+        log_with_timestamp(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
         
         # Record deployment
         existing_record = db_manager.execute_query(
