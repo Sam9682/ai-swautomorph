@@ -2550,7 +2550,7 @@ function viewInvoicePDF(invoiceId) {
 
 function payInvoice(invoiceId, amount) {
     // Redirect to PayPal with the invoice amount
-    const paypalUrl = `https://paypal.me/swautomorph?country.x=FR&locale.x=fr_FR/${amount}`;
+    const paypalUrl = `https://www.paypal.com/paypal.me/swautomorph/${amount}?country.x=FR&locale.x=fr_FR`;
     window.open(paypalUrl, '_blank');
 }
 
