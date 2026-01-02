@@ -11,6 +11,7 @@ from .routes.sso_routes import sso_bp
 from .routes.api_routes import api_bp
 from .routes.genai_routes import genai_bp
 from .routes.billing_routes import billing_bp
+from .routes.orchestrator_routes import orchestrator_bp
 
 # Redirect all print() statements to log files
 class PrintLogger:
@@ -42,6 +43,12 @@ def create_app():
     # Configure CORS
     CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
     
+    # Initialize database and orchestrator
+    with app.app_context():
+        init_db()
+        from .orchestrator import orchestrator
+        orchestrator.start_reconciliation_loop()
+    
     # Language support
     def get_language():
         return session.get('language', 'fr')
@@ -66,5 +73,6 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(genai_bp)
     app.register_blueprint(billing_bp)
+    app.register_blueprint(orchestrator_bp)
     
     return app

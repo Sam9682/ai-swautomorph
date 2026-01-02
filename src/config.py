@@ -13,7 +13,7 @@ FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
 
 # CORS configuration
 CORS_ORIGINS = [
-    'https://ai-haccp.swautomorph.com:8102', 
+    'https://wwww.swautomorph.com', 
     'https://ai-haccp.swautomorph.com'
 ]
 

@@ -365,9 +365,76 @@
     </div>
     {% endif %}
     
-    <!-- Database Section -->
+    <!-- Light Orchestrator Section -->
     {% if username == 'admin' %}
-    <div id="databaseSection" class="tab-content" style="display: none;">
+    <div id="orchestratorSection" class="tab-content" style="display: none;">
+        <div class="section-header">
+            <h2>🎯 Light Orchestrator</h2>
+            <button class="btn btn-primary" onclick="showCreateServiceForm()">Create Service</button>
+        </div>
+        
+        <!-- Orchestrator Status -->
+        <div class="orchestrator-status" style="margin-bottom: 20px;">
+            <div id="orchestratorStatusContent">Loading orchestrator status...</div>
+        </div>
+        
+        <!-- Services List -->
+        <div class="services-section">
+            <h3>Services</h3>
+            <div id="servicesGrid" class="services-grid">
+                <div class="loading">Loading services...</div>
+            </div>
+        </div>
+        
+        <!-- Create Service Form -->
+        <div id="createServiceForm" class="service-form" style="display: none;">
+            <h3>Create New Service</h3>
+            <form id="newServiceForm">
+                <div class="form-group">
+                    <label for="serviceName">Service Name:</label>
+                    <input type="text" id="serviceName" required placeholder="my-app">
+                </div>
+                <div class="form-group">
+                    <label for="serviceImage">Docker Image:</label>
+                    <input type="text" id="serviceImage" required placeholder="nginx:latest">
+                </div>
+                <div class="form-group">
+                    <label for="serviceReplicas">Desired Replicas:</label>
+                    <input type="number" id="serviceReplicas" min="0" max="10" value="1">
+                </div>
+                <div class="form-group">
+                    <label for="servicePorts">Port Mappings (JSON):</label>
+                    <textarea id="servicePorts" placeholder='{"80": "8080", "443": "8443"}' rows="2"></textarea>
+                    <small>Format: {"container_port": "host_port"}</small>
+                </div>
+                <div class="form-group">
+                    <label for="serviceEnvironment">Environment Variables (JSON):</label>
+                    <textarea id="serviceEnvironment" placeholder='{"ENV_VAR": "value"}' rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="serviceVolumes">Volumes (JSON Array):</label>
+                    <textarea id="serviceVolumes" placeholder='["/host/path:/container/path"]' rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="serviceHealthCheck">Health Check Path:</label>
+                    <input type="text" id="serviceHealthCheck" value="/health" placeholder="/health">
+                </div>
+                <button type="submit" class="btn btn-primary">Create Service</button>
+                <button type="button" class="btn btn-secondary" onclick="hideCreateServiceForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <!-- Nginx Configuration -->
+        <div class="nginx-section" style="margin-top: 30px;">
+            <h3>Nginx Configuration</h3>
+            <div class="nginx-controls" style="margin-bottom: 15px;">
+                <button class="btn btn-secondary" onclick="generateNginxConfig()">Generate Config</button>
+                <button class="btn btn-primary" onclick="reloadNginx()">Reload Nginx</button>
+            </div>
+            <div id="nginxConfigContent" style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto;">Click "Generate Config" to view Nginx upstream configuration</div>
+        </div>
+    </div>
+    {% endif %}
         <h2>{{ get_text('database_management') }}</h2>
         
         <div class="database-controls">
@@ -564,6 +631,9 @@ function showTab(tab) {
     const serversSection = document.getElementById('serversSection');
     if (serversSection) serversSection.style.display = 'none';
     
+    const orchestratorSection = document.getElementById('orchestratorSection');
+    if (orchestratorSection) orchestratorSection.style.display = 'none';
+    
     const databaseSection = document.getElementById('databaseSection');
     if (databaseSection) databaseSection.style.display = 'none';
     
@@ -593,6 +663,12 @@ function showTab(tab) {
             serversSection.style.display = 'block';
             loadServers();
         }
+    } else if (tab === 'orchestrator') {
+        if (orchestratorSection) {
+            orchestratorSection.style.display = 'block';
+            loadOrchestratorStatus();
+            loadServices();
+        }
     } else if (tab === 'database') {
         if (databaseSection) {
             databaseSection.style.display = 'block';
@@ -608,7 +684,7 @@ function showTab(tab) {
     
     // Only close dropdowns if we're actually switching tabs within the dashboard
     // Don't close dropdowns for Help menu navigation since those are external links
-    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'servers' || tab === 'database') {
+    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'servers' || tab === 'orchestrator' || tab === 'database') {
         const configDropdown = document.getElementById('navConfigDropdown');
         const helpDropdown = document.getElementById('navHelpDropdown');
         if (configDropdown) configDropdown.style.display = 'none';
@@ -3416,5 +3492,270 @@ window.onclick = function(event) {
         actionModal.style.display = 'none';
     }
 }
+
+// Light Orchestrator functions
+function loadOrchestratorStatus() {
+    fetch('/api/orchestrator/status')
+        .then(response => response.json())
+        .then(data => {
+            const content = document.getElementById('orchestratorStatusContent');
+            let html = `
+                <div class="status-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Services</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #3498db;">${data.total_services}</div>
+                    </div>
+                    <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Running Instances</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #27ae60;">${data.instance_stats.running || 0}</div>
+                    </div>
+                    <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Healthy Instances</h4>
+                        <div style="font-size: 24px; font-weight: bold; color: #2ecc71;">${data.health_stats.healthy || 0}</div>
+                    </div>
+                    <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                        <h4 style="margin: 0 0 10px 0; color: #2c3e50;">Reconciliation</h4>
+                        <div style="font-size: 16px; font-weight: bold; color: ${data.reconciliation_running ? '#27ae60' : '#e74c3c'};">${data.reconciliation_running ? 'Running' : 'Stopped'}</div>
+                    </div>
+                </div>
+            `;
+            
+            if (data.server_stats && data.server_stats.length > 0) {
+                html += '<h4 style="margin: 20px 0 10px 0;">Server Utilization</h4>';
+                html += '<div class="server-utilization" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;">';
+                data.server_stats.forEach(server => {
+                    const utilizationColor = server.utilization > 80 ? '#e74c3c' : server.utilization > 60 ? '#f39c12' : '#27ae60';
+                    html += `
+                        <div class="server-card" style="background: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 4px solid ${utilizationColor};">
+                            <div style="font-weight: bold;">${server.name}</div>
+                            <div style="font-size: 12px; color: #7f8c8d;">${server.current_instances}/${server.capacity} instances (${server.utilization}%)</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            content.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('orchestratorStatusContent').innerHTML = '<p>Error loading orchestrator status.</p>';
+        });
+}
+
+function loadServices() {
+    fetch('/api/orchestrator/services')
+        .then(response => response.json())
+        .then(services => {
+            const grid = document.getElementById('servicesGrid');
+            if (services.length === 0) {
+                grid.innerHTML = '<p>No services found.</p>';
+                return;
+            }
+            
+            let html = '';
+            services.forEach(service => {
+                const runningInstances = service.instances.filter(i => i.status === 'running').length;
+                const healthyInstances = service.instances.filter(i => i.health_status === 'healthy').length;
+                
+                html += `
+                    <div class="service-card" style="background: white; border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+                        <div class="service-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="margin: 0; color: #2c3e50;">${service.name}</h4>
+                            <div class="service-actions">
+                                <button onclick="scaleService('${service.name}', ${service.desired_replicas + 1})" class="btn-small" title="Scale Up">+</button>
+                                <button onclick="scaleService('${service.name}', ${Math.max(0, service.desired_replicas - 1)})" class="btn-small" title="Scale Down">-</button>
+                                <button onclick="deleteService('${service.name}')" class="btn-small btn-danger" title="Delete">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="service-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 15px;">
+                            <div><strong>Image:</strong> ${service.image}</div>
+                            <div><strong>Desired:</strong> ${service.desired_replicas}</div>
+                            <div><strong>Running:</strong> <span style="color: ${runningInstances === service.desired_replicas ? '#27ae60' : '#e74c3c'};">${runningInstances}</span></div>
+                            <div><strong>Healthy:</strong> <span style="color: ${healthyInstances === runningInstances ? '#27ae60' : '#f39c12'};">${healthyInstances}</span></div>
+                        </div>
+                `;
+                
+                if (service.instances.length > 0) {
+                    html += '<div class="instances-list" style="margin-top: 10px;">';
+                    html += '<h5 style="margin: 0 0 10px 0; color: #7f8c8d;">Instances:</h5>';
+                    html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px;">';
+                    
+                    service.instances.forEach(instance => {
+                        const statusColor = instance.status === 'running' ? '#27ae60' : instance.status === 'failed' ? '#e74c3c' : '#f39c12';
+                        const healthColor = instance.health_status === 'healthy' ? '#27ae60' : instance.health_status === 'unhealthy' ? '#e74c3c' : '#95a5a6';
+                        
+                        html += `
+                            <div class="instance-card" style="background: #f8f9fa; padding: 8px; border-radius: 4px; font-size: 12px;">
+                                <div style="font-weight: bold;">${instance.instance_id}</div>
+                                <div>Server: ${instance.server_name}</div>
+                                <div>Port: ${instance.port}</div>
+                                <div>Status: <span style="color: ${statusColor};">${instance.status}</span></div>
+                                <div>Health: <span style="color: ${healthColor};">${instance.health_status}</span></div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div></div>';
+                }
+                
+                html += '</div>';
+            });
+            
+            grid.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('servicesGrid').innerHTML = '<p>Error loading services.</p>';
+        });
+}
+
+function showCreateServiceForm() {
+    document.getElementById('createServiceForm').style.display = 'block';
+}
+
+function hideCreateServiceForm() {
+    document.getElementById('createServiceForm').style.display = 'none';
+    document.getElementById('newServiceForm').reset();
+}
+
+function scaleService(serviceName, replicas) {
+    if (replicas < 0) return;
+    
+    fetch(`/api/orchestrator/services/${serviceName}/scale`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({replicas: replicas})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            loadServices();
+            loadOrchestratorStatus();
+        }
+    })
+    .catch(error => {
+        alert('Error scaling service.');
+    });
+}
+
+function deleteService(serviceName) {
+    if (confirm(`Are you sure you want to delete service "${serviceName}"? This will stop all instances.`)) {
+        fetch(`/api/orchestrator/services/${serviceName}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                loadServices();
+                loadOrchestratorStatus();
+            }
+        })
+        .catch(error => {
+            alert('Error deleting service.');
+        });
+    }
+}
+
+function generateNginxConfig() {
+    fetch('/api/orchestrator/nginx/config')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('nginxConfigContent').textContent = data.config || 'No configuration generated';
+        })
+        .catch(error => {
+            document.getElementById('nginxConfigContent').textContent = 'Error generating configuration';
+        });
+}
+
+function reloadNginx() {
+    fetch('/api/orchestrator/nginx/reload', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            alert('Nginx reloaded successfully');
+        }
+    })
+    .catch(error => {
+        alert('Error reloading Nginx');
+    });
+}
+
+// Create service form handler
+document.addEventListener('DOMContentLoaded', function() {
+    const newServiceForm = document.getElementById('newServiceForm');
+    if (newServiceForm) {
+        newServiceForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('serviceName').value,
+                image: document.getElementById('serviceImage').value,
+                desired_replicas: parseInt(document.getElementById('serviceReplicas').value) || 1
+            };
+            
+            // Parse JSON fields
+            const portsText = document.getElementById('servicePorts').value.trim();
+            if (portsText) {
+                try {
+                    formData.ports = JSON.parse(portsText);
+                } catch (e) {
+                    alert('Invalid JSON format for ports');
+                    return;
+                }
+            }
+            
+            const envText = document.getElementById('serviceEnvironment').value.trim();
+            if (envText) {
+                try {
+                    formData.environment = JSON.parse(envText);
+                } catch (e) {
+                    alert('Invalid JSON format for environment variables');
+                    return;
+                }
+            }
+            
+            const volumesText = document.getElementById('serviceVolumes').value.trim();
+            if (volumesText) {
+                try {
+                    formData.volumes = JSON.parse(volumesText);
+                } catch (e) {
+                    alert('Invalid JSON format for volumes');
+                    return;
+                }
+            }
+            
+            const healthCheck = document.getElementById('serviceHealthCheck').value.trim();
+            if (healthCheck) {
+                formData.health_check_path = healthCheck;
+            }
+            
+            fetch('/api/orchestrator/services', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                } else {
+                    hideCreateServiceForm();
+                    loadServices();
+                    loadOrchestratorStatus();
+                }
+            })
+            .catch(error => {
+                alert('Error creating service.');
+            });
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -62,6 +62,7 @@
                             <div class="nav-dropdown-content" id="navConfigDropdown">
                                 <a href="javascript:void(0)" onclick="showTab('users')">{{ get_text('user_management') }}</a>
                                 <a href="javascript:void(0)" onclick="showTab('servers')">{{ get_text('server_management') }}</a>
+                                <a href="javascript:void(0)" onclick="showTab('orchestrator')">🎯 Light Orchestrator</a>
                                 <a href="javascript:void(0)" onclick="showTab('database')">{{ get_text('database_management') }}</a>
                             </div>
                         </div>
@@ -106,6 +107,7 @@
                     {% if username == 'admin' %}
                     <a href="javascript:void(0)" onclick="showTab('users')">{{ get_text('user_management') }}</a>
                     <a href="javascript:void(0)" onclick="showTab('servers')">{{ get_text('server_management') }}</a>
+                    <a href="javascript:void(0)" onclick="showTab('orchestrator')">🎯 Light Orchestrator</a>
                     <a href="javascript:void(0)" onclick="showTab('database')">{{ get_text('database_management') }}</a>
                     {% endif %}
                     <a href="{{ url_for('main.view_doc', filename='ARCHITECTURE_GUIDE.md') }}">Architecture Guide</a>

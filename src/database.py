@@ -380,6 +380,10 @@ def init_db():
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (current_ip, 'main-server', 10, 50, 'STAND_BY', 'primary'))
         
+        # Initialize orchestrator tables
+        from .orchestrator import orchestrator
+        orchestrator.init_orchestrator_tables()
+        
         # Create default admin user if none exists
         cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
         if cursor.fetchone()[0] == 0:
