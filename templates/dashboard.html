@@ -204,6 +204,14 @@
                         <option value="month" selected>{{ get_text('this_month') }}</option>
                     </select>
                 </div>
+                {% if username == 'admin' %}
+                <div class="user-selector">
+                    <label>User:</label>
+                    <select id="billingUser" onchange="loadBillingData()">
+                        <option value="">All Users</option>
+                    </select>
+                </div>
+                {% endif %}
             </div>
             
             <!-- Billing Summary -->
@@ -223,16 +231,21 @@
         <div id="billingInvoicesTab" class="billing-tab-content" style="display: none;">
             <h3>Invoices</h3>
             
+            {% if username == 'admin' %}
             <!-- Invoice Generation -->
             <div class="invoice-generation" style="margin-bottom: 20px;">
                 <h4>Generate New Invoice</h4>
-                <div style="display: flex; gap: 10px; align-items: center;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <select id="invoiceUserSelect">
+                        <option value="">Select User</option>
+                    </select>
                     <select id="invoiceMonthSelect">
                         <option value="">Select Month</option>
                     </select>
                     <button class="btn btn-primary" onclick="generateInvoice()">Generate Invoice</button>
                 </div>
             </div>
+            {% endif %}
             
             <!-- Invoices List -->
             <div class="invoices-list">
@@ -2048,12 +2061,14 @@ function showBillingTab(tab) {
         document.getElementById('billingOverviewTab').style.display = 'block';
         document.getElementById('billingOverviewBtn').classList.remove('btn-secondary');
         document.getElementById('billingOverviewBtn').classList.add('btn-primary');
+        loadBillingUsers();
         loadBillingData();
     } else if (tab === 'invoices') {
         document.getElementById('billingInvoicesTab').style.display = 'block';
         document.getElementById('billingInvoicesBtn').classList.remove('btn-secondary');
         document.getElementById('billingInvoicesBtn').classList.add('btn-primary');
         loadInvoices();
+        loadInvoiceUsers();
         loadAvailableMonths();
     } else if (tab === 'costs' && costsTab) {
         costsTab.style.display = 'block';
@@ -2065,9 +2080,56 @@ function showBillingTab(tab) {
     }
 }
 
+function loadBillingUsers() {
+    const userSelect = document.getElementById('billingUser');
+    if (!userSelect) return;
+    
+    fetch('/api/billing/users')
+        .then(response => response.json())
+        .then(users => {
+            userSelect.innerHTML = '<option value="">All Users</option>';
+            users.forEach(username => {
+                const option = document.createElement('option');
+                option.value = username;
+                option.textContent = username;
+                userSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading billing users:', error);
+        });
+}
+
+function loadInvoiceUsers() {
+    const userSelect = document.getElementById('invoiceUserSelect');
+    if (!userSelect) return;
+    
+    fetch('/api/billing/users')
+        .then(response => response.json())
+        .then(users => {
+            userSelect.innerHTML = '<option value="">Select User</option>';
+            users.forEach(username => {
+                const option = document.createElement('option');
+                option.value = username;
+                option.textContent = username;
+                userSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading invoice users:', error);
+        });
+}
+
 function loadBillingSummary() {
     const period = document.getElementById('billingPeriod')?.value || 'month';
-    fetch(`/api/billing/summary?period=${period}`)
+    const user = document.getElementById('billingUser')?.value || '';
+    
+    let url = `/api/billing/summary?period=${period}`;
+    if (user) {
+        url += `&user=${encodeURIComponent(user)}`;
+    }
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             const content = document.getElementById('billingSummaryContent');
@@ -2104,7 +2166,14 @@ function loadBillingSummary() {
 
 function loadBillingActivities() {
     const period = document.getElementById('billingPeriod')?.value || 'month';
-    fetch(`/api/billing/activities?period=${period}`)
+    const user = document.getElementById('billingUser')?.value || '';
+    
+    let url = `/api/billing/activities?period=${period}`;
+    if (user) {
+        url += `&user=${encodeURIComponent(user)}`;
+    }
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             const content = document.getElementById('billingActivitiesContent');
@@ -2238,7 +2307,14 @@ function loadInvoices() {
 }
 
 function loadAvailableMonths() {
-    fetch('/api/billing/invoices/months')
+    const selectedUser = document.getElementById('invoiceUserSelect')?.value;
+    
+    let url = '/api/billing/invoices/months';
+    if (selectedUser) {
+        url += `?user=${encodeURIComponent(selectedUser)}`;
+    }
+    
+    fetch(url)
         .then(response => response.json())
         .then(months => {
             const select = document.getElementById('invoiceMonthSelect');
@@ -2256,17 +2332,32 @@ function loadAvailableMonths() {
         });
 }
 
+// Add event listener for user selection change
+document.addEventListener('DOMContentLoaded', function() {
+    const invoiceUserSelect = document.getElementById('invoiceUserSelect');
+    if (invoiceUserSelect) {
+        invoiceUserSelect.addEventListener('change', loadAvailableMonths);
+    }
+});
+
 function generateInvoice() {
     const month = document.getElementById('invoiceMonthSelect').value;
+    const user = document.getElementById('invoiceUserSelect').value;
+    
     if (!month) {
         alert('Please select a month.');
+        return;
+    }
+    
+    if (!user) {
+        alert('Please select a user.');
         return;
     }
     
     fetch('/api/billing/invoices/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({month: month})
+        body: JSON.stringify({month: month, user: user})
     })
     .then(response => response.json())
     .then(data => {

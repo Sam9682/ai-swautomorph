@@ -1681,24 +1681,28 @@ body {
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    gap: 1rem;
+    flex-wrap: wrap;
 }
 
-.period-selector {
+.period-selector, .user-selector {
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-.period-selector label {
+.period-selector label, .user-selector label {
     font-weight: 500;
     color: #2c3e50;
+    white-space: nowrap;
 }
 
-.period-selector select {
+.period-selector select, .user-selector select {
     padding: 0.5rem;
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 1rem;
+    min-width: 120px;
 }
 
 .billing-summary, .billing-activities {
@@ -1809,8 +1813,14 @@ body {
         align-items: stretch;
     }
     
-    .period-selector {
+    .period-selector, .user-selector {
         justify-content: center;
+        width: 100%;
+    }
+    
+    .period-selector select, .user-selector select {
+        flex: 1;
+        min-width: auto;
     }
     
     .billing-table {

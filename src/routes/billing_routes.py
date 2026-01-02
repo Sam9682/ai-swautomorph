@@ -21,11 +21,12 @@ billing_bp = Blueprint('billing', __name__)
 
 @billing_bp.route('/api/billing/activities')
 def get_billing_activities():
-    """Get billing activities based on user role and period"""
+    """Get billing activities based on user role, period, and user filter"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
     period = request.args.get('period', 'month')  # day, week, month
+    selected_user = request.args.get('user')  # user filter
     
     # Check if user is admin
     user = db_manager.execute_query(
@@ -45,16 +46,27 @@ def get_billing_activities():
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     if is_admin:
-        # Admin sees all activities for the period
-        activities = db_manager.execute_query('''
-            SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
-                   ba.duration_seconds, ba.cost_amount, ba.created_at
-            FROM billing_activities ba
-            JOIN users u ON ba.user_id = u.id
-            JOIN applications a ON ba.application_id = a.id
-            WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
-            ORDER BY ba.created_at DESC
-        ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+        # Admin sees activities based on filters
+        if selected_user:
+            activities = db_manager.execute_query('''
+                SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                       ba.duration_seconds, ba.cost_amount, ba.created_at
+                FROM billing_activities ba
+                JOIN users u ON ba.user_id = u.id
+                JOIN applications a ON ba.application_id = a.id
+                WHERE u.username = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
+                ORDER BY ba.created_at DESC
+            ''', (selected_user, start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+        else:
+            activities = db_manager.execute_query('''
+                SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                       ba.duration_seconds, ba.cost_amount, ba.created_at
+                FROM billing_activities ba
+                JOIN users u ON ba.user_id = u.id
+                JOIN applications a ON ba.application_id = a.id
+                WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
+                ORDER BY ba.created_at DESC
+            ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     else:
         # Regular user sees only their activities for the period
         activities = db_manager.execute_query('''
@@ -81,18 +93,18 @@ def get_billing_activities():
 
 @billing_bp.route('/api/billing/summary')
 def get_billing_summary():
-    """Get billing summary by period"""
+    """Get billing summary by period and user filter"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
     period = request.args.get('period', 'month')  # day, week, month
-    
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    selected_user = request.args.get('user')  # user filter
     
     # Check if user is admin
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     is_admin = user and user[0] == 'admin'
     
     # Calculate date range
@@ -106,19 +118,30 @@ def get_billing_summary():
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     
     if is_admin:
-        # Admin sees all users' summary
-        cursor.execute('''
-            SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
-            FROM billing_activities ba
-            JOIN users u ON ba.user_id = u.id
-            JOIN applications a ON ba.application_id = a.id
-            WHERE ba.created_at >= ?
-            GROUP BY u.username, a.name
-            ORDER BY u.username, a.name
-        ''', (start_date.isoformat(),))
+        # Admin sees summary based on filters
+        if selected_user:
+            summary = db_manager.execute_query('''
+                SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                FROM billing_activities ba
+                JOIN users u ON ba.user_id = u.id
+                JOIN applications a ON ba.application_id = a.id
+                WHERE u.username = ? AND ba.created_at >= ?
+                GROUP BY u.username, a.name
+                ORDER BY u.username, a.name
+            ''', (selected_user, start_date.isoformat()), fetch_all=True)
+        else:
+            summary = db_manager.execute_query('''
+                SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                FROM billing_activities ba
+                JOIN users u ON ba.user_id = u.id
+                JOIN applications a ON ba.application_id = a.id
+                WHERE ba.created_at >= ?
+                GROUP BY u.username, a.name
+                ORDER BY u.username, a.name
+            ''', (start_date.isoformat(),), fetch_all=True)
     else:
         # Regular user sees only their summary
-        cursor.execute('''
+        summary = db_manager.execute_query('''
             SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
             FROM billing_activities ba
             JOIN users u ON ba.user_id = u.id
@@ -126,10 +149,7 @@ def get_billing_summary():
             WHERE ba.user_id = ? AND ba.created_at >= ?
             GROUP BY u.username, a.name
             ORDER BY a.name
-        ''', (session['user_id'], start_date.isoformat()))
-    
-    summary = cursor.fetchall()
-    conn.close()
+        ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
     
     return jsonify([{
         'username': row[0],
@@ -255,42 +275,112 @@ def get_invoices():
         'created_at': row[7]
     } for row in invoices])
 
-@billing_bp.route('/api/billing/invoices/months')
-def get_available_months():
-    """Get available months for invoice generation"""
+@billing_bp.route('/api/billing/users')
+def get_billing_users():
+    """Get list of users for billing filter (admin only)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    user_id = session['user_id']
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
     
-    # Get months with billing activities
-    activities = db_manager.execute_query('''
-        SELECT DISTINCT strftime('%Y-%m', created_at) as month
-        FROM billing_activities
-        WHERE user_id = ? AND cost_amount > 0
-        ORDER BY month DESC
-    ''', (user_id,), fetch_all=True)
+    # Get all users who have billing activities
+    users = db_manager.execute_query('''
+        SELECT DISTINCT u.username
+        FROM users u
+        JOIN billing_activities ba ON u.id = ba.user_id
+        ORDER BY u.username
+    ''', fetch_all=True)
+    
+    return jsonify([row[0] for row in users])
+
+@billing_bp.route('/api/billing/invoices/months')
+def get_available_months():
+    """Get available months for invoice generation (admin only)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    if not user or user[0] == 'admin':
+        selected_user = request.args.get('user')
+        
+        if selected_user:
+            # Get months with billing activities for specific user
+            activities = db_manager.execute_query('''
+                SELECT DISTINCT strftime('%Y-%m', ba.created_at) as month
+                FROM billing_activities ba
+                JOIN users u ON ba.user_id = u.id
+                WHERE u.username = ? AND ba.cost_amount > 0
+                ORDER BY month DESC
+            ''', (selected_user,), fetch_all=True)
+        else:
+            # Get all months with billing activities
+            activities = db_manager.execute_query('''
+                SELECT DISTINCT strftime('%Y-%m', created_at) as month
+                FROM billing_activities
+                WHERE cost_amount > 0
+                ORDER BY month DESC
+            ''', fetch_all=True)
+    else:
+        # Regular users see their own months
+        activities = db_manager.execute_query('''
+            SELECT DISTINCT strftime('%Y-%m', created_at) as month
+            FROM billing_activities
+            WHERE user_id = ? AND cost_amount > 0
+            ORDER BY month DESC
+        ''', (session['user_id'],), fetch_all=True)
     
     months = [row[0] for row in activities]
     return jsonify(months)
 
 @billing_bp.route('/api/billing/invoices/generate', methods=['POST'])
 def generate_invoice():
-    """Generate invoice for a specific month"""
+    """Generate invoice for a specific month (admin only)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
     data = request.get_json()
     month = data.get('month')
-    user_id = session['user_id']
+    target_username = data.get('user')  # User to generate invoice for
     
     if not month:
         return jsonify({'error': 'Month is required'}), 400
     
+    if not target_username:
+        return jsonify({'error': 'User is required'}), 400
+    
+    # Get target user ID
+    target_user = db_manager.execute_query(
+        'SELECT id FROM users WHERE username = ?',
+        (target_username,), fetch_one=True
+    )
+    
+    if not target_user:
+        return jsonify({'error': 'User not found'}), 400
+    
+    target_user_id = target_user[0]
+    
     # Check if invoice already exists for this month
     existing = db_manager.execute_query(
         'SELECT id FROM invoicing WHERE user_id = ? AND invoice_month = ?',
-        (user_id, month), fetch_one=True
+        (target_user_id, month), fetch_one=True
     )
     
     if existing:
@@ -303,10 +393,10 @@ def generate_invoice():
         JOIN applications a ON ba.application_id = a.id
         WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ?
         ORDER BY ba.created_at
-    ''', (user_id, month), fetch_all=True)
+    ''', (target_user_id, month), fetch_all=True)
     
     logger = logging.getLogger('billing_activities')
-    logger.info(f"Debug: Found {len(debug_activities)} activities for user {user_id} in month {month}")
+    logger.info(f"Debug: Found {len(debug_activities)} activities for user {target_user_id} in month {month}")
     for activity in debug_activities:
         logger.info(f"Activity: {activity[1]}, cost: {activity[2]}, date: {activity[3]}, month: {activity[4]}")
     
@@ -314,10 +404,10 @@ def generate_invoice():
     total = db_manager.execute_query('''
         SELECT SUM(cost_amount) FROM billing_activities
         WHERE user_id = ? AND strftime('%Y-%m', created_at) = ? AND cost_amount > 0
-    ''', (user_id, month), fetch_one=True)
+    ''', (target_user_id, month), fetch_one=True)
     
     total_amount = total[0] if total and total[0] else 0.0
-    logger.info(f"Calculated total amount: {total_amount} for user {user_id} in month {month}")
+    logger.info(f"Calculated total amount: {total_amount} for user {target_user_id} in month {month}")
     
     if total_amount <= 0:
         return jsonify({
@@ -329,7 +419,7 @@ def generate_invoice():
     invoice_id = db_manager.execute_query('''
         INSERT INTO invoicing (user_id, invoice_month, total_amount, status)
         VALUES (?, ?, ?, 'unpaid')
-    ''', (user_id, month, total_amount))
+    ''', (target_user_id, month, total_amount))
     
     return jsonify({
         'message': 'Invoice generated successfully',
