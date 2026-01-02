@@ -10,9 +10,11 @@
 
 AI-SwAutoMorph is a **centralized application deployment and management platform** designed for GenAI agents. It provides automated deployment, lifecycle management, and SSO authentication for web applications through multiple interfaces (Web, CLI, API, MCP). The platform enables GenAI agents to autonomously deploy, manage, and access web applications without human intervention.
 
-### 🏛️ Core Architecture
+**Core Architecture**: Modular Flask application with thread-safe database operations, virtual AI agents, multi-server support, comprehensive billing system, and enhanced security features.
 
-#### 1. 📦 Modular Flask Application
+### 🏗️ Core Architecture
+
+#### 1. 📦 Enhanced Modular Flask Application
 
 ```
 🏠 ai-swautomorph/
@@ -20,17 +22,17 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 │   ├── ⚙️ config.py                 # Configuration & multi-language support
 │   ├── 🗄️ database.py               # Thread-safe database manager with WAL mode
 │   ├── 🔐 auth.py                   # Authentication & SSO management
-│   ├── 🌐 ControlPlanFlaskApp.py                    # Flask application factory
-│   ├── 🤖 automorph_application.py  # Q Chat integration for code modification
+│   ├── 🌐 ControlPlanFlaskApp.py    # Flask application factory
 │   └── 📁 routes/                   # Route handlers (blueprints)
 │       ├── 🏠 main_routes.py        # Dashboard & documentation viewer
 │       ├── 👤 auth_routes.py        # User authentication
 │       ├── 🔑 sso_routes.py         # Single Sign-On functionality
 │       ├── 🔌 api_routes.py         # REST API with streaming support
+│       ├── 🤖 genai_routes.py       # Virtual AI agents with streaming
 │       └── 💰 billing_routes.py     # Billing and cost management
 ├── 📁 templates/                    # HTML templates with EN/FR support
 │   ├── 🎨 base.html                 # Base template with navbar language switching
-│   ├── 📊 dashboard.html            # Main dashboard with reorganized navigation
+│   ├── 📊 dashboard.html            # Main dashboard with unified virtual agents
 │   ├── 🚪 login.html                # Login page emphasizing AI agents
 │   └── 📖 doc_viewer.html           # Markdown documentation viewer
 ├── 📁 static/                       # CSS, JS, and static files
@@ -42,44 +44,55 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 ├── 📁 scripts/                      # CLI tools and utilities
 │   ├── 💻 cli.py                    # Command-line interface
 │   └── 🔌 mcp_server.py             # Model Context Protocol server
-├── 📁 shared/                       # Shared deployment resources
+├── 📁 shared/                       # Context files for virtual agents
+│   ├── 📝 MODIFY_CODE_context.md    # Developer agent context
+│   ├── ▶️ START_context.md          # Start operation context
+│   ├── ⏹️ STOP_context.md           # Stop operation context
+│   ├── 🔄 RESTART_context.md        # Restart operation context
+│   ├── 🔍 PS_context.md             # Process status context
+│   └── 📄 LOGS_context.md           # Log analysis context
 └── 🚀 deployControlPlan.sh          # Main deployment control script
 ```
 
-#### 2. 🤖 Virtual AI Agents Integration
+#### 2. 🤖 Enhanced Virtual AI Agents Integration
 
-The platform provides **two specialized AI agents** with context-aware prompts:
+The platform provides **two specialized AI agents** with advanced features:
 
 **🔧 Q Chat Developer Agent** (`/api/qchat_developer`):
 - 💻 Code modification and feature development
 - 🗣️ Natural language to code translation
-- 🌿 Git branch management with timestamps
+- 🌿 Git branch management with format `{user_id}-automorph-{app_name}-{timestamp}`
 - 🧪 Automatic testing and deployment
-- 🎯 Context-aware prompts from shared/ directory (MODIFY_CODE_context.md)
+- 🎯 Context-aware prompts from shared/MODIFY_CODE_context.md
 - ⚡ Streaming responses with Server-Sent Events
-- 🔄 Timeout management (30 minutes) with graceful cleanup
+- ⏱️ Timeout management (30 minutes) with graceful cleanup
+- 📝 Prompt logging to dev_prompt_generated.txt
+- 🔒 Security: Path traversal protection and input validation
 
 **🚀 Q Chat Operations Agent** (`/api/qchat_operations`):
 - ⚡ Deployment operations (START, STOP, RESTART, PS, LOGS)
-- 🏗️ Infrastructure management
+- 🏗️ Infrastructure management with multi-server support
 - 📊 Application monitoring and troubleshooting
-- 📈 Server capacity management
-- 🎯 Context-aware prompts for each operation type
-- 💰 Automatic billing activity recording
+- 📈 Server capacity management and automatic allocation
+- 🎯 Context-aware prompts for each operation type (START_context.md, STOP_context.md, etc.)
+- 💰 Automatic billing activity recording for START/STOP actions
 - 🔄 Fallback Q&A mode for invalid actions
+- 📝 Prompt logging to ope_prompts_generated.log
+- ⏱️ 30-minute timeout with process group termination
 
-#### 3. 🌍 Multi-Language Support
+#### 3. 🌍 Enhanced Multi-Language Support
 
-- **🔄 Navbar Language Switching**: FR/EN toggle in navigation bar
+- **🔄 Navbar Language Switching**: FR/EN toggle in navigation bar with session persistence
 - **💾 Session-Based Language**: Language preference stored in Flask session
-- **🎨 Template Integration**: All templates support `get_text()` function
-- **📖 Documentation Viewer**: Markdown files with bilingual sections
+- **🎨 Template Integration**: All templates support `get_text()` function with 200+ translations
+- **📖 Documentation Viewer**: Markdown files with bilingual sections and dynamic switching
 - **⚡ Dynamic Content**: JavaScript-based language switching for documentation
+- **📱 Mobile Support**: Responsive design with hamburger menu
 
 #### 4. 🗄️ Enhanced Database Schema
 
 ```sql
--- 🏢 Core entities with multi-server support and billing
+-- 🏢 Core entities with comprehensive billing and multi-server support
 👥 Users: id, username, email, password_hash, first_name, last_name, suspended, created_at
 📱 Applications: id, name, description, git_url, git_repo_size, docker_*_duration, created_at
 🔗 User_Applications: id, user_id, application_id, url, http_port, https_port, http_port2, https_port2, created_at
@@ -93,14 +106,16 @@ The platform provides **two specialized AI agents** with context-aware prompts:
 🧾 Invoicing: id, user_id, invoice_month, total_amount, status, payment_date, payment_mode_id, created_at
 ```
 
-**Database Features**:
+**Enhanced Database Features**:
 - 🔄 WAL (Write-Ahead Logging) mode for better concurrency
-- 🧵 Thread-safe operations with connection pooling
-- ⏱️ Automatic retry mechanism for locked database scenarios
-- 📊 Health monitoring with detailed statistics
+- 🧵 Thread-safe operations with connection pooling and singleton pattern
+- ⏱️ Automatic retry mechanism with exponential backoff for locked database scenarios
+- 📊 Health monitoring with detailed statistics via `/api/health/database`
 - 💾 Automated hourly backups with S3 sync
+- 🔍 Database indexes for optimal performance
+- 🔒 Input validation and SQL injection prevention
 
-#### 5. 🧭 Navigation Architecture
+#### 5. 🧭 Enhanced Navigation Architecture
 
 **📋 Navbar Organization**:
 - 📱 Applications and 💰 Billing tabs in main navigation
@@ -109,11 +124,37 @@ The platform provides **two specialized AI agents** with context-aware prompts:
 - 🌍 Language toggle (FR/EN) with session persistence
 - 📱 Mobile-responsive navigation with hamburger menu
 
-**🎯 Dashboard Reorganization**:
+**🎯 Dashboard Enhancements**:
 - ↗️ Moved from content-area tabs to navbar navigation
 - 📦 Consolidated menus in dropdown format
 - 🔗 Direct access to markdown documentation
-- ✨ Streamlined user experience
+- ✨ Streamlined user experience with unified virtual agents interface
+- 📊 Real-time application status updates
+- 📈 Streaming logs with Server-Sent Events
+
+#### 6. 💰 Comprehensive Billing System
+
+**📊 Billing Features**:
+- ⏱️ Automatic activity recording for START/STOP actions
+- 💳 Prorated cost calculation based on actual usage time
+- 📅 Period filtering (day, week, month, previous month)
+- 👥 User filtering for admin users
+- 🧾 Automated invoice generation with PDF export
+- 💰 Multiple payment modes (bank transfer, PayPal, credit cards)
+- 📊 Revenue tracking and cost summaries
+- 📈 Detailed activity logging with billing_activities.log
+
+#### 7. 🛡️ Enhanced Security Features
+
+**🔒 Security Enhancements**:
+- 🛡️ ModSecurity WAF protection with OWASP CRS rules
+- 🔍 Input validation and SQL injection prevention
+- 📁 Path traversal protection for file operations
+- 🔐 Session-based authentication with secure cookies
+- 🎫 SSO token support with expiration management
+- 👥 User isolation with separate deployment directories
+- 📝 Comprehensive logging for security monitoring
+- ⏱️ Process timeout management with graceful cleanup
 
 ---
 
@@ -127,9 +168,11 @@ The platform provides **two specialized AI agents** with context-aware prompts:
 
 AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d'applications** conçue pour les agents GenAI. Elle fournit un déploiement automatisé, une gestion du cycle de vie et une authentification SSO pour les applications web à travers plusieurs interfaces (Web, CLI, API, MCP). La plateforme permet aux agents GenAI de déployer, gérer et accéder de manière autonome aux applications web sans intervention humaine.
 
-### 🏛️ Architecture Principale
+**Architecture Principale**: Application Flask modulaire avec opérations de base de données thread-safe, agents IA virtuels, support multi-serveurs, système de facturation complet et fonctionnalités de sécurité avancées.
 
-#### 1. 📦 Application Flask Modulaire
+### 🏗️ Architecture Principale
+
+#### 1. 📦 Application Flask Modulaire Améliorée
 
 ```
 🏠 ai-swautomorph/
@@ -137,17 +180,17 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 │   ├── ⚙️ config.py                 # Configuration et support multi-langues
 │   ├── 🗄️ database.py               # Gestionnaire de base de données thread-safe avec mode WAL
 │   ├── 🔐 auth.py                   # Authentification et gestion SSO
-│   ├── 🌐 ControlPlanFlaskApp.py                    # Factory d'application Flask
-│   ├── 🤖 automorph_application.py  # Intégration Q Chat pour modification de code
+│   ├── 🌐 ControlPlanFlaskApp.py    # Factory d'application Flask
 │   └── 📁 routes/                   # Gestionnaires de routes (blueprints)
 │       ├── 🏠 main_routes.py        # Tableau de bord et visualiseur de documentation
 │       ├── 👤 auth_routes.py        # Authentification utilisateur
 │       ├── 🔑 sso_routes.py         # Fonctionnalité Single Sign-On
 │       ├── 🔌 api_routes.py         # API REST avec support streaming
+│       ├── 🤖 genai_routes.py       # Agents IA virtuels avec streaming
 │       └── 💰 billing_routes.py     # Facturation et gestion des coûts
 ├── 📁 templates/                    # Modèles HTML avec support EN/FR
 │   ├── 🎨 base.html                 # Modèle de base avec changement de langue navbar
-│   ├── 📊 dashboard.html            # Tableau de bord principal avec navigation réorganisée
+│   ├── 📊 dashboard.html            # Tableau de bord principal avec agents virtuels unifiés
 │   ├── 🚪 login.html                # Page de connexion mettant l'accent sur les agents IA
 │   └── 📖 doc_viewer.html           # Visualiseur de documentation Markdown
 ├── 📁 static/                       # Fichiers CSS, JS et statiques
@@ -159,50 +202,78 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 ├── 📁 scripts/                      # Outils CLI et utilitaires
 │   ├── 💻 cli.py                    # Interface en ligne de commande
 │   └── 🔌 mcp_server.py             # Serveur Model Context Protocol
-├── 📁 shared/                       # Ressources de déploiement partagées
+├── 📁 shared/                       # Fichiers de contexte pour agents virtuels
+│   ├── 📝 MODIFY_CODE_context.md    # Contexte agent développeur
+│   ├── ▶️ START_context.md          # Contexte opération start
+│   ├── ⏹️ STOP_context.md           # Contexte opération stop
+│   ├── 🔄 RESTART_context.md        # Contexte opération restart
+│   ├── 🔍 PS_context.md             # Contexte statut processus
+│   └── 📄 LOGS_context.md           # Contexte analyse logs
 └── 🚀 deployControlPlan.sh          # Script principal de contrôle de déploiement
 ```
 
-#### 2. 🤖 Intégration des Agents IA
+#### 2. 🤖 Intégration des Agents IA Virtuels Avancés
 
-La plateforme fournit **deux agents IA spécialisés** :
+La plateforme fournit **deux agents IA spécialisés** avec fonctionnalités avancées :
 
 **🔧 Agent Développeur Q Chat** (`/api/qchat_developer`):
 - 💻 Modification de code et développement de fonctionnalités
 - 🗣️ Traduction langage naturel vers code
-- 🌿 Gestion des branches Git avec horodatage
+- 🌿 Gestion des branches Git avec format `{user_id}-automorph-{app_name}-{timestamp}`
 - 🧪 Tests et déploiement automatiques
+- 🎯 Prompts contextuels depuis shared/MODIFY_CODE_context.md
+- ⚡ Réponses en streaming avec Server-Sent Events
+- ⏱️ Gestion des timeouts (30 minutes) avec nettoyage gracieux
+- 📝 Journalisation des prompts vers dev_prompt_generated.txt
+- 🔒 Sécurité: Protection contre la traversée de chemin et validation d'entrée
 
 **🚀 Agent Opérations Q Chat** (`/api/qchat_operations`):
-- ⚡ Opérations de déploiement (START, STOP, RESTART)
-- 🏗️ Gestion d'infrastructure
+- ⚡ Opérations de déploiement (START, STOP, RESTART, PS, LOGS)
+- 🏗️ Gestion d'infrastructure avec support multi-serveurs
 - 📊 Surveillance et dépannage d'applications
-- 📈 Gestion de capacité serveur
+- 📈 Gestion de capacité serveur et allocation automatique
+- 🎯 Prompts contextuels pour chaque type d'opération (START_context.md, STOP_context.md, etc.)
+- 💰 Enregistrement automatique d'activité de facturation pour actions START/STOP
+- 🔄 Mode Q&A de fallback pour actions invalides
+- 📝 Journalisation des prompts vers ope_prompts_generated.log
+- ⏱️ Timeout de 30 minutes avec terminaison de groupe de processus
 
-#### 3. 🌍 Support Multi-Langues
+#### 3. 🌍 Support Multi-Langues Amélioré
 
-- **🔄 Changement de Langue Navbar**: Basculement FR/EN dans la barre de navigation
+- **🔄 Changement de Langue Navbar**: Basculement FR/EN dans la barre de navigation avec persistance de session
 - **💾 Langue Basée sur Session**: Préférence de langue stockée dans la session Flask
-- **🎨 Intégration Template**: Tous les templates supportent la fonction `get_text()`
-- **📖 Visualiseur de Documentation**: Fichiers Markdown avec sections bilingues
+- **🎨 Intégration Template**: Tous les templates supportent la fonction `get_text()` avec 200+ traductions
+- **📖 Visualiseur de Documentation**: Fichiers Markdown avec sections bilingues et changement dynamique
 - **⚡ Contenu Dynamique**: Changement de langue basé JavaScript pour la documentation
+- **📱 Support Mobile**: Design responsive avec menu hamburger
 
-#### 4. 🗄️ Schéma de Base de Données
+#### 4. 🗄️ Schéma de Base de Données Amélioré
 
 ```sql
--- 🏢 Entités principales avec support multi-serveurs
+-- 🏢 Entités principales avec facturation complète et support multi-serveurs
 👥 Users: id, username, email, password_hash, first_name, last_name, suspended, created_at
-📱 Applications: id, name, description, git_url, created_at
-🔗 User_Applications: id, user_id, application_id, url, http_port, https_port, created_at
+📱 Applications: id, name, description, git_url, git_repo_size, docker_*_duration, created_at
+🔗 User_Applications: id, user_id, application_id, url, http_port, https_port, http_port2, https_port2, created_at
 🚀 Deployments: id, user_id, application_name, status, deployment_path, git_url, server_id, created_at, updated_at
 🖥️ Servers: id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
 🔑 Auth_Tokens: id, user_id, token_hash, expires_at, created_at
 💰 Application_Costs: id, application_id, cost_per_day, created_at, updated_at
 📊 Billing_Activities: id, user_id, application_id, action, started_at, stopped_at, duration_seconds, cost_amount, created_at
 📝 Users_Logs: id, user_id, username, action, datetime
+💳 Payment_Modes: id, user_id, payment_type, bank_account, paypal_email, card_last_four, card_type, is_default, created_at
+🧾 Invoicing: id, user_id, invoice_month, total_amount, status, payment_date, payment_mode_id, created_at
 ```
 
-#### 5. 🧭 Architecture de Navigation
+**Fonctionnalités de Base de Données Améliorées**:
+- 🔄 Mode WAL (Write-Ahead Logging) pour une meilleure concurrence
+- 🧵 Opérations thread-safe avec mise en pool de connexions et pattern singleton
+- ⏱️ Mécanisme de retry automatique avec backoff exponentiel pour scénarios de base de données verrouillée
+- 📊 Surveillance de santé avec statistiques détaillées via `/api/health/database`
+- 💾 Sauvegardes automatisées horaires avec sync S3
+- 🔍 Index de base de données pour performance optimale
+- 🔒 Validation d'entrée et prévention d'injection SQL
+
+#### 5. 🧭 Architecture de Navigation Améliorée
 
 **📋 Organisation Navbar**:
 - 📱 Onglets Applications et 💰 Facturation dans la navigation principale
@@ -211,8 +282,34 @@ La plateforme fournit **deux agents IA spécialisés** :
 - 🌍 Basculement de langue (FR/EN) avec persistance de session
 - 📱 Navigation responsive mobile avec menu hamburger
 
-**🎯 Réorganisation du Tableau de Bord**:
+**🎯 Améliorations du Tableau de Bord**:
 - ↗️ Déplacé des onglets de zone de contenu vers la navigation navbar
 - 📦 Menus consolidés en format déroulant
 - 🔗 Accès direct à la documentation markdown
-- ✨ Expérience utilisateur rationalisée
+- ✨ Expérience utilisateur rationalisée avec interface agents virtuels unifiée
+- 📊 Mises à jour de statut d'application en temps réel
+- 📈 Journaux en streaming avec Server-Sent Events
+
+#### 6. 💰 Système de Facturation Complet
+
+**📊 Fonctionnalités de Facturation**:
+- ⏱️ Enregistrement automatique d'activité pour actions START/STOP
+- 💳 Calcul de coût proraté basé sur le temps d'utilisation réel
+- 📅 Filtrage par période (jour, semaine, mois, mois précédent)
+- 👥 Filtrage par utilisateur pour les administrateurs
+- 🧾 Génération automatique de factures avec export PDF
+- 💰 Modes de paiement multiples (virement bancaire, PayPal, cartes de crédit)
+- 📊 Suivi des revenus et résumés de coûts
+- 📈 Journalisation détaillée d'activité avec billing_activities.log
+
+#### 7. 🛡️ Fonctionnalités de Sécurité Améliorées
+
+**🔒 Améliorations de Sécurité**:
+- 🛡️ Protection ModSecurity WAF avec règles OWASP CRS
+- 🔍 Validation d'entrée et prévention d'injection SQL
+- 📁 Protection contre la traversée de chemin pour opérations de fichiers
+- 🔐 Authentification basée sur session avec cookies sécurisés
+- 🎫 Support de token SSO avec gestion d'expiration
+- 👥 Isolation utilisateur avec répertoires de déploiement séparés
+- 📝 Journalisation complète pour surveillance de sécurité
+- ⏱️ Gestion de timeout de processus avec nettoyage gracieux

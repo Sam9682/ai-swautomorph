@@ -2023,12 +2023,19 @@ function addAgentMessage(agentType, messageType, message) {
 
 // Check for unpaid invoices and show popup
 function checkUnpaidInvoices() {
+    // Check if notification was already shown in this session
+    if (sessionStorage.getItem('unpaidInvoiceNotificationShown') === 'true') {
+        return;
+    }
+    
     fetch('/api/billing/invoices')
         .then(response => response.json())
         .then(invoices => {
             const unpaidInvoices = invoices.filter(invoice => invoice.status === 'unpaid');
             if (unpaidInvoices.length > 0) {
                 showUnpaidInvoicePopup(unpaidInvoices.length);
+                // Mark notification as shown for this session
+                sessionStorage.setItem('unpaidInvoiceNotificationShown', 'true');
             }
         })
         .catch(error => {
@@ -2101,6 +2108,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Check for unpaid invoices when dashboard loads
     checkUnpaidInvoices();
+    
+    // Reset unpaid invoice notification flag on logout
+    const logoutLinks = document.querySelectorAll('a[href*="logout"]');
+    logoutLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            sessionStorage.setItem('unpaidInvoiceNotificationShown', 'false');
+        });
+    });
     
     showTab('apps'); // Show applications tab by default
 });
@@ -2367,6 +2382,7 @@ function loadInvoices() {
                     <td>${paymentDate}</td>
                     <td>
                         <button onclick="viewInvoicePDF(${invoice.id})" class="btn-small">View PDF</button>
+                        ${invoice.status === 'unpaid' ? `<button onclick="payInvoice(${invoice.id}, ${parseFloat(invoice.total_amount).toFixed(2)})" class="btn-small btn-primary">💳 Pay</button>` : ''}
                         ${invoice.status === 'unpaid' ? `<button onclick="markAsPaid(${invoice.id})" class="btn-small btn-success">Mark Paid</button>` : ''}
                     </td>
                 </tr>`;
@@ -2450,6 +2466,12 @@ function generateInvoice() {
 
 function viewInvoicePDF(invoiceId) {
     window.open(`/api/billing/invoices/${invoiceId}/pdf`, '_blank');
+}
+
+function payInvoice(invoiceId, amount) {
+    // Redirect to PayPal with the invoice amount
+    const paypalUrl = `https://paypal.me/slepetre/${amount}`;
+    window.open(paypalUrl, '_blank');
 }
 
 function markAsPaid(invoiceId) {

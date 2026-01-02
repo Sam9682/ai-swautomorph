@@ -1,29 +1,34 @@
-# 🤖 AI-SwAutoMorph Agent Guide / Guide des Agents AI-SwAutoMorph
+# 🤖 AI-SwAutoMorph User Guide / Guide Utilisateur AI-SwAutoMorph
 
 ## English
 
 <div class="center">
-🚀 **Autonomous AI Agents for Web Application Management** 🌟
+🚀 **Centralized Application Deployment Platform for GenAI Agents** 🌟
 </div>
 
 ### 📋 Table of Contents
-- [🌟 Overview for AI Agents](#overview-for-ai-agents)
-- [🤖 AI Agent Types](#ai-agent-types)
+- [🌟 Overview](#overview)
+- [🤖 Virtual AI Agents](#virtual-ai-agents)
 - [🔧 Q Chat Developer Agent](#q-chat-developer-agent)
 - [🚀 Q Chat Operations Agent](#q-chat-operations-agent)
 - [⚡ Agent Workflows](#agent-workflows)
 - [🎯 Platform Features](#platform-features)
+- [💰 Billing System](#billing-system)
 - [🔧 Troubleshooting](#troubleshooting)
 
-### 🌟 Overview for AI Agents
+### 🌟 Overview
 
-AI-SwAutoMorph is **specifically designed** to enable GenAI agents to autonomously deploy, manage, and modify web applications **without human intervention**. The platform provides two specialized AI agents for complete application lifecycle management with multi-language support (English/French).
+AI-SwAutoMorph is a **centralized application deployment and management platform** designed for GenAI agents. It provides automated deployment, lifecycle management, and SSO authentication for web applications through multiple interfaces (Web, CLI, API, MCP). The platform enables GenAI agents to autonomously deploy, manage, and access web applications without human intervention.
+
+**Core Purpose**: Enable GenAI agents to autonomously deploy, manage, and access web applications through intelligent automation with comprehensive billing tracking and multi-server support.
 
 <div class="center">
-🎯 **Agent-Centric Design**: Built for autonomous AI agents to handle development, deployment, and operations tasks through intelligent automation.
+🎯 **Key Features**: Virtual AI Agents, Multi-Server Deployment, Billing & Cost Tracking, SSO Authentication, ModSecurity WAF Protection
 </div>
 
-### 🤖 AI Agent Types
+### 🤖 Virtual AI Agents
+
+The platform provides **two specialized virtual AI agents** with context-aware prompts and streaming responses:
 
 #### 🔧 Q Chat Developer Agent
 **🎯 Purpose:** Code modification, feature development, and application enhancement
@@ -32,16 +37,20 @@ AI-SwAutoMorph is **specifically designed** to enable GenAI agents to autonomous
 - ⚡ Adds new features and API endpoints
 - 🔄 Refactors and optimizes existing code
 - 🐛 Handles bug fixes and code improvements
-- 🌿 Creates timestamped Git branches for tracking changes
+- 🌿 Creates timestamped Git branches with format `{user_id}-automorph-{app_name}-{timestamp}`
+- ⏱️ 30-minute timeout with graceful cleanup
+- 📡 Real-time streaming responses with Server-Sent Events
 
 #### 🚀 Q Chat Operations Agent
 **🎯 Purpose:** Deployment operations, infrastructure management, and application lifecycle
 
-- ⚡ Handles deployment commands (START, STOP, RESTART)
+- ⚡ Handles deployment commands (START, STOP, RESTART, PS, LOGS)
 - 📊 Manages application lifecycle and monitoring
-- 🏗️ Performs infrastructure operations
-- 🚀 Executes deployment scripts and configurations
+- 🏗️ Performs infrastructure operations with multi-server support
+- 🚀 Executes deployment scripts with user context
 - 📈 Provides real-time status updates and streaming logs
+- 💰 Automatic billing activity recording for START/STOP actions
+- 🔄 Fallback Q&A mode for invalid actions
 
 ![Virtual Operations](https://www.swautomorph.com/static/VirtualOperations.png)
 
@@ -123,72 +132,128 @@ POST /api/qchat_operations
 
 #### 🌍 Multi-Language Support
 - **🔄 Navbar Language Toggle:** FR/EN switching in navigation bar
-- **💾 Session Persistence:** Language preference stored in user session
+- **💾 Session Persistence:** Language preference stored in Flask session
 - **📖 Documentation:** All guides available in English and French
 - **⚡ Dynamic Switching:** Real-time language changes without page reload
+- **🎨 Template Integration:** All templates support `get_text()` function
 
-#### 🧭 Navigation Organization
-- **📱 Applications Tab:** Main application management interface
-- **💰 Billing Tab:** Cost tracking and usage monitoring
-- **⚙️ Configuration Dropdown:** Admin access to Users, Servers, Database
+#### 🧭 Enhanced Navigation Architecture
+- **📱 Applications Tab:** Main application management interface with real-time status
+- **💰 Billing Tab:** Comprehensive cost tracking and invoice management
+- **⚙️ Configuration Dropdown:** Admin access to Users, Servers, Database management
 - **❓ Help Dropdown:** Direct access to Architecture, Deployment, and User guides
 - **📱 Mobile Responsive:** Hamburger menu for mobile devices
+- **🌍 Language Toggle:** Persistent language switching in navbar
 
-#### 📊 Dashboard Features
-- **⏱️ Real-time Status:** Live updates every 10 seconds
+#### 📊 Enhanced Dashboard Features
+- **⏱️ Real-time Status:** Live application status updates
 - **📈 Streaming Logs:** Server-Sent Events for real-time log viewing
-- **🎴 Application Cards:** Visual interface for application management
-- **🔘 Action Buttons:** Clone, Start, Stop, Status, Logs for each application
-- **🤖 Virtual Agents:** Toggle between Developer and Operations agents
+- **🎴 Application Cards:** Visual interface with status indicators
+- **🔘 Action Buttons:** Clone, Start, Stop, Status, Logs with streaming support
+- **🤖 Unified Virtual Agents:** Single interface for Developer and Operations agents
+- **🖥️ Multi-Server Support:** Automatic server allocation based on capacity
+- **💰 Billing Integration:** Real-time cost tracking and activity logging
 
-#### 🔐 Authentication & Security
+#### 🔐 Enhanced Authentication & Security
 - **🔑 Session-based Authentication:** Secure login with session management
-- **🎫 SSO Token Support:** Single Sign-On integration
+- **🎫 SSO Token Support:** Single Sign-On integration with Gitea
 - **🏠 User Isolation:** Each user gets isolated deployment directories
-- **👑 Admin Controls:** Separate admin interface for system management
+- **👑 Admin Controls:** Comprehensive admin interface for system management
+- **🛡️ ModSecurity WAF:** Protection with OWASP CRS rules
+- **🔒 Input Validation:** SQL injection prevention and path traversal protection
+
+#### 🖥️ Multi-Server Architecture
+- **🏗️ Server Management:** Add, configure, and monitor multiple deployment servers
+- **📊 Capacity Management:** Automatic server allocation based on utilization
+- **🔄 Server Status:** STAND_BY, ACTIVE, MAINTENANCE status management
+- **🌐 Remote Deployment:** SSH-based deployment to remote servers
+- **⚖️ Load Balancing:** Intelligent server selection for optimal performance
+
+### 💰 Billing System
+
+#### 📊 Comprehensive Cost Tracking
+- **⏱️ Automatic Activity Recording:** START/STOP actions tracked with precise timestamps
+- **💳 Cost Calculation:** Prorated billing based on actual usage time
+- **📈 Usage Monitoring:** Real-time tracking of application usage
+- **🧾 Invoice Generation:** Automated monthly invoice creation
+- **💰 Payment Modes:** Support for bank transfer, PayPal, and credit cards
+- **📊 Billing Reports:** Detailed usage summaries and activity logs
+
+#### 💳 Billing Features
+- **📅 Period Filtering:** View costs by day, week, month, or previous month
+- **👥 User Filtering:** Admin can filter by specific users
+- **📊 Cost Management:** Configure application-specific daily rates
+- **🧾 Invoice Management:** Generate, view, and mark invoices as paid
+- **📈 Activity Logging:** Detailed logs of all billable activities
+- **💰 Revenue Tracking:** Total revenue and cost summaries
 
 ### 🔧 Troubleshooting
 
 #### 🚫 Authentication Failures
 - ✅ Verify session cookies are included in requests
-- 👤 Check if agent account has appropriate permissions
+- 👤 Check if user account has appropriate permissions
 - 🎫 Ensure SSO token is valid and not expired
-- ⚠️ Confirm user account is not suspended
+- ⚠️ Confirm user account is not suspended (suspended=0)
+- 🔐 Verify password hash is correct in database
 
 #### 🔧 Developer Agent Issues
 - 📁 Verify application folder path exists and is accessible
 - 🔒 Check if application has proper file permissions
 - 🌿 Ensure Git repository is accessible and credentials are valid
-- 🖥️ Confirm Gitea server is running and accessible
+- 🖥️ Confirm Q Chat is installed and accessible in PATH
+- ⏱️ Check for timeout issues (30-minute limit)
+- 📝 Verify context files exist in shared/ directory
 
 #### 🚀 Operations Agent Issues
 - ⚙️ Check if deployment scripts (`deployApp.sh`) are executable
 - 🐳 Verify Docker services are running on target server
 - 💾 Ensure server has sufficient resources (CPU, memory, disk)
 - 🌐 Confirm network connectivity between servers
+- 🖥️ Verify server status is STAND_BY or ACTIVE
+- 💰 Check billing activity recording for START/STOP actions
 
 #### 🌍 Language Switching Issues
 - 🗑️ Clear browser cache and cookies
 - 🔄 Check Flask session is properly maintained
 - 💾 Verify language preference is stored in session
 - ⚡ Ensure JavaScript is enabled for dynamic content switching
+- 🎨 Confirm template integration with get_text() function
+
+#### 💰 Billing Issues
+- 📊 Check application_costs table for cost configuration
+- ⏱️ Verify billing_activities table for activity records
+- 🧾 Confirm invoice generation for specific months
+- 💳 Check payment_modes table for user payment methods
+- 📈 Verify cost calculation logic and duration tracking
 
 #### 🔍 Debug Commands
 ```bash
-# 🔍 Check agent authentication status
+# 🔍 Check authentication status
 curl https://www.swautomorph.com/api/auth/status
 
-# 📱 Verify application exists
+# 📱 Verify applications
 curl https://www.swautomorph.com/api/applications
 
 # 🖥️ Check server capacity and allocation
 curl https://www.swautomorph.com/api/servers
 
-# 🧪 Test agent communication
+# 💰 Check billing activities
+curl https://www.swautomorph.com/api/billing/activities
+
+# 🗄️ Database health check (admin only)
+curl https://www.swautomorph.com/api/health/database
+
+# 🧪 Test developer agent
 curl -X POST /api/qchat_developer \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"test connection","application_name":"test"}'
+
+# 🧪 Test operations agent
+curl -X POST /api/qchat_operations \
+  -H "Content-Type: application/json" \
+  -H "Cookie: session=your-session-cookie" \
+  -d '{"message":"[START] test","application_name":"test"}'
 ```
 
 ---
@@ -208,12 +273,14 @@ curl -X POST /api/qchat_developer \
 - [🎯 Fonctionnalités de la Plateforme](#fonctionnalités-de-la-plateforme)
 - [🔧 Dépannage](#dépannage)
 
-### 🌟 Aperçu pour les Agents IA
+### 🌟 Aperçu
 
-AI-SwAutoMorph est **spécifiquement conçu** pour permettre aux agents GenAI de déployer, gérer et modifier de manière autonome des applications web **sans intervention humaine**. La plateforme fournit deux agents IA spécialisés pour une gestion complète du cycle de vie des applications avec support multi-langues (Anglais/Français).
+AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d'applications** conçue pour les agents GenAI. Elle fournit un déploiement automatisé, une gestion du cycle de vie et une authentification SSO pour les applications web à travers plusieurs interfaces (Web, CLI, API, MCP). La plateforme permet aux agents GenAI de déployer, gérer et accéder de manière autonome aux applications web sans intervention humaine.
+
+**Objectif Principal**: Permettre aux agents GenAI de déployer, gérer et accéder de manière autonome aux applications web grâce à l'automatisation intelligente avec suivi complet de facturation et support multi-serveurs.
 
 <div class="center">
-🎯 **Conception Axée sur les Agents**: Conçu pour les agents IA autonomes pour gérer les tâches de développement, déploiement et opérations grâce à l'automatisation intelligente.
+🎯 **Fonctionnalités Clés**: Agents IA Virtuels, Déploiement Multi-Serveurs, Suivi de Facturation et Coûts, Authentification SSO, Protection ModSecurity WAF
 </div>
 
 ### 🤖 Types d'Agents IA
