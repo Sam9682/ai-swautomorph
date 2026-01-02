@@ -39,24 +39,81 @@ def get_billing_activities():
     now = datetime.now()
     if period == 'day':
         start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = None  # For day, we use >= start_date
     elif period == 'week':
         start_date = now - timedelta(days=now.weekday())
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = None  # For week, we use >= start_date
+    elif period == 'previous_month':
+        # Calculate previous month
+        if now.month == 1:
+            # If current month is January, previous month is December of previous year
+            start_date = now.replace(year=now.year-1, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # Otherwise, just go to previous month
+            start_date = now.replace(month=now.month-1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     else:  # month
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = None  # For current month, we use >= start_date
     
     if is_admin:
         # Admin sees activities based on filters
         if selected_user:
+            if end_date:
+                activities = db_manager.execute_query('''
+                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                           ba.duration_seconds, ba.cost_amount, ba.created_at
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE u.username = ? AND ((ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?))
+                    ORDER BY ba.created_at DESC
+                ''', (selected_user, start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
+            else:
+                activities = db_manager.execute_query('''
+                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                           ba.duration_seconds, ba.cost_amount, ba.created_at
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE u.username = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
+                    ORDER BY ba.created_at DESC
+                ''', (selected_user, start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+        else:
+            if end_date:
+                activities = db_manager.execute_query('''
+                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                           ba.duration_seconds, ba.cost_amount, ba.created_at
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE (ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?)
+                    ORDER BY ba.created_at DESC
+                ''', (start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
+            else:
+                activities = db_manager.execute_query('''
+                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                           ba.duration_seconds, ba.cost_amount, ba.created_at
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
+                    ORDER BY ba.created_at DESC
+                ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+    else:
+        # Regular user sees only their activities for the period
+        if end_date:
             activities = db_manager.execute_query('''
                 SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                        ba.duration_seconds, ba.cost_amount, ba.created_at
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE u.username = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
+                WHERE ba.user_id = ? AND ((ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?))
                 ORDER BY ba.created_at DESC
-            ''', (selected_user, start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+            ''', (session['user_id'], start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
         else:
             activities = db_manager.execute_query('''
                 SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
@@ -64,20 +121,9 @@ def get_billing_activities():
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
+                WHERE ba.user_id = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
                 ORDER BY ba.created_at DESC
-            ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
-    else:
-        # Regular user sees only their activities for the period
-        activities = db_manager.execute_query('''
-            SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
-                   ba.duration_seconds, ba.cost_amount, ba.created_at
-            FROM billing_activities ba
-            JOIN users u ON ba.user_id = u.id
-            JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
-            ORDER BY ba.created_at DESC
-        ''', (session['user_id'], start_date.isoformat(), start_date.isoformat()), fetch_all=True)
+            ''', (session['user_id'], start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     
     return jsonify([{
         'id': row[0],
@@ -111,45 +157,91 @@ def get_billing_summary():
     now = datetime.now()
     if period == 'day':
         start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = None
     elif period == 'week':
         start_date = now - timedelta(days=now.weekday())
         start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = None
+    elif period == 'previous_month':
+        # Calculate previous month
+        if now.month == 1:
+            # If current month is January, previous month is December of previous year
+            start_date = now.replace(year=now.year-1, month=12, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            # Otherwise, just go to previous month
+            start_date = now.replace(month=now.month-1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     else:  # month
         start_date = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        end_date = None
     
     if is_admin:
         # Admin sees summary based on filters
         if selected_user:
+            if end_date:
+                summary = db_manager.execute_query('''
+                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE u.username = ? AND ba.created_at >= ? AND ba.created_at < ?
+                    GROUP BY u.username, a.name
+                    ORDER BY u.username, a.name
+                ''', (selected_user, start_date.isoformat(), end_date.isoformat()), fetch_all=True)
+            else:
+                summary = db_manager.execute_query('''
+                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE u.username = ? AND ba.created_at >= ?
+                    GROUP BY u.username, a.name
+                    ORDER BY u.username, a.name
+                ''', (selected_user, start_date.isoformat()), fetch_all=True)
+        else:
+            if end_date:
+                summary = db_manager.execute_query('''
+                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE ba.created_at >= ? AND ba.created_at < ?
+                    GROUP BY u.username, a.name
+                    ORDER BY u.username, a.name
+                ''', (start_date.isoformat(), end_date.isoformat()), fetch_all=True)
+            else:
+                summary = db_manager.execute_query('''
+                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    JOIN applications a ON ba.application_id = a.id
+                    WHERE ba.created_at >= ?
+                    GROUP BY u.username, a.name
+                    ORDER BY u.username, a.name
+                ''', (start_date.isoformat(),), fetch_all=True)
+    else:
+        # Regular user sees only their summary
+        if end_date:
             summary = db_manager.execute_query('''
                 SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE u.username = ? AND ba.created_at >= ?
+                WHERE ba.user_id = ? AND ba.created_at >= ? AND ba.created_at < ?
                 GROUP BY u.username, a.name
-                ORDER BY u.username, a.name
-            ''', (selected_user, start_date.isoformat()), fetch_all=True)
+                ORDER BY a.name
+            ''', (session['user_id'], start_date.isoformat(), end_date.isoformat()), fetch_all=True)
         else:
             summary = db_manager.execute_query('''
                 SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE ba.created_at >= ?
+                WHERE ba.user_id = ? AND ba.created_at >= ?
                 GROUP BY u.username, a.name
-                ORDER BY u.username, a.name
-            ''', (start_date.isoformat(),), fetch_all=True)
-    else:
-        # Regular user sees only their summary
-        summary = db_manager.execute_query('''
-            SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
-            FROM billing_activities ba
-            JOIN users u ON ba.user_id = u.id
-            JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND ba.created_at >= ?
-            GROUP BY u.username, a.name
-            ORDER BY a.name
-        ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
+                ORDER BY a.name
+            ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
     
     return jsonify([{
         'username': row[0],
