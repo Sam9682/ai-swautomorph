@@ -46,8 +46,13 @@ def create_app():
     # Initialize database and orchestrator
     with app.app_context():
         init_db()
-        from .orchestrator import orchestrator
-        orchestrator.start_reconciliation_loop()
+        try:
+            from .orchestrator import orchestrator
+            orchestrator.init_orchestrator_tables()
+            orchestrator.start_reconciliation_loop()
+        except Exception as e:
+            print(f"[ERROR] Orchestrator initialization failed: {e}")
+            # Continue without orchestrator if it fails
     
     # Language support
     def get_language():
