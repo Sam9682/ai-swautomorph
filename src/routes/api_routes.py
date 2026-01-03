@@ -46,7 +46,9 @@ def log_with_timestamp(message):
     log_message = f"[{timestamp}] {message}"
     print(log_message)
     try:
-        with open(OUTPUT_PRINT_LOGS_FILENAME, 'a') as f:
+        from ..config import get_logs_dir
+        log_file_path = os.path.join(get_logs_dir(), OUTPUT_PRINT_LOGS_FILENAME)
+        with open(log_file_path, 'a') as f:
             f.write(log_message + '\n')
     except (IOError, OSError) as e:
         print(f"Warning: Failed to write to log file: {e}")
