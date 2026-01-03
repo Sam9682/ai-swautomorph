@@ -2,7 +2,22 @@
 import os
 
 # Database configuration
-DB_PATH = 'softfluid/db/ai_swautomorph.db'
+DB_PATH = 'softfluid/db/ai_swautomorph.db'  # Keep for migration compatibility
+
+# PostgreSQL configuration
+def get_database_config():
+    """Get PostgreSQL database configuration"""
+    return {
+        'host': os.environ.get('POSTGRES_HOST', 'localhost'),
+        'port': int(os.environ.get('POSTGRES_PORT', 5432)),
+        'database': os.environ.get('POSTGRES_DB', 'ai_swautomorph'),
+        'user': os.environ.get('POSTGRES_USER', 'swautomorph'),
+        'password': os.environ.get('POSTGRES_PASSWORD', 'swautomorph_password'),
+        'min_connections': int(os.environ.get('POSTGRES_MIN_CONN', 2)),
+        'max_connections': int(os.environ.get('POSTGRES_MAX_CONN', 20)),
+        'sslmode': os.environ.get('POSTGRES_SSLMODE', 'prefer'),
+        'connect_timeout': int(os.environ.get('POSTGRES_TIMEOUT', 10))
+    }
 
 # Name of print logs output file
 OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
@@ -39,20 +54,6 @@ def get_qchat_paths():
         '/usr/bin/qchat',
         'qchat'
     ]
-
-def get_database_config():
-    """Get PostgreSQL database configuration from environment variables"""
-    return {
-        'host': os.environ.get('POSTGRES_HOST', 'localhost'),
-        'port': int(os.environ.get('POSTGRES_PORT', '5432')),
-        'database': os.environ.get('POSTGRES_DB', 'ai_swautomorph'),
-        'user': os.environ.get('POSTGRES_USER', 'swautomorph'),
-        'password': os.environ.get('POSTGRES_PASSWORD', 'swautomorph_password'),
-        'min_connections': int(os.environ.get('POSTGRES_MIN_CONN', '2')),
-        'max_connections': int(os.environ.get('POSTGRES_MAX_CONN', '20')),
-        'sslmode': os.environ.get('POSTGRES_SSLMODE', 'prefer'),
-        'connect_timeout': int(os.environ.get('POSTGRES_TIMEOUT', '10'))
-    }
 
 # Language translations
 TRANSLATIONS = {
@@ -255,13 +256,13 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Handle multiple projects simultaneously',
         'always_learning': 'Always Learning',
         'always_learning_desc': 'AI agents improve with every interaction',
-        'disruption_warning': 'The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don\'t get left behind.',
+        'disruption_warning': 'The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don\\'t get left behind.',
         'configuration': 'Configuration',
         'user_management': 'User Management',
         'server_management': 'Server Management',
         'database_management': 'Database Management',
         'virtual_agents_ready': 'Virtual Agents ready. Select an application and action to get started.',
-        'modify_code_option': '👨‍💻 MODIFY the App. (IT Dev)',
+        'modify_code_option': '👨💻 MODIFY the App. (IT Dev)',
         'start_app_option': '▶️ START the App. (IT Ops)',
         'stop_app_option': '⏹️ STOP the App. (IT Ops)',
         'display_logs_option': '📋 DISPLAY logs of the App. (IT Ops)',
@@ -325,13 +326,13 @@ TRANSLATIONS = {
         'users': 'Utilisateurs',
         'applications': 'Applications',
         'qchat_ready': 'Votre assistant développeur virtuel vous attend ! Demandez-lui une modification pour le logiciel sélectionné, par exemple : ajoute la possibilité de pointer plusieurs fois par jour dans le logiciel ai-haccp.',
-        'platform_subtitle': 'L\'Avenir du Développement Logiciel est Arrivé',
-        'mission_statement': 'Bienvenue dans la prochaine évolution de l\'impact de l\'IA générative. Après avoir remplacé les développeurs IT, <strong>l\'IA agentique va maintenant remplacer des entreprises IT entières</strong> qui développent des logiciels.',
+        'platform_subtitle': 'L\\'Avenir du Développement Logiciel est Arrivé',
+        'mission_statement': 'Bienvenue dans la prochaine évolution de l\\'impact de l\\'IA générative. Après avoir remplacé les développeurs IT, <strong>l\\'IA agentique va maintenant remplacer des entreprises IT entières</strong> qui développent des logiciels.',
         'target_title': 'Conçu pour les Entreprises Visionnaires',
         'restaurants_title': 'Restaurants et Hôtellerie',
-        'restaurants_desc': 'Gérez votre écosystème numérique avec des développeurs virtuels alimentés par l\'IA',
+        'restaurants_desc': 'Gérez votre écosystème numérique avec des développeurs virtuels alimentés par l\\'IA',
         'small_business_title': 'Petites Entreprises',
-        'small_business_desc': 'Obtenez un développement logiciel de niveau entreprise sans les coûts d\'entreprise',
+        'small_business_desc': 'Obtenez un développement logiciel de niveau entreprise sans les coûts d\\'entreprise',
         'entrepreneurs_title': 'Entrepreneurs',
         'entrepreneurs_desc': 'Transformez vos idées en applications fonctionnelles grâce au langage naturel',
         'features_title': 'Ce que Vous Obtenez',
@@ -343,7 +344,7 @@ TRANSLATIONS = {
         'auto_deploy_desc': 'Du code à la production en minutes, pas en mois',
         'multi_app_title': 'Gestion Multi-Applications',
         'multi_app_desc': 'Contrôlez plusieurs applications depuis un tableau de bord collaboratif',
-        'revolution_message': 'Une industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.',
+        'revolution_message': 'Une industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\\'IA agentique est là.',
         'all_rights_reserved': 'Tous droits réservés.',
         'developed_by': 'Développé par',
         'with_help_of': 'testé par',
@@ -454,7 +455,7 @@ TRANSLATIONS = {
         'step_by_step_interaction': 'Cochez ceci pour une interaction étape par étape avec votre agent IA',
         'start_automorph': 'Démarrer Automorph',
         'replace_it_team': 'Remplacez Votre Équipe IT par des Agents IA',
-        'stop_waiting_message': 'Arrêtez d\'attendre les développeurs et le support IT. Nos agents IA gèrent tout - du codage de nouvelles fonctionnalités au déploiement et à la gestion de vos applications. Fini les tickets, les retards et les contrats IT coûteux.',
+        'stop_waiting_message': 'Arrêtez d\\'attendre les développeurs et le support IT. Nos agents IA gèrent tout - du codage de nouvelles fonctionnalités au déploiement et à la gestion de vos applications. Fini les tickets, les retards et les contrats IT coûteux.',
         'what_ai_agents_do': 'Ce que les Agents IA Font Pour Vous',
         'ai_developer_desc': 'Modifie le code de votre application instantanément selon vos demandes en français simple',
         'ai_operations_desc': 'Déploie, démarre, arrête et surveille vos applications 24h/24 et 7j/7',
@@ -473,23 +474,23 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Gérer plusieurs projets simultanément',
         'always_learning': 'Apprentissage Continu',
         'always_learning_desc': 'Les agents IA en auto amélioration à chaque interaction',
-        'disruption_warning': 'Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d\'équipes IT humaines. Ne vous laissez pas distancer.',
+        'disruption_warning': 'Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d\\'équipes IT humaines. Ne vous laissez pas distancer.',
         'configuration': 'Configuration',
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
         'database_management': 'Gestion de la Base de Données',
         'virtual_agents_ready': 'Agents Virtuels prêts. Sélectionnez une application et une action pour commencer.',
-        'modify_code_option': "👨‍💻 MODIFIER l’application (Dév)",
-        'start_app_option': "▶️ DÉMARRER l’application. (Ops)",
-        'stop_app_option': "⏹️ ARRÊTER l’application. (Ops)",
-        'display_logs_option': "📋 AFFICHER les logs de l’appli. (Ops)",
-        'display_ps_option': "🔍 VERIFIER l’état de l’appli. (Ops)",
+        'modify_code_option': "👨💻 MODIFIER l'application (Dév)",
+        'start_app_option': "▶️ DÉMARRER l'application. (Ops)",
+        'stop_app_option': "⏹️ ARRÊTER l'application. (Ops)",
+        'display_logs_option': "📋 AFFICHER les logs de l'appli. (Ops)",
+        'display_ps_option': "🔍 VERIFIER l'état de l'appli. (Ops)",
         'account_activation_message_title': '⚠️ Activation du compte nécessaire',
         'account_activation_message_body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',
-        'dev_modify_code_request1': 'J’ai besoin d’un spécialiste développeur pour modifier le code de l’application',
+        'dev_modify_code_request1': 'J'ai besoin d'un spécialiste développeur pour modifier le code de l'application',
         'dev_modify_code_request2': 'Veuillez trouver ci-dessous la spécification de la demande :',
-        'ops_exec_request1': 'J’ai besoin d’un spécialiste des opérations pour exécuter',
-        'ops_exec_request2': 'l’action sur l’application',
-        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d’effectuer une action'
+        'ops_exec_request1': 'J'ai besoin d'un spécialiste des opérations pour exécuter',
+        'ops_exec_request2': 'l'action sur l'application',
+        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d'effectuer une action'
     }
 }

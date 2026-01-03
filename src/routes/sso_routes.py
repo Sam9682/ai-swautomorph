@@ -1,9 +1,18 @@
 """SSO routes"""
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 import sqlite3
+import os
 from ..config import DB_PATH
 from ..auth import generate_sso_token, validate_sso_token
 from werkzeug.security import check_password_hash
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    from ..database_postgres import db_manager
+else:
+    from ..database import db_manager
 
 sso_bp = Blueprint('sso', __name__, url_prefix='/sso')
 
@@ -42,14 +51,15 @@ def sso_app_login(app_name):
         return redirect(url_for('main.index'))
     
     # Get application URL and user info
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT url FROM applications WHERE name = ?', (app_name,))
-    app = cursor.fetchone()
+    app = db_manager.execute_query(
+        'SELECT url FROM applications WHERE name = ?', 
+        (app_name,), fetch_one=True
+    )
     
-    cursor.execute('SELECT username, email, first_name, last_name FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
-    conn.close()
+    user = db_manager.execute_query(
+        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     
     if not app:
         return jsonify({'error': 'Application not found'}), 404
@@ -117,11 +127,10 @@ def sso_authenticate():
                              redirect_uri=redirect_uri)
     
     # Authenticate user
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, password_hash, suspended FROM users WHERE username = ?', (username,))
-    user = cursor.fetchone()
-    conn.close()
+    user = db_manager.execute_query(
+        'SELECT id, password_hash, suspended FROM users WHERE username = ?', 
+        (username,), fetch_one=True
+    )
     
     if user and not user[2] and check_password_hash(user[1], password):
         # Generate SSO token

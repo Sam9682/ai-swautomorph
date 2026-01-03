@@ -5,7 +5,14 @@ import logging
 import os
 from datetime import datetime, timedelta
 from ..config import DB_PATH, get_logs_dir
-from ..database import db_manager
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    from ..database_postgres import db_manager
+else:
+    from ..database import db_manager
 
 # Configure logging for billing activities
 logging.basicConfig(
@@ -256,31 +263,29 @@ def get_application_costs():
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Check if user is admin
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     if not user or user[0] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    cursor.execute('''
+    costs_data = db_manager.execute_query('''
         SELECT a.id, a.name, ac.cost_per_day, ac.updated_at
         FROM applications a
         LEFT JOIN application_costs ac ON a.id = ac.application_id
         ORDER BY a.name
-    ''')
+    ''', fetch_all=True)
     
-    costs = cursor.fetchall()
-    conn.close()
-    
-    return jsonify([{
+    costs = [{
         'application_id': row[0],
         'application_name': row[1],
         'cost_per_day': row[2] or 1.0,
         'updated_at': row[3]
-    } for row in costs])
+    } for row in costs_data]
+    
+    return jsonify(costs)
 
 @billing_bp.route('/api/billing/costs/<int:app_id>', methods=['PUT'])
 def update_application_cost(app_id):
@@ -288,34 +293,34 @@ def update_application_cost(app_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
     # Check if user is admin
-    cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-    user = cursor.fetchone()
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
     if not user or user[0] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json()
     cost_per_day = data.get('cost_per_day', 1.0)
     
-    # Update or insert cost
-    cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id,))
-    if cursor.fetchone()[0] > 0:
-        cursor.execute('''
+    # Check if cost record exists
+    existing = db_manager.execute_query(
+        'SELECT COUNT(*) FROM application_costs WHERE application_id = ?', 
+        (app_id,), fetch_one=True
+    )
+    
+    if existing and existing[0] > 0:
+        db_manager.execute_query('''
             UPDATE application_costs 
             SET cost_per_day = ?, updated_at = CURRENT_TIMESTAMP 
             WHERE application_id = ?
         ''', (cost_per_day, app_id))
     else:
-        cursor.execute('''
+        db_manager.execute_query('''
             INSERT INTO application_costs (application_id, cost_per_day) 
             VALUES (?, ?)
         ''', (app_id, cost_per_day))
-    
-    conn.commit()
-    conn.close()
     
     return jsonify({'message': 'Cost updated successfully'})
 

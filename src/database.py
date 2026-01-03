@@ -385,7 +385,7 @@ def init_db():
         orchestrator.init_orchestrator_tables()
         
         # Create default admin user if none exists
-        cursor.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
+        cursor.execute('SELECT COUNT(*) FROM users WHERE username = ? OR email = ?', ('admin', 'admin@swautomorph.com'))
         if cursor.fetchone()[0] == 0:
             admin_password_hash = generate_password_hash('password')
             cursor.execute('''
@@ -393,17 +393,25 @@ def init_db():
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator', 0))
             
-            # Get admin user ID and assign all applications with URLs
-            admin_id = cursor.lastrowid
+        # Get admin user ID (whether just created or already exists)
+        cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',))
+        admin_result = cursor.fetchone()
+        if admin_result:
+            admin_id = admin_result[0]
+            
+            # Assign all applications to admin user if not already assigned
             cursor.execute('SELECT id, name FROM applications')
             apps = cursor.fetchall()
             for app in apps:
                 app_id, app_name = app[0], app[1]
-                # Calculate URL using the same logic as deployControlPlan.sh
-                HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
-
-                url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-                cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
+                
+                # Check if this app is already assigned to admin
+                cursor.execute('SELECT COUNT(*) FROM user_applications WHERE user_id = ? AND application_id = ?', (admin_id, app_id))
+                if cursor.fetchone()[0] == 0:
+                    # Calculate URL using the same logic as deployControlPlan.sh
+                    HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
+                    url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                    cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
             
             # Ensure costs exist for all applications
             cursor.execute('SELECT id FROM applications')
@@ -413,7 +421,7 @@ def init_db():
                 if cursor.fetchone()[0] == 0:
                     cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
             
-            # Create default payment mode for admin
+            # Create default payment mode for admin if not exists
             cursor.execute('SELECT COUNT(*) FROM payment_modes WHERE user_id = ?', (admin_id,))
             if cursor.fetchone()[0] == 0:
                 cursor.execute('''

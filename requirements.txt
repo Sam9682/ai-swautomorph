@@ -1,7 +1,8 @@
-Flask==2.3.3
-Werkzeug==2.3.7
-click==8.1.7
-requests==2.31.0
-Flask-CORS==4.0.0
-simple-term-menu==1.6.4
-gunicorn==21.2.0
+Flask
+Werkzeug
+click
+requests
+Flask-CORS
+simple-term-menu
+gunicorn
+psycopg2-binary

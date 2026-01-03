@@ -9,8 +9,22 @@ import subprocess
 import shutil
 import socket
 from datetime import datetime
-from ..config import DB_PATH, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, TIMEOUT_GITEA_HTTP_POST, TIMEOUT_SUBPROCESS_RUN
-from ..database import db_manager
+# Update existing imports to use PostgreSQL when needed
+from src.database_postgres import db_manager as pg_db_manager, init_db as pg_init_db
+from src.database import db_manager as sqlite_db_manager, init_db as sqlite_init_db
+from src.config import *
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    db_manager = pg_db_manager
+    init_db = pg_init_db
+    print("Using PostgreSQL database")
+else:
+    db_manager = sqlite_db_manager
+    init_db = sqlite_init_db
+    print("Using SQLite database")
 from ..db_health import check_database_health, get_database_stats
 
 # Get the project root directory dynamically
@@ -187,23 +201,21 @@ def api_application_actions(app_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
-        
-        if not user or user[0] != 'admin':
-            conn.close()
-            return jsonify({'error': 'Admin access required'}), 403
-        
         if request.method == 'PUT':
             data = request.get_json()
             name = data.get('name')
             description = data.get('description', '')
             
             if not name:
-                conn.close()
                 return jsonify({'error': 'Name required'}), 400
             
             git_url = data.get('git_url', '')
@@ -213,29 +225,20 @@ def api_application_actions(app_id):
             docker_stop_duration = data.get('docker_stop_duration')
             docker_ps_duration = data.get('docker_ps_duration')
             
-            cursor.execute('''
+            db_manager.execute_query('''
                 UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?,
                        docker_build_duration = ?, docker_start_duration = ?, docker_stop_duration = ?, docker_ps_duration = ?
                 WHERE id = ?
             ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
-            conn.commit()
-            conn.close()
+            
             return jsonify({'message': 'Application updated successfully'})
         
         elif request.method == 'DELETE':
-            cursor.execute('DELETE FROM applications WHERE id = ?', (app_id,))
-            conn.commit()
-            conn.close()
+            db_manager.execute_query('DELETE FROM applications WHERE id = ?', (app_id,))
             return jsonify({'message': 'Application deleted successfully'})
             
-    except sqlite3.Error as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @api_bp.route('/users', methods=['GET', 'POST'])
 def api_users():
@@ -243,19 +246,21 @@ def api_users():
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
-        
-        if not user or user[0] != 'admin':
-            conn.close()
-            return jsonify({'error': 'Admin access required'}), 403
-        
         if request.method == 'GET':
             # Get all users
-            cursor.execute('SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username')
+            users_data = db_manager.execute_query(
+                'SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username',
+                fetch_all=True
+            )
             users = [{
                 'id': row[0],
                 'username': row[1], 
@@ -264,8 +269,7 @@ def api_users():
                 'last_name': row[4],
                 'suspended': bool(row[5]),
                 'created_at': row[6]
-            } for row in cursor.fetchall()]
-            conn.close()
+            } for row in users_data]
             return jsonify(users)
         
         elif request.method == 'POST':
@@ -278,22 +282,21 @@ def api_users():
             last_name = data.get('last_name', '')
             
             if not all([username, email, password]):
-                conn.close()
                 return jsonify({'error': 'Username, email and password required'}), 400
             
             try:
                 password_hash = generate_password_hash(password)
-                cursor.execute('''
+                user_id = db_manager.execute_query('''
                     INSERT INTO users (username, email, password_hash, first_name, last_name)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (username, email, password_hash, first_name, last_name))
-                user_id = cursor.lastrowid
-                conn.commit()
-                conn.close()
                 
                 # Assign default applications to new user
                 try:
-                    from ..database import assign_default_apps_to_user
+                    if USE_POSTGRES:
+                        from ..database_postgres import assign_default_apps_to_user
+                    else:
+                        from ..database import assign_default_apps_to_user
                     assign_default_apps_to_user(user_id)
                 except Exception as e:
                     log_with_timestamp(f"Warning: Failed to assign default apps to user {user_id}: {str(e)}")
@@ -302,20 +305,12 @@ def api_users():
                 create_gitea_user(username, email, password, first_name, last_name)
                 
                 return jsonify({'message': 'User created successfully'}), 201
-            except sqlite3.IntegrityError:
-                conn.close()
-                return jsonify({'error': 'Username or email already exists'}), 409
             except Exception as e:
-                conn.close()
+                if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
+                    return jsonify({'error': 'Username or email already exists'}), 409
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
                 
-    except sqlite3.Error as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
-        if 'conn' in locals():
-            conn.close()
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
@@ -324,24 +319,23 @@ def api_user_actions(user_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
-        
-        if not user or user[0] != 'admin':
-            conn.close()
-            return jsonify({'error': 'Admin access required'}), 403
-        
         if request.method == 'PUT':
             data = request.get_json()
             action = data.get('action')
             
             if action == 'suspend':
-                cursor.execute('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
             elif action == 'unsuspend':
-                cursor.execute('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
             elif action == 'update':
                 username = data.get('username')
                 email = data.get('email')
@@ -349,36 +343,26 @@ def api_user_actions(user_id):
                 last_name = data.get('last_name', '')
                 
                 if not all([username, email]):
-                    conn.close()
                     return jsonify({'error': 'Username and email required'}), 400
                 
                 try:
-                    cursor.execute('''
+                    db_manager.execute_query('''
                         UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?
                         WHERE id = ?
                     ''', (username, email, first_name, last_name, user_id))
-                except sqlite3.IntegrityError:
-                    conn.close()
-                    return jsonify({'error': 'Username or email already exists'}), 409
+                except Exception as e:
+                    if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
+                        return jsonify({'error': 'Username or email already exists'}), 409
+                    raise
             
-            conn.commit()
-            conn.close()
             return jsonify({'message': 'User updated successfully'})
         
         elif request.method == 'DELETE':
-            cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
-            conn.commit()
-            conn.close()
+            db_manager.execute_query('DELETE FROM users WHERE id = ?', (user_id,))
             return jsonify({'message': 'User deleted successfully'})
             
-    except sqlite3.Error as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>/applications', methods=['GET', 'POST', 'DELETE'])
 def api_user_applications(user_id):
@@ -386,30 +370,31 @@ def api_user_applications(user_id):
         return jsonify({'error': 'Authentication required'}), 401
     
     # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = ?', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
     try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (session['user_id'],))
-        user = cursor.fetchone()
-        
-        if not user or user[0] != 'admin':
-            conn.close()
-            return jsonify({'error': 'Admin access required'}), 403
-        
         if request.method == 'GET':
             # Get assigned applications for user
-            cursor.execute('''
+            assigned_data = db_manager.execute_query('''
                 SELECT a.id, a.name FROM applications a
                 JOIN user_applications ua ON a.id = ua.application_id
                 WHERE ua.user_id = ?
-            ''', (user_id,))
-            assigned = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+            ''', (user_id,), fetch_all=True)
+            assigned = [{'id': row[0], 'name': row[1]} for row in assigned_data]
             
             # Get all applications
-            cursor.execute('SELECT id, name FROM applications ORDER BY name')
-            all_apps = [{'id': row[0], 'name': row[1]} for row in cursor.fetchall()]
+            all_apps_data = db_manager.execute_query(
+                'SELECT id, name FROM applications ORDER BY name',
+                fetch_all=True
+            )
+            all_apps = [{'id': row[0], 'name': row[1]} for row in all_apps_data]
             
-            conn.close()
             return jsonify({'assigned': assigned, 'all': all_apps})
         
         elif request.method == 'POST':
@@ -417,55 +402,52 @@ def api_user_applications(user_id):
             app_id = data.get('application_id')
             
             if not app_id:
-                conn.close()
                 return jsonify({'error': 'Application ID required'}), 400
             
             try:
                 # Calculate ports for the user and application
-                from ..database import calculate_app_ports
+                if USE_POSTGRES:
+                    from ..database_postgres import calculate_app_ports
+                else:
+                    from ..database import calculate_app_ports
                 HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
                 
                 # Get application name for URL generation
-                cursor.execute('SELECT name FROM applications WHERE id = ?', (app_id,))
-                app_result = cursor.fetchone()
+                app_result = db_manager.execute_query(
+                    'SELECT name FROM applications WHERE id = ?', 
+                    (app_id,), fetch_one=True
+                )
                 if not app_result:
-                    conn.close()
                     return jsonify({'error': 'Application not found'}), 404
                 
                 app_name = app_result[0]
                 url = f'https://www.swautomorph.com:{HTTPS_PORT}'
                 
-                cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                              (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
-                conn.commit()
-                conn.close()
+                db_manager.execute_query(
+                    'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2)
+                )
                 return jsonify({'message': 'Application assigned successfully'})
-            except sqlite3.IntegrityError:
-                conn.close()
-                return jsonify({'error': 'Application already assigned'}), 409
+            except Exception as e:
+                if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
+                    return jsonify({'error': 'Application already assigned'}), 409
+                raise
         
         elif request.method == 'DELETE':
             data = request.get_json()
             app_id = data.get('application_id')
             
             if not app_id:
-                conn.close()
                 return jsonify({'error': 'Application ID required'}), 400
             
-            cursor.execute('DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
-                          (user_id, app_id))
-            conn.commit()
-            conn.close()
+            db_manager.execute_query(
+                'DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
+                (user_id, app_id)
+            )
             return jsonify({'message': 'Application unassigned successfully'})
             
-    except sqlite3.Error as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
     except Exception as e:
-        if 'conn' in locals():
-            conn.close()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 
 
@@ -496,11 +478,20 @@ def api_database_table(table_name):
     
     if request.method == 'GET':
         try:
-            # Get table structure
-            columns_data = db_manager.execute_query(
-                f'PRAGMA table_info({table_name})', fetch_all=True
-            )
-            columns = [col[1] for col in columns_data]  # col[1] is the column name
+            if USE_POSTGRES:
+                # PostgreSQL: Get table structure from information_schema
+                columns_data = db_manager.execute_query('''
+                    SELECT column_name FROM information_schema.columns 
+                    WHERE table_name = ? AND table_schema = 'public'
+                    ORDER BY ordinal_position
+                ''', (table_name,), fetch_all=True)
+                columns = [col[0] for col in columns_data]
+            else:
+                # SQLite: Use PRAGMA table_info
+                columns_data = db_manager.execute_query(
+                    f'PRAGMA table_info({table_name})', fetch_all=True
+                )
+                columns = [col[1] for col in columns_data]  # col[1] is the column name
             
             # Get table data
             rows = db_manager.execute_query(
@@ -884,8 +875,8 @@ def _handle_app_action(user_id, app_name, action, data):
     """Handle application lifecycle actions (start, stop, restart, ps, logs)"""
     # Check if deployment exists
     deployment = db_manager.execute_query(
-        'SELECT deployment_path FROM deployments WHERE user_id = ? AND application_name = ? AND status != "failed" ORDER BY updated_at DESC LIMIT 1',
-        (user_id, app_name), fetch_one=True
+        'SELECT deployment_path FROM deployments WHERE user_id = ? AND application_name = ? AND status NOT IN (?, ?) ORDER BY updated_at DESC LIMIT 1',
+        (user_id, app_name, 'failed', 'error'), fetch_one=True
     )
     
     if not deployment:

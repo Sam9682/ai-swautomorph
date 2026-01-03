@@ -20,7 +20,8 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 🏠 ai-swautomorph/
 ├── 📁 src/                          # Core application modules
 │   ├── ⚙️ config.py                 # Configuration & multi-language support
-│   ├── 🗄️ database.py               # Thread-safe database manager with WAL mode
+│   ├── 🗄️ database_postgres.py       # PostgreSQL database manager with connection pooling
+│   ├── 🗄️ database.py               # Legacy SQLite database manager (migration compatibility)
 │   ├── 🔐 auth.py                   # Authentication & SSO management
 │   ├── 🌐 ControlPlanFlaskApp.py    # Flask application factory
 │   └── 📁 routes/                   # Route handlers (blueprints)
@@ -107,13 +108,16 @@ The platform provides **two specialized AI agents** with advanced features:
 ```
 
 **Enhanced Database Features**:
-- 🔄 WAL (Write-Ahead Logging) mode for better concurrency
-- 🧵 Thread-safe operations with connection pooling and singleton pattern
-- ⏱️ Automatic retry mechanism with exponential backoff for locked database scenarios
-- 📊 Health monitoring with detailed statistics via `/api/health/database`
-- 💾 Automated hourly backups with S3 sync
-- 🔍 Database indexes for optimal performance
-- 🔒 Input validation and SQL injection prevention
+- 🐘 **PostgreSQL Database**: Migrated from SQLite to PostgreSQL for enterprise-grade performance
+- 🏊 **Connection Pooling**: ThreadedConnectionPool with configurable min/max connections (2-20)
+- 🔄 **ACID Transactions**: Full ACID compliance with proper transaction management
+- 📊 **Advanced Data Types**: INET for IP addresses, BIGSERIAL for auto-increment, TIMESTAMP WITH TIME ZONE
+- 🔍 **Optimized Indexes**: Performance-tuned indexes on frequently queried columns
+- 🔒 **Enhanced Security**: Parameterized queries preventing SQL injection, SSL support
+- ⚡ **Automatic Retry**: Exponential backoff for transient connection errors
+- 📈 **Scalability**: Support for concurrent connections and high-throughput operations
+- 🛠️ **Database Triggers**: Automatic updated_at timestamp management
+- 🔧 **Migration Tools**: Automated SQLite to PostgreSQL migration script
 
 #### 5. 🧭 Enhanced Navigation Architecture
 
@@ -265,13 +269,16 @@ La plateforme fournit **deux agents IA spécialisés** avec fonctionnalités ava
 ```
 
 **Fonctionnalités de Base de Données Améliorées**:
-- 🔄 Mode WAL (Write-Ahead Logging) pour une meilleure concurrence
-- 🧵 Opérations thread-safe avec mise en pool de connexions et pattern singleton
-- ⏱️ Mécanisme de retry automatique avec backoff exponentiel pour scénarios de base de données verrouillée
-- 📊 Surveillance de santé avec statistiques détaillées via `/api/health/database`
-- 💾 Sauvegardes automatisées horaires avec sync S3
-- 🔍 Index de base de données pour performance optimale
-- 🔒 Validation d'entrée et prévention d'injection SQL
+- 🐘 **Base de Données PostgreSQL**: Migration de SQLite vers PostgreSQL pour performance de niveau entreprise
+- 🏊 **Mise en Pool de Connexions**: ThreadedConnectionPool avec connexions min/max configurables (2-20)
+- 🔄 **Transactions ACID**: Conformité ACID complète avec gestion de transaction appropriée
+- 📊 **Types de Données Avancés**: INET pour adresses IP, BIGSERIAL pour auto-incrément, TIMESTAMP WITH TIME ZONE
+- 🔍 **Index Optimisés**: Index optimisés pour performance sur colonnes fréquemment interrogées
+- 🔒 **Sécurité Améliorée**: Requêtes paramétrées prévenant l'injection SQL, support SSL
+- ⚡ **Retry Automatique**: Backoff exponentiel pour erreurs de connexion transitoires
+- 📈 **Évolutivité**: Support pour connexions concurrentes et opérations haut débit
+- 🛠️ **Triggers de Base de Données**: Gestion automatique des timestamps updated_at
+- 🔧 **Outils de Migration**: Script de migration automatisé SQLite vers PostgreSQL
 
 #### 5. 🧭 Architecture de Navigation Améliorée
 

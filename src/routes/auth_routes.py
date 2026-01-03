@@ -2,9 +2,17 @@
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
+import os
 from ..config import DB_PATH
-from ..database import db_manager
 from ..auth import generate_sso_token, invalidate_sso_token, validate_sso_token
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    from ..database_postgres import db_manager
+else:
+    from ..database import db_manager
 
 auth_bp = Blueprint('auth', __name__)
 

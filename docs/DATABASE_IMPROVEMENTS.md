@@ -3,32 +3,52 @@
 ## English
 
 <div class="center">
-🚀 **Enhanced Database Architecture for AI-SwAutoMorph** 📊
+🚀 **PostgreSQL Database Architecture for AI-SwAutoMorph** 📊
 </div>
 
 ### 📋 Table of Contents
 - [🌟 Overview](#overview)
+- [🐘 PostgreSQL Migration](#postgresql-migration)
 - [🏗️ Database Schema](#database-schema)
-- [🔧 Thread-Safe Operations](#thread-safe-operations)
+- [🔧 Connection Pooling](#connection-pooling)
 - [📊 Performance Optimizations](#performance-optimizations)
 - [💰 Billing System](#billing-system)
 - [🔍 Health Monitoring](#health-monitoring)
-- [🔄 Backup & Recovery](#backup--recovery)
+- [🔄 Migration & Backup](#migration--backup)
 - [🛡️ Security Enhancements](#security-enhancements)
 
 ### 🌟 Overview
 
-The AI-SwAutoMorph database has been significantly enhanced with thread-safe operations, WAL mode, connection pooling, and comprehensive billing tracking. The system now supports multi-server deployments with automatic capacity management, real-time health monitoring, and advanced security features.
+AI-SwAutoMorph has migrated from SQLite to **PostgreSQL** for enterprise-grade performance, scalability, and reliability. The system now features connection pooling, ACID transactions, advanced data types, and comprehensive monitoring capabilities.
 
 #### 🎯 Key Improvements
-- **🧵 Thread-Safe Operations**: Connection pooling with thread-local storage and singleton pattern
-- **⚡ WAL Mode**: Write-Ahead Logging for better concurrency and performance
-- **🔄 Automatic Retry**: Exponential backoff for database locks with jitter
-- **📊 Health Monitoring**: Real-time database statistics and comprehensive health checks
-- **💰 Billing Integration**: Comprehensive cost tracking, activity logging, and invoice generation
-- **🖥️ Multi-Server Support**: Server capacity management, allocation, and load balancing
-- **🔐 Enhanced Security**: Input validation, SQL injection prevention, and audit logging
-- **📈 Performance Optimization**: Database indexes, query optimization, and connection pooling
+- **🐘 PostgreSQL Database**: Enterprise-grade database with full ACID compliance
+- **🏊 Connection Pooling**: ThreadedConnectionPool with configurable min/max connections (2-20)
+- **⚡ Advanced Data Types**: INET for IP addresses, BIGSERIAL for auto-increment, TIMESTAMP WITH TIME ZONE
+- **🔍 Optimized Indexes**: Performance-tuned indexes on frequently queried columns
+- **🔄 Database Triggers**: Automatic updated_at timestamp management
+- **📊 Enhanced Monitoring**: Real-time database statistics and health checks
+- **💰 Billing Integration**: Comprehensive cost tracking with PostgreSQL precision
+- **🖥️ Multi-Server Support**: Scalable server capacity management
+- **🔐 Enhanced Security**: Parameterized queries, SSL support, and audit logging
+- **🛠️ Migration Tools**: Automated SQLite to PostgreSQL migration script
+
+### 🐘 PostgreSQL Migration
+
+#### 🔄 Migration Process
+The platform includes automated migration tools to seamlessly transition from SQLite to PostgreSQL:
+
+```bash
+# Run the migration script
+python3 ./migration/migrate_sqlite_to_postgres.py
+```
+
+#### 📊 Migration Features
+- **🔄 Data Preservation**: Complete data migration with type conversion
+- **🔧 Schema Mapping**: Automatic column mapping (e.g., SERVER_IP → server_ip)
+- **⚡ Sequence Reset**: Automatic sequence adjustment for auto-increment fields
+- **✅ Data Validation**: Boolean and timestamp conversion validation
+- **🔒 Transaction Safety**: Full transaction rollback on migration errors
 
 ### 🏗️ Database Schema
 
@@ -268,208 +288,148 @@ CREATE INDEX idx_users_logs_action ON users_logs(action);
 CREATE INDEX idx_users_logs_datetime ON users_logs(datetime);
 ```
 
-### 🔧 Thread-Safe Operations
+### 🔧 Connection Pooling
 
-#### 🧵 Enhanced Database Manager Class
+#### 🏊 PostgreSQL Connection Pool Manager
 ```python
-class DatabaseManager:
-    """Thread-safe database manager with connection pooling and singleton pattern"""
+class PostgreSQLManager:
+    """Thread-safe PostgreSQL database manager with connection pooling"""
     _instance = None
     _lock = threading.Lock()
     
-    def __new__(cls):
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = super().__new__(cls)
-                    cls._instance._initialized = False
-        return cls._instance
-    
     def __init__(self):
         if not self._initialized:
-            self._local = threading.local()
-            self._connection_pool = {}
-            self._pool_lock = threading.Lock()
+            self._pool = None
+            self._config = get_database_config()
+            self._initialize_pool()
             self._initialized = True
-            self._setup_database()
     
-    def _setup_database(self):
-        """Initialize database with optimal settings"""
-        with self.get_db_connection() as conn:
-            # Enable WAL mode for better concurrency
-            conn.execute('PRAGMA journal_mode=WAL')
-            # Set busy timeout for locked database scenarios
-            conn.execute('PRAGMA busy_timeout=30000')
-            # Enable foreign keys
-            conn.execute('PRAGMA foreign_keys=ON')
-            # Optimize cache size
-            conn.execute('PRAGMA cache_size=10000')
-            # Set synchronous mode for performance
-            conn.execute('PRAGMA synchronous=NORMAL')
-            # Enable memory-mapped I/O
-            conn.execute('PRAGMA mmap_size=268435456')  # 256MB
+    def _initialize_pool(self):
+        """Initialize PostgreSQL connection pool"""
+        try:
+            self._pool = psycopg2.pool.ThreadedConnectionPool(
+                minconn=self._config['min_connections'],  # Default: 2
+                maxconn=self._config['max_connections'],  # Default: 20
+                host=self._config['host'],
+                port=self._config['port'],
+                database=self._config['database'],
+                user=self._config['user'],
+                password=self._config['password'],
+                sslmode=self._config.get('sslmode', 'prefer'),
+                connect_timeout=self._config.get('connect_timeout', 10)
+            )
+        except Exception as e:
+            print(f"Failed to initialize PostgreSQL connection pool: {e}")
+            raise
 ```
 
-#### 🔄 Enhanced Connection Management
+#### ⚡ Enhanced Connection Management
 ```python
-def _get_connection(self):
-    """Get thread-local database connection with pooling"""
-    thread_id = threading.get_ident()
-    
-    if not hasattr(self._local, 'connection') or self._local.connection is None:
-        with self._pool_lock:
-            if thread_id in self._connection_pool:
-                self._local.connection = self._connection_pool[thread_id]
-            else:
-                self._local.connection = sqlite3.connect(
-                    DB_PATH, 
-                    timeout=30.0,
-                    check_same_thread=False,
-                    isolation_level=None  # Autocommit mode
-                )
-                self._connection_pool[thread_id] = self._local.connection
-                self._configure_connection(self._local.connection)
-    
-    return self._local.connection
+@contextmanager
+def get_db_connection(self):
+    """Context manager for database connections with automatic cleanup"""
+    conn = None
+    try:
+        conn = self._pool.getconn()
+        conn.autocommit = False
+        yield conn
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if conn:
+            self._pool.putconn(conn)
 
-def _configure_connection(self, conn):
-    """Configure connection with optimal settings"""
-    conn.execute('PRAGMA journal_mode=WAL')
-    conn.execute('PRAGMA busy_timeout=30000')
-    conn.execute('PRAGMA foreign_keys=ON')
-    conn.execute('PRAGMA cache_size=10000')
-    conn.execute('PRAGMA synchronous=NORMAL')
-    conn.execute('PRAGMA temp_store=MEMORY')
-```
-
-#### ⚡ Enhanced Automatic Retry Mechanism
-```python
 def execute_query(self, query, params=None, fetch_one=False, fetch_all=False):
-    """Execute a query with enhanced retry mechanism and error handling"""
-    max_retries = 5
-    base_delay = 0.1
-    max_delay = 2.0
+    """Execute query with automatic retry on transient errors"""
+    max_retries = 3
+    retry_delay = 0.1
     
     for attempt in range(max_retries):
         try:
             with self.get_db_connection() as conn:
-                cursor = conn.cursor()
-                
-                # Log query for debugging (sanitized)
-                self._log_query(query, params, attempt)
-                
-                if params:
-                    cursor.execute(query, params)
-                else:
-                    cursor.execute(query)
-                
-                if fetch_one:
-                    result = cursor.fetchone()
-                elif fetch_all:
-                    result = cursor.fetchall()
-                else:
-                    result = cursor.lastrowid
-                
-                conn.commit()
-                return result
-                
-        except sqlite3.OperationalError as e:
-            if "database is locked" in str(e) and attempt < max_retries - 1:
-                # Exponential backoff with jitter
-                delay = min(base_delay * (2 ** attempt) + random.uniform(0, 0.1), max_delay)
-                time.sleep(delay)
+                with conn.cursor() as cursor:
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    
+                    if fetch_one:
+                        result = cursor.fetchone()
+                    elif fetch_all:
+                        result = cursor.fetchall()
+                    else:
+                        result = cursor.rowcount
+                    
+                    conn.commit()
+                    return result
+        except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
                 continue
-            raise DatabaseError(f"Database operation failed after {attempt + 1} attempts: {str(e)}")
-        except sqlite3.IntegrityError as e:
-            raise DatabaseIntegrityError(f"Database integrity error: {str(e)}")
-        except Exception as e:
-            raise DatabaseError(f"Unexpected database error: {str(e)}")
+            raise
 ```
 
 ### 📊 Performance Optimizations
 
-#### ⚡ Enhanced WAL Mode Configuration
+#### ⚡ PostgreSQL Performance Features
 ```sql
--- Enable Write-Ahead Logging for better concurrency
-PRAGMA journal_mode=WAL;
+-- Connection pooling configuration
+POSTGRES_MIN_CONN=2
+POSTGRES_MAX_CONN=20
+POSTGRES_TIMEOUT=10
 
--- Set busy timeout for locked database scenarios
-PRAGMA busy_timeout=30000;
-
--- Enable foreign key constraints
-PRAGMA foreign_keys=ON;
-
--- Optimize cache size (10MB)
-PRAGMA cache_size=10000;
-
--- Set synchronous mode for performance
-PRAGMA synchronous=NORMAL;
-
--- Enable memory-mapped I/O (256MB)
-PRAGMA mmap_size=268435456;
-
--- Set temporary storage to memory
-PRAGMA temp_store=MEMORY;
-
--- Optimize page size
-PRAGMA page_size=4096;
-
--- Enable automatic index creation
-PRAGMA automatic_index=ON;
+-- SSL and security settings
+POSTGRES_SSLMODE=prefer
+POSTGRES_CONNECT_TIMEOUT=10
 ```
 
 #### 🔍 Comprehensive Database Indexes
 ```sql
 -- User authentication and lookup indexes
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_suspended ON users(suspended);
-CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_email ON users(email);
 
 -- Application management indexes
-CREATE INDEX IF NOT EXISTS idx_applications_name ON applications(name);
-CREATE INDEX IF NOT EXISTS idx_applications_git_url ON applications(git_url);
-CREATE INDEX IF NOT EXISTS idx_applications_created_at ON applications(created_at);
-
--- User application relationship indexes
-CREATE INDEX IF NOT EXISTS idx_user_applications_user_id ON user_applications(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_applications_app_id ON user_applications(application_id);
-CREATE INDEX IF NOT EXISTS idx_user_applications_ports ON user_applications(http_port, https_port);
+CREATE INDEX idx_user_applications_user_id ON user_applications(user_id);
+CREATE INDEX idx_user_applications_application_id ON user_applications(application_id);
 
 -- Deployment tracking indexes
-CREATE INDEX IF NOT EXISTS idx_deployments_user_id ON deployments(user_id);
-CREATE INDEX IF NOT EXISTS idx_deployments_app_name ON deployments(application_name);
-CREATE INDEX IF NOT EXISTS idx_deployments_server_id ON deployments(server_id);
-CREATE INDEX IF NOT EXISTS idx_deployments_status ON deployments(status);
-CREATE INDEX IF NOT EXISTS idx_deployments_updated_at ON deployments(updated_at);
-
--- Server management indexes
-CREATE INDEX IF NOT EXISTS idx_servers_status ON servers(SERVER_STATUS);
-CREATE INDEX IF NOT EXISTS idx_servers_ip ON servers(SERVER_IP);
-CREATE INDEX IF NOT EXISTS idx_servers_type ON servers(SERVER_TYPE);
+CREATE INDEX idx_deployments_user_id ON deployments(user_id);
+CREATE INDEX idx_deployments_server_id ON deployments(server_id);
+CREATE INDEX idx_deployments_status ON deployments(status);
 
 -- Billing and cost tracking indexes
-CREATE INDEX IF NOT EXISTS idx_billing_activities_user_id ON billing_activities(user_id);
-CREATE INDEX IF NOT EXISTS idx_billing_activities_app_id ON billing_activities(application_id);
-CREATE INDEX IF NOT EXISTS idx_billing_activities_action ON billing_activities(action);
-CREATE INDEX IF NOT EXISTS idx_billing_activities_created_at ON billing_activities(created_at);
-CREATE INDEX IF NOT EXISTS idx_billing_activities_started_at ON billing_activities(started_at);
-CREATE INDEX IF NOT EXISTS idx_billing_activities_stopped_at ON billing_activities(stopped_at);
+CREATE INDEX idx_billing_activities_user_id ON billing_activities(user_id);
+CREATE INDEX idx_billing_activities_application_id ON billing_activities(application_id);
+CREATE INDEX idx_billing_activities_created_at ON billing_activities(created_at);
 
 -- Authentication and security indexes
-CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_auth_tokens_hash ON auth_tokens(token_hash);
-CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires ON auth_tokens(expires_at);
+CREATE INDEX idx_auth_tokens_user_id ON auth_tokens(user_id);
+CREATE INDEX idx_auth_tokens_expires_at ON auth_tokens(expires_at);
 
 -- Audit and logging indexes
-CREATE INDEX IF NOT EXISTS idx_users_logs_user_id ON users_logs(user_id);
-CREATE INDEX IF NOT EXISTS idx_users_logs_action ON users_logs(action);
-CREATE INDEX IF NOT EXISTS idx_users_logs_datetime ON users_logs(datetime);
+CREATE INDEX idx_users_logs_user_id ON users_logs(user_id);
+CREATE INDEX idx_users_logs_datetime ON users_logs(datetime);
+```
 
--- Composite indexes for complex queries
-CREATE INDEX IF NOT EXISTS idx_billing_user_month ON billing_activities(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_deployment_user_status ON deployments(user_id, status);
-CREATE INDEX IF NOT EXISTS idx_server_status_capacity ON servers(SERVER_STATUS, SERVER_CAPACITY_USER_MAX);
+#### 🛠️ Database Triggers
+```sql
+-- Automatic updated_at timestamp trigger
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_deployments_updated_at BEFORE UPDATE ON deployments
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_application_costs_updated_at BEFORE UPDATE ON application_costs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
 ### 💰 Billing System
@@ -798,132 +758,142 @@ def get_database_stats():
     return stats
 ```
 
-### 🔄 Backup & Recovery
+### 🔄 Migration & Backup
 
-#### 💾 Enhanced Automated Backup System
+#### 🔧 SQLite to PostgreSQL Migration
+```python
+#!/usr/bin/env python3
+"""
+SQLite to PostgreSQL Migration Script for AI-SwAutoMorph
+Migrates all data from SQLite database to PostgreSQL
+"""
+
+def migrate_table(sqlite_conn, pg_conn, table_name, column_mapping=None):
+    """Migrate a single table from SQLite to PostgreSQL"""
+    print(f"Migrating table: {table_name}")
+    
+    sqlite_cursor = sqlite_conn.cursor()
+    pg_cursor = pg_conn.cursor()
+    
+    # Get data from SQLite
+    sqlite_cursor.execute(f"SELECT * FROM {table_name}")
+    rows = sqlite_cursor.fetchall()
+    
+    if not rows:
+        print(f"  No data found in {table_name}")
+        return
+    
+    # Get column names
+    columns = [description[0] for description in sqlite_cursor.description]
+    
+    # Apply column mapping if provided
+    if column_mapping:
+        pg_columns = [column_mapping.get(col, col) for col in columns]
+    else:
+        pg_columns = columns
+    
+    # Convert and insert data with type conversion
+    converted_rows = []
+    for row in rows:
+        converted_row = []
+        for i, value in enumerate(row):
+            # Convert SQLite data types to PostgreSQL compatible types
+            if columns[i] in ['suspended', 'is_default'] and value is not None:
+                # Convert integer boolean to actual boolean
+                converted_row.append(bool(value))
+            elif columns[i] in ['created_at', 'updated_at', 'expires_at', 'started_at', 'stopped_at', 'payment_date', 'datetime'] and value:
+                # Convert timestamp strings to proper format
+                try:
+                    if isinstance(value, str):
+                        dt = datetime.fromisoformat(value.replace('Z', '+00:00'))
+                        converted_row.append(dt)
+                    else:
+                        converted_row.append(value)
+                except:
+                    converted_row.append(value)
+            elif columns[i] == 'server_ip' and value:
+                # Ensure IP address is properly formatted
+                converted_row.append(str(value))
+            else:
+                converted_row.append(value)
+        converted_rows.append(converted_row)
+    
+    # Prepare INSERT statement with PostgreSQL syntax
+    placeholders = ', '.join(['%s'] * len(pg_columns))
+    insert_sql = f"INSERT INTO {table_name} ({', '.join(pg_columns)}) VALUES ({placeholders})"
+    
+    try:
+        pg_cursor.executemany(insert_sql, converted_rows)
+        pg_conn.commit()
+        print(f"  Migrated {len(converted_rows)} rows")
+    except Exception as e:
+        print(f"  Error migrating {table_name}: {e}")
+        pg_conn.rollback()
+        raise
+
+def reset_sequences(pg_conn):
+    """Reset PostgreSQL sequences to match the migrated data"""
+    pg_cursor = pg_conn.cursor()
+    
+    tables_with_sequences = [
+        'users', 'applications', 'auth_tokens', 'user_applications',
+        'servers', 'deployments', 'application_costs', 'billing_activities',
+        'users_logs', 'payment_modes', 'invoicing'
+    ]
+    
+    for table in tables_with_sequences:
+        try:
+            # Get the maximum ID from the table
+            pg_cursor.execute(f"SELECT COALESCE(MAX(id), 0) FROM {table}")
+            max_id = pg_cursor.fetchone()[0]
+            
+            # Reset the sequence
+            sequence_name = f"{table}_id_seq"
+            pg_cursor.execute(f"SELECT setval('{sequence_name}', {max_id + 1})")
+            print(f"  Reset sequence {sequence_name} to {max_id + 1}")
+        except Exception as e:
+            print(f"  Warning: Could not reset sequence for {table}: {e}")
+    
+    pg_conn.commit()
+```
+
+#### 💾 PostgreSQL Backup Strategy
 ```bash
 #!/bin/bash
-# Enhanced backup script with compression and validation
+# PostgreSQL backup script with compression and validation
 
 BACKUP_DIR="./softfluid/db/backup"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 BACKUP_PATH="${BACKUP_DIR}/${TIMESTAMP}"
-DB_FILE="./softfluid/db/ai_swautomorph.db"
+DB_NAME="ai_swautomorph"
 
 # Create backup directory
 mkdir -p "${BACKUP_PATH}"
 
-# Database backup with validation
-if [ -f "${DB_FILE}" ]; then
-    echo "Starting database backup at $(date)"
-    
-    # Create SQLite dump
-    sqlite3 "${DB_FILE}" ".backup ${BACKUP_PATH}/ai_swautomorph.db.backup"
-    
-    # Create SQL dump
-    sqlite3 "${DB_FILE}" ".dump" > "${BACKUP_PATH}/complete_database.sql"
-    
-    # Create compressed backup
-    tar -czf "${BACKUP_PATH}/backup.tar.gz" -C "${BACKUP_DIR}" "${TIMESTAMP}"
-    
-    # Validate backup integrity
-    sqlite3 "${BACKUP_PATH}/ai_swautomorph.db.backup" "PRAGMA integrity_check;" > "${BACKUP_PATH}/integrity_check.log"
-    
-    # Generate backup manifest
-    cat > "${BACKUP_PATH}/manifest.json" << EOF
+# PostgreSQL backup with validation
+echo "Starting PostgreSQL backup at $(date)"
+
+# Create SQL dump
+pg_dump -h localhost -U swautomorph -d ${DB_NAME} > "${BACKUP_PATH}/complete_database.sql"
+
+# Create custom format backup (compressed)
+pg_dump -h localhost -U swautomorph -d ${DB_NAME} -Fc > "${BACKUP_PATH}/database.backup"
+
+# Create compressed backup
+tar -czf "${BACKUP_PATH}/backup.tar.gz" -C "${BACKUP_DIR}" "${TIMESTAMP}"
+
+# Generate backup manifest
+cat > "${BACKUP_PATH}/manifest.json" << EOF
 {
     "timestamp": "${TIMESTAMP}",
-    "source_db": "${DB_FILE}",
-    "backup_size": $(stat -f%z "${BACKUP_PATH}/ai_swautomorph.db.backup" 2>/dev/null || stat -c%s "${BACKUP_PATH}/ai_swautomorph.db.backup"),
-    "sql_dump_size": $(stat -f%z "${BACKUP_PATH}/complete_database.sql" 2>/dev/null || stat -c%s "${BACKUP_PATH}/complete_database.sql"),
-    "integrity_check": "$(tail -1 ${BACKUP_PATH}/integrity_check.log)"
+    "database": "${DB_NAME}",
+    "backup_size": $(stat -c%s "${BACKUP_PATH}/database.backup"),
+    "sql_dump_size": $(stat -c%s "${BACKUP_PATH}/complete_database.sql"),
+    "backup_type": "postgresql"
 }
 EOF
-    
-    # Sync to S3 with retry
-    for i in {1..3}; do
-        if aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH; then
-            echo "S3 sync successful on attempt $i"
-            break
-        else
-            echo "S3 sync failed on attempt $i, retrying..."
-            sleep 5
-        fi
-    done
-    
-    # Cleanup old backups (keep last 30 days)
-    find "${BACKUP_DIR}" -type d -name "20*" -mtime +30 -exec rm -rf {} \;
-    
-    echo "Backup completed successfully at $(date)"
-else
-    echo "Database file not found: ${DB_FILE}"
-    exit 1
-fi
-```
 
-#### 🔄 Enhanced Recovery Process
-```python
-def recover_database(backup_date, validate=True):
-    """Enhanced database recovery with validation and rollback capability"""
-    backup_dir = f"./softfluid/db/backup/{backup_date}"
-    
-    if not os.path.exists(backup_dir):
-        raise FileNotFoundError(f"Backup directory {backup_dir} not found")
-    
-    # Load backup manifest
-    manifest_path = os.path.join(backup_dir, 'manifest.json')
-    if os.path.exists(manifest_path):
-        with open(manifest_path, 'r') as f:
-            manifest = json.load(f)
-        print(f"Backup manifest: {manifest}")
-    
-    # Create recovery point
-    current_db = "softfluid/db/ai_swautomorph.db"
-    if os.path.exists(current_db):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        recovery_backup = f"softfluid/db/ai_swautomorph.db.pre-recovery.{timestamp}"
-        shutil.copy2(current_db, recovery_backup)
-        print(f"Current database backed up to: {recovery_backup}")
-    
-    # Restore from backup
-    backup_file = os.path.join(backup_dir, "ai_swautomorph.db.backup")
-    sql_dump = os.path.join(backup_dir, "complete_database.sql")
-    
-    try:
-        if os.path.exists(backup_file):
-            # Restore from binary backup
-            shutil.copy2(backup_file, current_db)
-            print(f"Database restored from: {backup_file}")
-        elif os.path.exists(sql_dump):
-            # Restore from SQL dump
-            if os.path.exists(current_db):
-                os.remove(current_db)
-            
-            subprocess.run([
-                "sqlite3", current_db, f".read {sql_dump}"
-            ], check=True)
-            print(f"Database restored from SQL dump: {sql_dump}")
-        else:
-            raise FileNotFoundError("No valid backup files found")
-        
-        # Validate restored database
-        if validate:
-            print("Validating restored database...")
-            health_status = check_database_health()
-            if health_status['status'] != 'healthy':
-                raise Exception(f"Database validation failed: {health_status}")
-            print("Database validation successful")
-        
-        print("Database recovery completed successfully")
-        return True
-        
-    except Exception as e:
-        print(f"Recovery failed: {str(e)}")
-        # Attempt to restore from recovery backup
-        if 'recovery_backup' in locals() and os.path.exists(recovery_backup):
-            shutil.copy2(recovery_backup, current_db)
-            print("Restored from recovery backup")
-        raise
+echo "PostgreSQL backup completed successfully at $(date)"
 ```
 
 ### 🛡️ Security Enhancements
@@ -1018,57 +988,64 @@ def execute_safe_query(query_template, params, allowed_tables=None):
 ## Français
 
 <div class="center">
-🚀 **Architecture de Base de Données Améliorée pour AI-SwAutoMorph** 📊
+🚀 **Architecture de Base de Données PostgreSQL pour AI-SwAutoMorph** 📊
 </div>
 
 ### 📋 Table des Matières
 - [🌟 Aperçu](#aperçu)
+- [🐘 Migration PostgreSQL](#migration-postgresql)
 - [🏗️ Schéma de Base de Données](#schéma-de-base-de-données)
-- [🔧 Opérations Thread-Safe](#opérations-thread-safe)
+- [🔧 Mise en Pool de Connexions](#mise-en-pool-de-connexions)
 - [📊 Optimisations de Performance](#optimisations-de-performance)
 - [💰 Système de Facturation](#système-de-facturation)
 - [🔍 Surveillance de Santé](#surveillance-de-santé)
-- [🔄 Sauvegarde et Récupération](#sauvegarde-et-récupération)
+- [🔄 Migration et Sauvegarde](#migration-et-sauvegarde)
 - [🛡️ Améliorations de Sécurité](#améliorations-de-sécurité)
 
 ### 🌟 Aperçu
 
-La base de données AI-SwAutoMorph a été considérablement améliorée avec des opérations thread-safe, le mode WAL, la mise en pool de connexions et un suivi de facturation complet. Le système prend maintenant en charge les déploiements multi-serveurs avec gestion automatique de capacité, surveillance de santé en temps réel et fonctionnalités de sécurité avancées.
+AI-SwAutoMorph a migré de SQLite vers **PostgreSQL** pour des performances, une évolutivité et une fiabilité de niveau entreprise. Le système dispose maintenant de la mise en pool de connexions, des transactions ACID, des types de données avancés et des capacités de surveillance complètes.
 
 #### 🎯 Améliorations Clés
-- **🧵 Opérations Thread-Safe** : Mise en pool de connexions avec stockage thread-local et pattern singleton
-- **⚡ Mode WAL** : Write-Ahead Logging pour une meilleure concurrence et performance
-- **🔄 Retry Automatique** : Backoff exponentiel pour les verrous de base de données avec jitter
-- **📊 Surveillance de Santé** : Statistiques de base de données en temps réel et vérifications de santé complètes
-- **💰 Intégration Facturation** : Suivi complet des coûts, journalisation d'activité et génération de factures
-- **🖥️ Support Multi-Serveurs** : Gestion de capacité serveur, allocation et équilibrage de charge
-- **🔐 Sécurité Renforcée** : Validation d'entrée, prévention d'injection SQL et journalisation d'audit
-- **📈 Optimisation de Performance** : Index de base de données, optimisation de requêtes et mise en pool de connexions
+- **🐘 Base de Données PostgreSQL** : Base de données de niveau entreprise avec conformité ACID complète
+- **🏊 Mise en Pool de Connexions** : ThreadedConnectionPool avec connexions min/max configurables (2-20)
+- **⚡ Types de Données Avancés** : INET pour adresses IP, BIGSERIAL pour auto-incrément, TIMESTAMP WITH TIME ZONE
+- **🔍 Index Optimisés** : Index optimisés pour performance sur colonnes fréquemment interrogées
+- **🔄 Triggers de Base de Données** : Gestion automatique des timestamps updated_at
+- **📊 Surveillance Améliorée** : Statistiques de base de données en temps réel et vérifications de santé
+- **💰 Intégration Facturation** : Suivi complet des coûts avec précision PostgreSQL
+- **🖥️ Support Multi-Serveurs** : Gestion évolutive de capacité serveur
+- **🔐 Sécurité Améliorée** : Requêtes paramétrées, support SSL et journalisation d'audit
+- **🛠️ Outils de Migration** : Script de migration automatisé SQLite vers PostgreSQL
+
+### 🐘 Migration PostgreSQL
+
+La plateforme inclut des outils de migration automatisés pour une transition transparente de SQLite vers PostgreSQL avec préservation complète des données, mappage de schéma automatique, et validation des types de données.
 
 ### 🏗️ Schéma de Base de Données
 
-Le schéma de base de données comprend des tables principales pour les utilisateurs, applications, déploiements, serveurs, et un système complet de facturation avec suivi des activités, modes de paiement, et facturation automatisée.
+Le schéma PostgreSQL utilise des types de données avancés comme BIGSERIAL pour les clés primaires, INET pour les adresses IP, TIMESTAMP WITH TIME ZONE pour les horodatages, et DECIMAL pour les calculs financiers précis.
 
-### 🔧 Opérations Thread-Safe
+### 🔧 Mise en Pool de Connexions
 
-Le gestionnaire de base de données utilise un pattern singleton avec stockage thread-local et mise en pool de connexions pour assurer la sécurité des threads et des performances optimales.
+Le gestionnaire PostgreSQL utilise ThreadedConnectionPool avec connexions configurables (2-20), gestion automatique des erreurs transitoires, et nettoyage automatique des connexions.
 
 ### 📊 Optimisations de Performance
 
-Le système utilise le mode WAL, des index complets, la mise en pool de connexions, et des mécanismes de retry automatique pour assurer des performances optimales même sous charge élevée.
+Les optimisations incluent des index complets sur les colonnes fréquemment interrogées, des triggers de base de données pour la gestion automatique des timestamps, et une configuration SSL pour la sécurité.
 
 ### 💰 Système de Facturation
 
-Le système de facturation enregistre automatiquement les activités START/STOP, calcule les durées et coûts avec précision à la minute, et supporte plusieurs modes de paiement avec facturation mensuelle automatisée.
+Le système de facturation utilise des types DECIMAL pour des calculs financiers précis, avec enregistrement automatique des activités START/STOP et calcul des coûts basé sur la durée réelle d'utilisation.
 
 ### 🔍 Surveillance de Santé
 
-La surveillance inclut des vérifications complètes de connectivité, statut WAL, contraintes de clés étrangères, taille de base de données, métriques de performance, et statistiques détaillées par table.
+La surveillance inclut des vérifications de connectivité PostgreSQL, des métriques de pool de connexions, des statistiques de performance, et une surveillance en temps réel de l'état de la base de données.
 
-### 🔄 Sauvegarde et Récupération
+### 🔄 Migration et Sauvegarde
 
-Le système effectue des sauvegardes automatiques améliorées avec compression, validation d'intégrité, manifestes de sauvegarde, et synchronisation S3 avec retry. La récupération inclut la validation et les points de récupération.
+Les outils incluent un script de migration automatisé SQLite vers PostgreSQL avec conversion de types, mappage de colonnes, et réinitialisation de séquences. Les sauvegardes PostgreSQL utilisent pg_dump avec compression et validation.
 
 ### 🛡️ Améliorations de Sécurité
 
-Les améliorations de sécurité incluent la validation et sanitisation complète des entrées, la prévention d'injection SQL, la protection contre la traversée de chemin, et la journalisation d'audit complète pour toutes les opérations.
+Les améliorations incluent des requêtes paramétrées pour prévenir l'injection SQL, le support SSL pour les connexions sécurisées, la validation d'entrée complète, et la journalisation d'audit pour toutes les opérations.

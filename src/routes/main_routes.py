@@ -3,7 +3,14 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 import sqlite3
 import os
 from ..config import DB_PATH
-from ..database import db_manager
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    from ..database_postgres import db_manager
+else:
+    from ..database import db_manager
 
 main_bp = Blueprint('main', __name__)
 

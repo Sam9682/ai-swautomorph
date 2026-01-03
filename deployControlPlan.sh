@@ -232,7 +232,7 @@ check_gitea_status() {
 
 check_docker_status() {
     if command -v docker-compose &> /dev/null; then
-        HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + ${DOCKER_PORT_OFFSET:-363})) HTTPS_PORT2=$((HTTPS_PORT2 + ${DOCKER_PORT_OFFSET:-363})) USER_ID=$USER_ID docker-compose ps
+        docker-compose ps
     else
         echo "  ❌ Docker Compose not installed"
     fi
@@ -253,45 +253,80 @@ provide_cleanup_guidance() {
 
 # Database backup function
 backup_database() {
-    echo "💾 Creating database backup..."
+    echo "💾 Creating PostgreSQL database backup..."
+    
+    # Load environment variables from .env file if it exists
+    if [ -f ".env" ]; then
+        echo "  📋 Loading PostgreSQL credentials from .env file..."
+        export $(grep -v '^#' .env | grep -v '^$' | xargs)
+    fi
     
     # Create backup directory with timestamp
     DATETIME=$(date +"%Y%m%d_%H%M%S")
     BACKUP_DIR="./softfluid/db/backup/$DATETIME"
     mkdir -p "$BACKUP_DIR"
     
-    # Database file path
-    DB_FILE="./softfluid/db/ai_swautomorph.db"
+    # PostgreSQL connection parameters from environment or defaults
+    POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
+    POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
+    POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
+    POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_secure_password_2024"}
     
-    if [ -f "$DB_FILE" ]; then
-        echo "  📋 Backing up database tables..."
-        
-        # Get all table names
-        TABLES=$(sqlite3 "$DB_FILE" ".tables")
-        
-        # Dump each table
-        for table in $TABLES; do
-            echo "    📄 Dumping table: $table"
-            sqlite3 "$DB_FILE" ".dump $table" > "$BACKUP_DIR/${table}.sql"
-        done
-        
-        # Create complete database dump
-        echo "    💿 Creating complete database dump..."
-        sqlite3 "$DB_FILE" ".dump" > "$BACKUP_DIR/complete_database.sql"
-        
-        # Copy the database file itself
-        cp "$DB_FILE" "$BACKUP_DIR/ai_swautomorph.db.backup"
-        
-        echo -e "  $OK Database backup completed: $BACKUP_DIR"
-        echo "    📁 Files created:"
-        ls -la "$BACKUP_DIR" | sed 's/^/      /'
-        
-        # Sync to S3
-        echo "  ☁️ Syncing to S3..."
-        aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH
-    else
-        echo -e "  $WARN Database file $DB_FILE not found - skipping backup"
+    # Set PGPASSWORD environment variable for non-interactive backup
+    export PGPASSWORD="$POSTGRES_PASSWORD"
+    
+    echo "  📋 Backing up PostgreSQL database..."
+    echo "    🔗 Connection: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
+    
+    # Test connection first
+    echo "    🔍 Testing PostgreSQL connection..."
+    if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+        echo -e "  $ERROR PostgreSQL server is not ready or connection failed"
+        echo "    💡 Check if PostgreSQL is running: sudo systemctl status postgresql"
+        echo "    💡 Check connection: psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB"
+        unset PGPASSWORD
+        return 1
     fi
+    
+    # Create complete database dump using pg_dump
+    echo "    💿 Creating complete database dump..."
+    if pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        --no-password --verbose --clean --if-exists --create \
+        > "$BACKUP_DIR/complete_database.sql" 2>"$BACKUP_DIR/backup.log"; then
+        echo -e "  $OK PostgreSQL database backup completed: $BACKUP_DIR"
+    else
+        echo -e "  $ERROR PostgreSQL backup failed - check $BACKUP_DIR/backup.log"
+        echo "    💡 Common issues:"
+        echo "      - Wrong password: Check POSTGRES_PASSWORD in .env file"
+        echo "      - User doesn't exist: sudo -u postgres createuser $POSTGRES_USER"
+        echo "      - Database doesn't exist: sudo -u postgres createdb $POSTGRES_DB"
+        echo "      - Permission denied: GRANT ALL ON DATABASE $POSTGRES_DB TO $POSTGRES_USER"
+        unset PGPASSWORD
+        return 1
+    fi
+    
+    # Create data-only dump (without schema)
+    echo "    📄 Creating data-only dump..."
+    pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        --no-password --data-only --verbose \
+        > "$BACKUP_DIR/data_only.sql" 2>>"$BACKUP_DIR/backup.log" || true
+    
+    # Create schema-only dump
+    echo "    🏗️ Creating schema-only dump..."
+    pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        --no-password --schema-only --verbose \
+        > "$BACKUP_DIR/schema_only.sql" 2>>"$BACKUP_DIR/backup.log" || true
+    
+    # Unset PGPASSWORD for security
+    unset PGPASSWORD
+    
+    echo "    📁 Files created:"
+    ls -la "$BACKUP_DIR" | sed 's/^/      /'
+    
+    # Sync to S3
+    echo "  ☁️ Syncing to S3..."
+    aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH || echo "  ⚠️ S3 sync failed or not configured"
 }
 
 # Logs backup function
@@ -307,7 +342,38 @@ backup_logs() {
     fi
 }
 
-# Database recovery function
+# Database migration function
+migrate_database() {
+    echo "🔄 Migrating data from SQLite to PostgreSQL..."
+    
+    # Check if SQLite database exists
+    if [ ! -f "softfluid/db/ai_swautomorph.db" ]; then
+        echo -e "  $WARN No SQLite database found, skipping migration"
+        return
+    fi
+    
+    # Install PostgreSQL client if needed
+    if ! command -v psycopg2 &> /dev/null; then
+        echo "📦 Installing PostgreSQL dependencies..."
+        pip3 install psycopg2-binary --break-system-packages
+    fi
+    
+    # Wait for PostgreSQL to be ready
+    echo "  ⏳ Waiting for PostgreSQL to be ready..."
+    for i in {1..30}; do
+        if docker-compose exec -T postgres pg_isready -U swautomorph -d ai_swautomorph &>/dev/null; then
+            echo -e "  $OK PostgreSQL is ready"
+            break
+        fi
+        sleep 2
+    done
+    
+    # Run migration script
+    python3 migration/migrate_sqlite_to_postgres.py
+    echo -e "  $OK Data migration completed"
+}
+
+
 recover_database() {
     echo "🔄 Database Recovery Tool"
     
@@ -611,7 +677,7 @@ stop_nginx_service() {
 }
 
 stop_docker_services() {
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose down
+    docker-compose down
 }
 
 # Show logs
@@ -976,7 +1042,14 @@ setup_api_token() {
 start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
-    HTTP_PORT=$HTTP_PORT HTTPS_PORT=$((HTTPS_PORT + 363)) HTTPS_PORT2=$((HTTPS_PORT2 + 363)) USER_ID=$USER_ID docker-compose up -d --build
+    docker-compose up -d --build
+    
+    # Wait and migrate if needed
+    if [ "$USE_POSTGRES" = "true" ] && [ -f "softfluid/db/ai_swautomorph.db" ]; then
+        sleep 10
+        migrate_database
+    fi
+    
     echo "  ✅ Docker services started"
 }
 
@@ -1001,6 +1074,23 @@ start_flask_application() {
     
     # Create required directories
     mkdir -p logs conf
+    
+    # Initialize database if PostgreSQL is enabled
+    if [ "${USE_POSTGRES:-true}" = "true" ]; then
+        echo "  💾 Initializing PostgreSQL database..."
+        export POSTGRES_HOST=${POSTGRES_HOST:-localhost}
+        export POSTGRES_DB=${POSTGRES_DB:-ai_swautomorph}
+        export POSTGRES_USER=${POSTGRES_USER:-swautomorph}
+        export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-swautomorph_secure_password_2024}
+        export USE_POSTGRES=true
+        export PYTHONPATH=/home/ubuntu/ai-swautomorph
+        
+        if python3 ./scripts/cli.py init-db; then
+            echo "  ✅ Database initialized successfully"
+        else
+            echo "  ⚠️ Database initialization failed - continuing anyway"
+        fi
+    fi
     
     # Start Gunicorn with production configuration
     echo "  🚀 Starting Gunicorn server..."
@@ -1162,8 +1252,21 @@ check_requirements() {
 
 check_local_requirements() {
     if ! command -v python3 &> /dev/null; then
-        echo "❌ Python3 is not installed. Please install Python3 first."
-        exit 1
+        echo "❌ Python3 is not installed. Installing Python3 first"
+        # install python3 and python3-dev
+        sudo apt install python3 python3-dev python3-psycopg2
+    fi
+    
+    # Check for PostgreSQL development packages if PostgreSQL is available
+    if ! command -v psql &> /dev/null; then
+        echo "❌ PostgreSQL is not installed. 📦 Installing PostgreSQL development packages..."
+        sudo apt update
+        sudo apt install -y postgresql-server-dev-all libpq-dev build-essential
+        sudo apt install -y postgresql-17 postgresql-contrib-17
+        echo "✅ PostgreSQL development packages installed"
+        
+        # Setup PostgreSQL database and user for the application
+        setup_postgresql_database
     fi
     
     if ! command -v nginx &> /dev/null; then
@@ -1204,6 +1307,65 @@ install_nginx_with_modsecurity() {
     sudo systemctl enable nginx
 }
 
+# Setup PostgreSQL database and user for the application
+setup_postgresql_database() {
+    echo "💾 Setting up PostgreSQL database and user..."
+    
+    # Load environment variables from .env file if it exists
+    if [ -f ".env" ]; then
+        echo "  📋 Loading PostgreSQL credentials from .env file..."
+        export $(grep -v '^#' .env | grep -v '^$' | xargs)
+    fi
+    
+    # Start PostgreSQL service
+    sudo systemctl start postgresql
+    sudo systemctl enable postgresql
+    
+    # Get PostgreSQL credentials from environment or use defaults
+    POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
+    POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_secure_password_2024"}
+    
+    echo "  🔗 Using credentials: $POSTGRES_USER@localhost:5432/$POSTGRES_DB"
+    
+    # Check if user already exists
+    if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$POSTGRES_USER'" | grep -q 1; then
+        echo "  ✅ PostgreSQL user '$POSTGRES_USER' already exists"
+        # Update password in case it changed
+        echo "  🔑 Updating password for user '$POSTGRES_USER'..."
+        sudo -u postgres psql -c "ALTER USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';"
+    else
+        echo "  👤 Creating PostgreSQL user '$POSTGRES_USER'..."
+        sudo -u postgres psql -c "CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';"
+        echo "  ✅ PostgreSQL user '$POSTGRES_USER' created"
+    fi
+    
+    # Check if database already exists
+    if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; then
+        echo "  ✅ PostgreSQL database '$POSTGRES_DB' already exists"
+    else
+        echo "  💾 Creating PostgreSQL database '$POSTGRES_DB'..."
+        sudo -u postgres psql -c "CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;"
+        echo "  ✅ PostgreSQL database '$POSTGRES_DB' created"
+    fi
+    
+    # Grant privileges
+    echo "  🔑 Granting privileges to user '$POSTGRES_USER'..."
+    sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO $POSTGRES_USER;"
+    sudo -u postgres psql -c "GRANT CREATE ON SCHEMA public TO $POSTGRES_USER;" -d "$POSTGRES_DB"
+    
+    # Test connection
+    echo "  🔍 Testing PostgreSQL connection..."
+    if PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version();" >/dev/null 2>&1; then
+        echo "  ✅ PostgreSQL connection test successful"
+    else
+        echo "  ⚠️ PostgreSQL connection test failed - check configuration"
+        echo "    💡 Try manual connection: PGPASSWORD='$POSTGRES_PASSWORD' psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB"
+    fi
+    
+    echo "  ✅ PostgreSQL database setup completed"
+}
+
 check_docker_requirements() {
     if ! command -v docker &> /dev/null; then
         echo "  ❌ Docker is not installed. Please install Docker first."
@@ -1242,11 +1404,43 @@ generate_environment_file() {
     if [ ! -f .env ]; then
         echo "🔑 Generating environment configuration..."
         SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+        
+        # Load existing password from .env if it exists, otherwise use default
+        if [ -f ".env" ] && grep -q "POSTGRES_PASSWORD=" .env; then
+            POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" .env | cut -d'=' -f2)
+        else
+            POSTGRES_PASSWORD="swautomorph_secure_password_2024"
+        fi
+        
         cat > .env << EOF
+# PostgreSQL Configuration (when USE_POSTGRES=true)
+POSTGRES_HOST=localhost
+POSTGRES_DB=ai_swautomorph
+POSTGRES_USER=swautomorph
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_PORT=5432
+POSTGRES_MIN_CONN=2
+POSTGRES_MAX_CONN=20
+POSTGRES_TIMEOUT=10
+
+# Flask Configuration
 SECRET_KEY=${SECRET_KEY}
 FLASK_ENV=production
+
+# Active/Active Configuration
+USE_POSTGRES=true
+HTTP_PORT_1=6000
+HTTP_PORT_2=6002
+HTTP_LB_PORT=80
+HTTPS_PORT=6001
+
+# Instance Configuration
+INSTANCE_1_ID=1
+INSTANCE_2_ID=2
 EOF
         echo "  ✅ Environment file created (.env)"
+    else
+        echo "  ✅ Environment file already exists (.env)"
     fi
 }
 
@@ -1446,6 +1640,10 @@ main() {
             ;;
         "backup_db"|"--backup_db")
             backup_database
+            exit 0
+            ;;
+        "migrate_db"|"-m"|"--migrate_db")
+            migrate_database
             exit 0
             ;;
         "restart"|"-r"|"--restart")

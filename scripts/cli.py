@@ -5,9 +5,16 @@ import json
 import sqlite3
 import subprocess
 import os
+import sys
 from werkzeug.security import generate_password_hash
 
+# Add the parent directory to the path so we can import from src
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 BASE_URL = 'http://www.swautomorph.com:80'
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
 
 @click.group()
 def cli():
@@ -108,9 +115,19 @@ def validate_token(token):
 @cli.command()
 def init_db():
     """Initialize the database"""
-    from src.database import init_db as app_init_db
-    app_init_db()
-    click.echo('Database initialized successfully!')
+    try:
+        if USE_POSTGRES:
+            from src.database_postgres import init_db as app_init_db
+            click.echo('Initializing PostgreSQL database...')
+        else:
+            from src.database import init_db as app_init_db
+            click.echo('Initializing SQLite database...')
+        
+        app_init_db()
+        click.echo('Database initialized successfully!')
+    except Exception as e:
+        click.echo(f'Error initializing database: {str(e)}')
+        sys.exit(1)
 
 @cli.command()
 def db_health():
@@ -161,6 +178,37 @@ def mount_s3fs(bucket_name, mount_point, passwd_file):
         click.echo(f"Successfully mounted {bucket_name} to {mount_point}")
     except subprocess.CalledProcessError as e:
         click.echo(f"Mount failed: {e}")
+
+@cli.command()
+@click.option('--show-env', is_flag=True, help='Show current environment settings')
+def status(show_env):
+    """Show application status and configuration"""
+    db_type = "PostgreSQL" if USE_POSTGRES else "SQLite"
+    click.echo(f'Database Type: {db_type}')
+    
+    if show_env:
+        click.echo('\nEnvironment Variables:')
+        click.echo(f'USE_POSTGRES: {os.environ.get("USE_POSTGRES", "false")}')
+        if USE_POSTGRES:
+            click.echo(f'POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "localhost")}')
+            click.echo(f'POSTGRES_DB: {os.environ.get("POSTGRES_DB", "ai_swautomorph")}')
+            click.echo(f'POSTGRES_USER: {os.environ.get("POSTGRES_USER", "swautomorph")}')
+            click.echo(f'POSTGRES_PASSWORD: {"***" if os.environ.get("POSTGRES_PASSWORD") else "not set"}')
+    
+    try:
+        if USE_POSTGRES:
+            from src.database_postgres import db_manager
+        else:
+            from src.database import db_manager
+        
+        # Test connection
+        result = db_manager.execute_query("SELECT 1", fetch_one=True)
+        if result:
+            click.echo(f'✅ Database connection: OK')
+        else:
+            click.echo(f'❌ Database connection: Failed')
+    except Exception as e:
+        click.echo(f'❌ Database connection: Failed - {str(e)}')
 
 if __name__ == '__main__':
     cli()

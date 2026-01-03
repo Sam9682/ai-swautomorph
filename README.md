@@ -10,7 +10,7 @@ AI-SwAutoMorph is a centralized application deployment and management platform d
 
 - 🔐 User registration and authentication with Gitea integration
 - 🌐 Web-based dashboard with multi-language support (EN/FR)
-- 📱 Application management with SQLite database storage (WAL mode)
+- 📱 Application management with **PostgreSQL database** (enterprise-grade performance)
 - 🔑 SSO Identity Provider with token-based authentication
 - 🚀 **Application deployment system** (Clone, Start, Stop, Monitor, Logs)
 - 🐳 Docker containerization with docker-compose
@@ -18,14 +18,36 @@ AI-SwAutoMorph is a centralized application deployment and management platform d
 - 🔌 REST API endpoints with streaming support (Server-Sent Events)
 - 🤖 MCP (Model Context Protocol) support
 - 🛡️ ModSecurity WAF protection with OWASP CRS rules
-- 🔄 Automated database backups with S3 sync
+- 🔄 Automated database backups with PostgreSQL pg_dump
 - 💰 Billing and cost tracking system with activity logging
 - 🤖 **Virtual AI Agents**: Q Chat Developer and Operations assistants
 - 📊 Database health monitoring and statistics
 - 🌐 Multi-server deployment support with capacity management
 - 📖 Comprehensive user guide and documentation
-- 🔧 Thread-safe database operations with connection pooling
-- 🎯 Context-aware AI prompts for specialized operations
+- 🔧 **PostgreSQL connection pooling** with thread-safe operations
+- 🔄 **SQLite to PostgreSQL migration tools**
+
+## PostgreSQL Migration
+
+### Database Migration
+```bash
+# Run the automated migration from SQLite to PostgreSQL
+python3 ./migration/migrate_sqlite_to_postgres.py
+
+# Configure PostgreSQL connection (environment variables)
+export POSTGRES_HOST="localhost"
+export POSTGRES_PORT="5432"
+export POSTGRES_DB="ai_swautomorph"
+export POSTGRES_USER="swautomorph"
+export POSTGRES_PASSWORD="swautomorph_password"
+```
+
+### Migration Features
+- ✅ **Complete Data Migration**: Preserves all existing data during transition
+- 🔄 **Type Conversion**: Automatic SQLite to PostgreSQL data type mapping
+- 📊 **Schema Mapping**: Column name normalization (SERVER_IP → server_ip)
+- ⚡ **Sequence Reset**: Automatic adjustment of auto-increment sequences
+- 🔒 **Transaction Safety**: Full rollback capability on migration errors
 
 ## Installation Methods
 
@@ -267,7 +289,7 @@ python3 ./scripts/cli.py db-health
 - **API Endpoint**: https://www.swautomorph.com/api
 - **Gitea Server**: https://www.swautomorph.com/gitea (port 3000)
 - **MCP Server**: Available via scripts/mcp_server.py
-- **Database**: SQLite with WAL mode (softfluid/db/ai_swautomorph.db)
+- **Database**: **PostgreSQL with connection pooling** (enterprise-grade performance and scalability)
 - **Deployment Directory**: /home/ubuntu/deployments/[username]/[appname]
 - **SSL Certificates**: ssl/ directory
 - **Logs**: logs/ directory with daily rotation and Gunicorn logging
@@ -288,7 +310,8 @@ ai-swautomorph/
 │   │   ├── genai_routes.py       # Virtual AI agents
 │   │   └── billing_routes.py     # Billing & cost tracking
 │   ├── ControlPlanFlaskApp.py    # Main Flask application
-│   ├── database.py               # Thread-safe database manager
+│   ├── database_postgres.py      # PostgreSQL database manager with connection pooling
+│   ├── database.py               # Legacy SQLite database manager (migration compatibility)
 │   ├── config.py                 # Configuration & multi-language
 │   └── auth.py                   # Authentication utilities
 ├── scripts/               # CLI tools and utilities
@@ -298,7 +321,9 @@ ai-swautomorph/
 ├── static/               # CSS, JS, and static files
 ├── ssl/                  # SSL certificates
 ├── logs/                 # Application logs with Gunicorn support
-├── softfluid/db/         # Database and automated backups
+├── migration/                # Database migration tools
+│   ├── migrate_sqlite_to_postgres.py  # Automated migration script
+│   └── postgresql_schema.sql          # PostgreSQL schema definition
 ├── shared/               # Context files for virtual agents
 ├── docs/                 # Comprehensive documentation
 │   ├── USER_GUIDE.md             # AI agent usage guide
@@ -313,7 +338,7 @@ ai-swautomorph/
 ### Key Components
 
 - **Flask Application**: Multi-blueprint architecture with modular routes and virtual AI agents
-- **Database**: SQLite with WAL mode for better concurrency and thread-safe operations with connection pooling
+- **Database**: **PostgreSQL with connection pooling** for enterprise-grade performance and thread-safe operations
 - **Authentication**: Session-based with SSO token support and comprehensive user management
 - **Deployment**: Multi-server support with capacity management, automatic allocation, and streaming APIs
 - **Security**: ModSecurity WAF with OWASP CRS rules and input validation

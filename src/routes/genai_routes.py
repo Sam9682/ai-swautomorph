@@ -6,7 +6,14 @@ import os
 import json
 from datetime import datetime
 from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN
-from ..database import db_manager
+
+# Determine database type based on environment
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+
+if USE_POSTGRES:
+    from ..database_postgres import db_manager
+else:
+    from ..database import db_manager
 
 def log_with_timestamp(message):
     """Log message with datetime timestamp"""

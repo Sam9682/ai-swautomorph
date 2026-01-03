@@ -278,8 +278,9 @@ Applications must include a `deployApp.sh` script that supports:
 - Sufficient disk space for application deployments and log storage
 - Network access to git repositories with firewall configuration
 - ModSecurity WAF with OWASP CRS rules for security protection
-- Database with WAL mode enabled for better concurrency
-- Backup system with S3 sync for disaster recovery
+- **PostgreSQL database** with connection pooling for enterprise-grade performance
+- **Database migration tools** for SQLite to PostgreSQL transition
+- Backup system with PostgreSQL pg_dump for disaster recovery
 
 ### Troubleshooting
 
