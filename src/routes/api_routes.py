@@ -17,16 +17,6 @@ from src.config import *
 # Determine database type based on environment
 USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
 
-if USE_POSTGRES:
-    db_manager = pg_db_manager
-    init_db = pg_init_db
-    print("Using PostgreSQL database")
-else:
-    db_manager = sqlite_db_manager
-    init_db = sqlite_init_db
-    print("Using SQLite database")
-from ..db_health import check_database_health, get_database_stats
-
 # Get the project root directory dynamically
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -39,6 +29,8 @@ def get_text(key):
         return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
     except (KeyError, AttributeError, TypeError):
         return key
+
+api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 def log_with_timestamp(message):
     """Log message with datetime timestamp"""
@@ -53,9 +45,15 @@ def log_with_timestamp(message):
     except (IOError, OSError) as e:
         print(f"Warning: Failed to write to log file: {e}")
 
-api_bp = Blueprint('api', __name__, url_prefix='/api')
-
-
+if USE_POSTGRES:
+    db_manager = pg_db_manager
+    init_db = pg_init_db
+    log_with_timestamp("Using PostgreSQL database")
+else:
+    db_manager = sqlite_db_manager
+    init_db = sqlite_init_db
+    log_with_timestamp("Using SQLite database")
+from ..db_health import check_database_health, get_database_stats
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
     """Create user in Gitea server"""
@@ -247,16 +245,16 @@ def api_users():
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
-    # Check if user is admin
-    user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
-        (session['user_id'],), fetch_one=True
-    )
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
     try:
+        # Check if user is admin
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = ?', 
+            (session['user_id'],), fetch_one=True
+        )
+        
+        if not user or user[0] != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+    
         if request.method == 'GET':
             # Get all users
             users_data = db_manager.execute_query(
@@ -308,11 +306,13 @@ def api_users():
                 
                 return jsonify({'message': 'User created successfully'}), 201
             except Exception as e:
+                log_with_timestamp(f"Warning: Failed to create user {user_id}: {str(e)}")
                 if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
                     return jsonify({'error': 'Username or email already exists'}), 409
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
                 
     except Exception as e:
+        log_with_timestamp(f"Warning: Failed to GET/POST user {user_id} in DB: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
@@ -320,24 +320,24 @@ def api_user_actions(user_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
-    # Check if user is admin
-    user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
-        (session['user_id'],), fetch_one=True
-    )
-    
-    if not user or user[0] != 'admin':
-        return jsonify({'error': 'Admin access required'}), 403
-    
     try:
+        # Check if user is admin
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = ?', 
+            (session['user_id'],), fetch_one=True
+        )
+        
+        if not user or user[0] != 'admin':
+            return jsonify({'error': 'Admin access required'}), 403
+    
         if request.method == 'PUT':
             data = request.get_json()
             action = data.get('action')
             
             if action == 'suspend':
-                db_manager.execute_query('UPDATE users SET suspended = 1 WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = TRUE WHERE id = ?', (user_id,))
             elif action == 'unsuspend':
-                db_manager.execute_query('UPDATE users SET suspended = 0 WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = FALSE WHERE id = ?', (user_id,))
             elif action == 'update':
                 username = data.get('username')
                 email = data.get('email')
@@ -364,6 +364,7 @@ def api_user_actions(user_id):
             return jsonify({'message': 'User deleted successfully'})
             
     except Exception as e:
+        log_with_timestamp(f"Warning: Failed to PUT/DELETE user {user_id}: {str(e)}")
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>/applications', methods=['GET', 'POST', 'DELETE'])
@@ -993,7 +994,7 @@ def api_deployments():
         git_url = data.get('git_url')
         server_id = data.get('server_id')
         
-        log_with_timestamp(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
+        # log_with_timestamp(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
         
         if not all([action, app_name]):
             log_with_timestamp(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
