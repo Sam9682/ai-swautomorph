@@ -883,14 +883,14 @@ def _handle_app_action(user_id, app_name, action, data):
     )
     
     if not deployment:
-        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}'")
+        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}' for user {user_id}")
         return jsonify({'error': 'Application not deployed. Clone first.'}), 202
     
     deploy_path = str(deployment[0]) if isinstance(deployment, (list, tuple)) else str(deployment)
     deploy_script = os.path.join(deploy_path, 'deployApp.sh')
     
     if not os.path.exists(deploy_script):
-        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script}")
+        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script} for user {user_id}")
         return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 202
     
     # Get user details
