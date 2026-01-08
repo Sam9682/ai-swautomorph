@@ -85,9 +85,14 @@ class PostgreSQLManager:
     def __init__(self):
         if not self._initialized:
             self._pool = None
+            self._config = None
+            self._initialized = True
+    
+    def _ensure_initialized(self):
+        """Ensure the connection pool is initialized"""
+        if self._pool is None:
             self._config = get_database_config()
             self._initialize_pool()
-            self._initialized = True
     
     def _initialize_pool(self):
         """Initialize PostgreSQL connection pool"""
@@ -111,6 +116,7 @@ class PostgreSQLManager:
     @contextmanager
     def get_db_connection(self):
         """Context manager for database connections"""
+        self._ensure_initialized()
         conn = None
         try:
             conn = self._pool.getconn()
