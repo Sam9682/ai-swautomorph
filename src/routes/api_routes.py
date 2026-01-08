@@ -966,7 +966,7 @@ def api_deployments():
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     user_agent = request.headers.get('User-Agent', 'Unknown')
     
-    log_with_timestamp(f"[DEPLOYMENT API] {method} /api/deployments - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
+    #log_with_timestamp(f"[DEPLOYMENT API] {method} /api/deployments - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
     
     if 'user_id' not in session:
         log_with_timestamp(f"[DEPLOYMENT API] FAILED - Authentication required from {remote_ip}")
