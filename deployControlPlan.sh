@@ -271,7 +271,7 @@ backup_database() {
     POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
     POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
     POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
-    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_secure_password_2024"}
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
     
     # Set PGPASSWORD environment variable for non-interactive backup
     export PGPASSWORD="$POSTGRES_PASSWORD"
@@ -1081,7 +1081,7 @@ start_flask_application() {
         export POSTGRES_HOST=${POSTGRES_HOST:-localhost}
         export POSTGRES_DB=${POSTGRES_DB:-ai_swautomorph}
         export POSTGRES_USER=${POSTGRES_USER:-swautomorph}
-        export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-swautomorph_secure_password_2024}
+        export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-swautomorph_password}
         export USE_POSTGRES=true
         export PYTHONPATH=/home/ubuntu/ai-swautomorph
         
@@ -1324,7 +1324,7 @@ setup_postgresql_database() {
     # Get PostgreSQL credentials from environment or use defaults
     POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
     POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
-    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_secure_password_2024"}
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
     
     echo "  🔗 Using credentials: $POSTGRES_USER@localhost:5432/$POSTGRES_DB"
     
@@ -1409,7 +1409,7 @@ generate_environment_file() {
         if [ -f ".env" ] && grep -q "POSTGRES_PASSWORD=" .env; then
             POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" .env | cut -d'=' -f2)
         else
-            POSTGRES_PASSWORD="swautomorph_secure_password_2024"
+            POSTGRES_PASSWORD="swautomorph_password"
         fi
         
         cat > .env << EOF
