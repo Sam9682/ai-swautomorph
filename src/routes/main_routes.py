@@ -1,16 +1,9 @@
 """Main application routes"""
 from flask import Blueprint, render_template, session, redirect, url_for, request, send_from_directory
-import sqlite3
 import os
-from ..config import DB_PATH
 
-# Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
-
-if USE_POSTGRES:
-    from ..database_postgres import db_manager
-else:
-    from ..database import db_manager
+# Use PostgreSQL by default
+from ..database_postgres import db_manager
 
 main_bp = Blueprint('main', __name__)
 
@@ -27,7 +20,7 @@ def dashboard():
     
     # Get username for admin check
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     username = user[0] if user else ''
@@ -38,7 +31,7 @@ def dashboard():
                a.docker_build_duration, a.docker_start_duration, a.docker_stop_duration, a.docker_ps_duration
         FROM applications a
         JOIN user_applications ua ON a.id = ua.application_id
-        WHERE ua.user_id = ?
+        WHERE ua.user_id = %s
         ORDER BY a.name
     ''', (session['user_id'],), fetch_all=True)
     

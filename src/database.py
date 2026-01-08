@@ -376,7 +376,7 @@ def init_db():
                 current_ip = "127.0.0.1"
             
             cursor.execute('''
-                INSERT INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
+                INSERT OR IGNORE INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (current_ip, 'main-server', 10, 50, 'STAND_BY', 'primary'))
         
@@ -389,7 +389,7 @@ def init_db():
         if cursor.fetchone()[0] == 0:
             admin_password_hash = generate_password_hash('password')
             cursor.execute('''
-                INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
+                INSERT OR IGNORE INTO users (username, email, password_hash, first_name, last_name, suspended)
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator', 0))
             
@@ -411,7 +411,7 @@ def init_db():
                     # Calculate URL using the same logic as deployControlPlan.sh
                     HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
                     url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-                    cursor.execute('INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
+                    cursor.execute('INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
             
             # Ensure costs exist for all applications
             cursor.execute('SELECT id FROM applications')
@@ -419,13 +419,13 @@ def init_db():
             for app_id in app_ids:
                 cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id[0],))
                 if cursor.fetchone()[0] == 0:
-                    cursor.execute('INSERT INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
+                    cursor.execute('INSERT OR IGNORE INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
             
             # Create default payment mode for admin if not exists
             cursor.execute('SELECT COUNT(*) FROM payment_modes WHERE user_id = ?', (admin_id,))
             if cursor.fetchone()[0] == 0:
                 cursor.execute('''
-                    INSERT INTO payment_modes (user_id, payment_type, is_default)
+                    INSERT OR IGNORE INTO payment_modes (user_id, payment_type, is_default)
                     VALUES (?, ?, ?)
                 ''', (admin_id, 'bank_transfer', 1))
         

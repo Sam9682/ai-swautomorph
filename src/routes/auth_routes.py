@@ -1,18 +1,11 @@
 """Authentication routes"""
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
 import os
-from ..config import DB_PATH
 from ..auth import generate_sso_token, invalidate_sso_token, validate_sso_token
 
-# Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
-
-if USE_POSTGRES:
-    from ..database_postgres import db_manager
-else:
-    from ..database import db_manager
+# Use PostgreSQL by default
+from ..database_postgres import db_manager
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -34,15 +27,17 @@ def register():
             password_hash = generate_password_hash(password)
             db_manager.execute_query('''
                 INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (username, email, password_hash, first_name, last_name, 1))
+                VALUES (%s, %s, %s, %s, %s, %s)
+            ''', (username, email, password_hash, first_name, last_name, True))
             
             if request.is_json:
                 return jsonify({'message': 'User registered successfully'}), 201
             return redirect(url_for('main.index'))
             
-        except sqlite3.IntegrityError:
-            return jsonify({'error': 'Username or email already exists'}), 409
+        except Exception as e:
+            if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
+                return jsonify({'error': 'Username or email already exists'}), 409
+            return jsonify({'error': f'Database error: {str(e)}'}), 500
     
     return render_template('register.html')
 
@@ -56,7 +51,7 @@ def login():
         return jsonify({'error': 'Missing credentials'}), 400
     
     user = db_manager.execute_query(
-        'SELECT id, password_hash, suspended FROM users WHERE username = ?', 
+        'SELECT id, password_hash, suspended FROM users WHERE username = %s', 
         (username,), fetch_one=True
     )
     
@@ -69,7 +64,7 @@ def login():
         
         # Log login event
         db_manager.execute_query(
-            'INSERT INTO users_logs (user_id, username, action) VALUES (?, ?, ?)',
+            'INSERT INTO users_logs (user_id, username, action) VALUES (%s, %s, %s)',
             (user[0], username, 'login')
         )
         
@@ -84,12 +79,12 @@ def logout():
     # Log logout event
     if 'user_id' in session:
         user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = ?',
+            'SELECT username FROM users WHERE id = %s',
             (session['user_id'],), fetch_one=True
         )
         if user:
             db_manager.execute_query(
-                'INSERT INTO users_logs (user_id, username, action) VALUES (?, ?, ?)',
+                'INSERT INTO users_logs (user_id, username, action) VALUES (%s, %s, %s)',
                 (session['user_id'], user[0], 'logout')
             )
     

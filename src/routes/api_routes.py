@@ -9,13 +9,21 @@ import subprocess
 import shutil
 import socket
 from datetime import datetime
-# Update existing imports to use PostgreSQL when needed
-from src.database_postgres import db_manager as pg_db_manager, init_db as pg_init_db
-from src.database import db_manager as sqlite_db_manager, init_db as sqlite_init_db
-from src.config import *
 
-# Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+# Determine database type based on environment - DEFAULT TO POSTGRESQL
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'true').lower() == 'true'
+
+# Use PostgreSQL by default
+try:
+    from src.database_postgres import db_manager as pg_db_manager, init_db as pg_init_db
+    db_manager = pg_db_manager
+    init_db = pg_init_db
+    print("Using PostgreSQL database")
+except Exception as e:
+    print(f"Failed to initialize PostgreSQL: {e}")
+    raise RuntimeError("PostgreSQL database is required but failed to initialize")
+
+from src.config import *
 
 # Get the project root directory dynamically
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,14 +53,6 @@ def log_with_timestamp(message):
     except (IOError, OSError) as e:
         print(f"Warning: Failed to write to log file: {e}")
 
-if USE_POSTGRES:
-    db_manager = pg_db_manager
-    init_db = pg_init_db
-    log_with_timestamp("Using PostgreSQL database")
-else:
-    db_manager = sqlite_db_manager
-    init_db = sqlite_init_db
-    log_with_timestamp("Using SQLite database")
 from ..db_health import check_database_health, get_database_stats
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
@@ -190,7 +190,7 @@ def api_applications():
         )
         
         # Assign new application to all existing users with URLs
-        from ..database import assign_app_to_all_users
+        from ..database_postgres import assign_app_to_all_users
         assign_app_to_all_users(app_id, name)
         
         return jsonify({'message': 'Application added successfully'}), 201
@@ -293,10 +293,7 @@ def api_users():
                 
                 # Assign default applications to new user
                 try:
-                    if USE_POSTGRES:
-                        from ..database_postgres import assign_default_apps_to_user
-                    else:
-                        from ..database import assign_default_apps_to_user
+                    from ..database_postgres import assign_default_apps_to_user
                     assign_default_apps_to_user(user_id)
                 except Exception as e:
                     log_with_timestamp(f"Warning: Failed to assign default apps to user {user_id}: {str(e)}")
@@ -409,10 +406,7 @@ def api_user_applications(user_id):
             
             try:
                 # Calculate ports for the user and application
-                if USE_POSTGRES:
-                    from ..database_postgres import calculate_app_ports
-                else:
-                    from ..database import calculate_app_ports
+                from ..database_postgres import calculate_app_ports
                 HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
                 
                 # Get application name for URL generation
