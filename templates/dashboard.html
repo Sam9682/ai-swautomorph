@@ -1776,7 +1776,8 @@ function sendUnifiedMessageWithText(message) {
             body: JSON.stringify({
                 message: fullMessage,
                 application_name: selectedApp,
-                application_folder: appFolder
+                application_folder: appFolder,
+                action_operation: 'MODIFY_CODE'
             })
         })
         .then(response => {
@@ -2060,8 +2061,8 @@ function checkApplicationStatusForActions(appName) {
         // Application is not cloned - empty the action dropdown
         updateActionDropdown([]);
     } else if (applicationStatus === 'cloned_and_running') {
-        // Running: can stop, check status, view logs
-        updateActionDropdown(['STOP', 'PS', 'LOGS']);
+        // Running: can stop, check status, view logs, modify code
+        updateActionDropdown(['STOP', 'PS', 'LOGS', 'MODIFY_CODE']);
     } else if (applicationStatus === 'cloned_but_not_running') {
         // Not running: can modify code, start, view logs
         updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE']);
