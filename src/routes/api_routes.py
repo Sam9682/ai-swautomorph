@@ -8,6 +8,7 @@ import json
 import subprocess
 import shutil
 import socket
+import logging
 from datetime import datetime
 
 # Determine database type based on environment - DEFAULT TO POSTGRESQL
@@ -25,6 +26,18 @@ except Exception as e:
 
 from src.config import *
 
+# Configure logging for API activities
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(get_logs_dir(), os.path.basename(__file__).replace('.py', '.log'))),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 # Get the project root directory dynamically
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -40,18 +53,7 @@ def get_text(key):
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-def log_with_timestamp(message):
-    """Log message with datetime timestamp"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_message = f"[{timestamp}] {message}"
-    print(log_message)
-    try:
-        from ..config import get_logs_dir
-        log_file_path = os.path.join(get_logs_dir(), OUTPUT_PRINT_LOGS_FILENAME)
-        with open(log_file_path, 'a') as f:
-            f.write(log_message + '\n')
-    except (IOError, OSError) as e:
-        print(f"Warning: Failed to write to log file: {e}")
+
 
 from ..db_health import check_database_health, get_database_stats
 
@@ -65,7 +67,7 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
         admin_token = get_gitea_admin_token()
         
         if not admin_token:
-            log_with_timestamp(f"[GITEA] Failed to get admin token for user creation: {username}")
+            logger.warning(f"[GITEA] Failed to get admin token for user creation: {username}")
             return False
         
         # User data for Gitea
@@ -90,14 +92,14 @@ def create_gitea_user(username, email, password, first_name='', last_name=''):
         response = requests.post(gitea_url, json=user_data, headers=headers, timeout=TIMEOUT_GITEA_HTTP_POST)
         
         if response.status_code == 201:
-            log_with_timestamp(f"[GITEA] User {username} created successfully")
+            logger.info(f"[GITEA] User {username} created successfully")
             return True
         else:
-            log_with_timestamp(f"[GITEA] Failed to create user {username}: {response.status_code} - {response.text}")
+            logger.error(f"[GITEA] Failed to create user {username}: {response.status_code} - {response.text}")
             return False
             
     except Exception as e:
-        log_with_timestamp(f"[GITEA] Error creating user {username}: {str(e)}")
+        logger.error(f"[GITEA] Error creating user {username}: {str(e)}")
         return False
 
 def get_gitea_admin_token():
@@ -110,15 +112,15 @@ def get_gitea_admin_token():
                 with open(token_file, 'r') as f:
                     return f.read().strip()
             except (IOError, OSError) as e:
-                log_with_timestamp(f"[GITEA] Error reading token file: {str(e)}")
+                logger.error(f"[GITEA] Error reading token file: {str(e)}")
                 return None
         
         # If no token file, return None (manual setup required)
-        log_with_timestamp("[GITEA] No admin token found. Manual Gitea setup required.")
+        logger.info("[GITEA] No admin token found. Manual Gitea setup required.")
         return None
         
     except Exception as e:
-        log_with_timestamp(f"[GITEA] Error getting admin token: {str(e)}")
+        logger.error(f"[GITEA] Error getting admin token: {str(e)}")
         return None
 
 @api_bp.route('/auth/status')
@@ -296,20 +298,20 @@ def api_users():
                     from ..database_postgres import assign_default_apps_to_user
                     assign_default_apps_to_user(user_id)
                 except Exception as e:
-                    log_with_timestamp(f"Warning: Failed to assign default apps to user {user_id}: {str(e)}")
+                    logger.warning(f"Warning: Failed to assign default apps to user {user_id}: {str(e)}")
                 
                 # Create user in Gitea
                 create_gitea_user(username, email, password, first_name, last_name)
                 
                 return jsonify({'message': 'User created successfully'}), 201
             except Exception as e:
-                log_with_timestamp(f"Warning: Failed to create user {user_id}: {str(e)}")
+                logger.error(f"Warning: Failed to create user {user_id}: {str(e)}")
                 if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
                     return jsonify({'error': 'Username or email already exists'}), 409
                 return jsonify({'error': f'Database error: {str(e)}'}), 500
                 
     except Exception as e:
-        log_with_timestamp(f"Warning: Failed to GET/POST user {user_id} in DB: {str(e)}")
+        logger.error(f"Warning: Failed to GET/POST user {user_id} in DB: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT', 'DELETE'])
@@ -361,7 +363,7 @@ def api_user_actions(user_id):
             return jsonify({'message': 'User deleted successfully'})
             
     except Exception as e:
-        log_with_timestamp(f"Warning: Failed to PUT/DELETE user {user_id}: {str(e)}")
+        logger.error(f"Warning: Failed to PUT/DELETE user {user_id}: {str(e)}")
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @api_bp.route('/users/<int:user_id>/applications', methods=['GET', 'POST', 'DELETE'])
@@ -541,19 +543,19 @@ def api_servers():
     
     if request.method == 'GET':
         servers = db_manager.execute_query('''
-            SELECT id, SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, 
-                   SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE, created_at
+            SELECT id, server_ip, server_name, server_capacity_user_max, 
+                   server_capacity_appli_max, server_status, server_type, created_at
             FROM servers ORDER BY id
         ''', fetch_all=True)
         
         servers_list = [{
             'id': row[0],
-            'SERVER_IP': row[1],
-            'SERVER_NAME': row[2],
-            'SERVER_CAPACITY_USER_MAX': row[3],
-            'SERVER_CAPACITY_APPLI_MAX': row[4],
-            'SERVER_STATUS': row[5],
-            'SERVER_TYPE': row[6],
+            'server_ip': row[1],
+            'server_name': row[2],
+            'server_capacity_user_max': row[3],
+            'server_capacity_appli_max': row[4],
+            'server_status': row[5],
+            'server_type': row[6],
             'created_at': row[7]
         } for row in servers]
         
@@ -565,19 +567,19 @@ def api_servers():
         if not data or not isinstance(data, dict):
             return jsonify({'error': 'Invalid JSON data'}), 400
         
-        required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
-                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+        required_fields = ['server_ip', 'server_name', 'server_capacity_user_max', 
+                          'server_capacity_appli_max', 'server_status', 'server_type']
         
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
         
         try:
             db_manager.execute_query('''
-                INSERT INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, 
-                                   SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
+                INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
+                                   server_capacity_appli_max, server_status, server_type)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
-                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
+            ''', (data['server_ip'], data['server_name'], data['server_capacity_user_max'],
+                  data['server_capacity_appli_max'], data['server_status'], data['server_type']))
             
             return jsonify({'message': 'Server created successfully'}), 201
         except Exception as e:
@@ -604,18 +606,18 @@ def api_server_actions(server_id):
             if not data or not isinstance(data, dict):
                 return jsonify({'error': 'Invalid JSON data'}), 400
             
-            required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
-                             'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+            required_fields = ['server_ip', 'server_name', 'server_capacity_user_max', 
+                             'server_capacity_appli_max', 'server_status', 'server_type']
             if not all(field in data for field in required_fields):
                 return jsonify({'error': 'Missing required fields'}), 400
             
             db_manager.execute_query('''
-                UPDATE servers SET SERVER_IP = ?, SERVER_NAME = ?, 
-                                 SERVER_CAPACITY_USER_MAX = ?, SERVER_CAPACITY_APPLI_MAX = ?,
-                                 SERVER_STATUS = ?, SERVER_TYPE = ?
+                UPDATE servers SET server_ip = ?, server_name = ?, 
+                                 server_capacity_user_max = ?, server_capacity_appli_max = ?,
+                                 server_status = ?, server_type = ?
                 WHERE id = ?
-            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
-                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE'], server_id))
+            ''', (data['server_ip'], data['server_name'], data['server_capacity_user_max'],
+                  data['server_capacity_appli_max'], data['server_status'], data['server_type'], server_id))
             
             return jsonify({'message': 'Server updated successfully'})
         except Exception as e:
@@ -625,7 +627,7 @@ def api_server_actions(server_id):
         try:
             # Check if server is ACTIVE
             server = db_manager.execute_query(
-                'SELECT SERVER_STATUS FROM servers WHERE id = ?', 
+                'SELECT server_status FROM servers WHERE id = ?', 
                 (server_id,), fetch_one=True
             )
             
@@ -655,7 +657,7 @@ def api_server_allocate():
         
         # Find available server based on capacity constraints with usage counts
         servers = db_manager.execute_query('''
-            SELECT s.id, s.SERVER_CAPACITY_USER_MAX, s.SERVER_CAPACITY_APPLI_MAX,
+            SELECT s.id, s.server_capacity_user_max, s.server_capacity_appli_max,
                    COALESCE(user_counts.user_count, 0) as current_users,
                    COALESCE(app_counts.app_count, 0) as current_apps
             FROM servers s
@@ -669,8 +671,8 @@ def api_server_allocate():
                 FROM deployments
                 GROUP BY server_id
             ) app_counts ON s.id = app_counts.server_id
-            WHERE s.SERVER_STATUS = 'STAND_BY' OR s.SERVER_STATUS = 'ACTIVE'
-            ORDER BY s.SERVER_STATUS ASC
+            WHERE s.server_status = 'STAND_BY' OR s.server_status = 'ACTIVE'
+            ORDER BY s.server_status ASC
         ''', fetch_all=True)
         
         if not servers:
@@ -683,8 +685,8 @@ def api_server_allocate():
             if user_count < user_max and appli_count < appli_max:
                 # Update server status to ACTIVE only if currently STAND_BY
                 db_manager.execute_query('''
-                    UPDATE servers SET SERVER_STATUS = 'ACTIVE' 
-                    WHERE id = ? AND SERVER_STATUS = 'STAND_BY'
+                    UPDATE servers SET server_status = 'ACTIVE' 
+                    WHERE id = ? AND server_status = 'STAND_BY'
                 ''', (server_id,))
                 
                 return jsonify({'server_id': server_id})
@@ -760,14 +762,14 @@ def api_database_record(table_name, record_id):
 def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path, data):
     """Handle clone deployment action"""
     if not git_url:
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
+        logger.error(f"[DEPLOYMENT API] CLONE - FAILED - No git_url provided for user {user_id}")
         return jsonify({'error': 'Git URL required for clone action'}), 400
     
     if not server_id:
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
+        logger.error(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
         return jsonify({'error': 'Server ID required for clone action'}), 400
     
-    log_with_timestamp(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
+    logger.info(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
     
     # Get current and target server IPs
     try:
@@ -776,16 +778,16 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         current_server_ip = s.getsockname()[0]
         s.close()
     except (OSError, socket.error) as e:
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - Warning: Failed to get current server IP: {str(e)}")
+        logger.warning(f"[DEPLOYMENT API] CLONE - Warning: Failed to get current server IP: {str(e)}")
         current_server_ip = "127.0.0.1"
     
     target_server = db_manager.execute_query(
-        'SELECT SERVER_IP FROM servers WHERE id = ?', 
+        'SELECT server_ip FROM servers WHERE id = ?', 
         (server_id,), fetch_one=True
     )
     
     if not target_server:
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
+        logger.error(f"[DEPLOYMENT API] CLONE - FAILED - Server {server_id} not found")
         return jsonify({'error': f'Server {server_id} not found'}), 400
     
     target_server_ip = target_server[0]
@@ -801,7 +803,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         git_env.update({'GIT_CONFIG_NOSYSTEM': '1', 'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
         result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
                               capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - git clone --recurse-submodules {git_url} {deployment_path}")
+        logger.info(f"[DEPLOYMENT API] CLONE - git clone --recurse-submodules {git_url} {deployment_path}")
     else:
         ssh_commands = [
             f"rm -rf {deployment_path}",
@@ -810,7 +812,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         ]
         ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
         result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - ssh -o ubuntu@{target_server_ip} git clone --recurse-submodules {git_url} {deployment_path}")
+        logger.info(f"[DEPLOYMENT API] CLONE - ssh -o ubuntu@{target_server_ip} git clone --recurse-submodules {git_url} {deployment_path}")
     
     # Handle result
     output_parts = []
@@ -833,7 +835,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
             ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi'"
 
         ssl_result = subprocess.run(ssl_command, shell=True, capture_output=True, text=True, env=ssl_env)
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
+        logger.info(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
         
         # Record deployment
         existing_record = db_manager.execute_query(
@@ -863,7 +865,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
     else:
         status = 'failed'
         error_msg = f'Git clone failed: {result.stderr}'
-        log_with_timestamp(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
+        logger.error(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
         return jsonify({'error': error_msg, 'logs': command_output}), 400
     
     return jsonify({'message': f'Clone completed for {app_name}', 'status': status, 'logs': command_output}), 202
@@ -877,14 +879,14 @@ def _handle_app_action(user_id, app_name, action, data):
     )
     
     if not deployment:
-        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}' for user {user_id}")
+        logger.error(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}' for user {user_id}")
         return jsonify({'error': 'Application not deployed. Clone first.'}), 202
     
     deploy_path = str(deployment[0]) if isinstance(deployment, (list, tuple)) else str(deployment)
     deploy_script = os.path.join(deploy_path, 'deployApp.sh')
     
     if not os.path.exists(deploy_script):
-        log_with_timestamp(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script} for user {user_id}")
+        logger.error(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script} for user {user_id}")
         return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 202
     
     # Get user details
@@ -963,11 +965,11 @@ def api_deployments():
     #log_with_timestamp(f"[DEPLOYMENT API] {method} /api/deployments - User: {user_id}, IP: {remote_ip}, UA: {user_agent[:50]}")
     
     if 'user_id' not in session:
-        log_with_timestamp(f"[DEPLOYMENT API] FAILED - Authentication required from {remote_ip}")
+        logger.warning(f"[DEPLOYMENT API] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     if request.method == 'GET':
-        log_with_timestamp(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
+        logger.info(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
         deployments_data = db_manager.execute_query('''
             SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
             FROM deployments WHERE user_id = ? ORDER BY updated_at DESC
@@ -978,7 +980,7 @@ def api_deployments():
             'git_url': row[4], 'created_at': row[5], 'updated_at': row[6], 'server_id': row[7]
         } for row in deployments_data]
         
-        log_with_timestamp(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
+        logger.info(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
         return jsonify(deployments)
     
     elif request.method == 'POST':
@@ -991,7 +993,7 @@ def api_deployments():
         # log_with_timestamp(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
         
         if not all([action, app_name]):
-            log_with_timestamp(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
+            logger.error(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
             return jsonify({'error': 'Action and application name required'}), 400
         
         # Get username for deployment path
@@ -1011,10 +1013,10 @@ def api_deployments():
                 return jsonify({'error': f'Unknown action: {action}'}), 400
                 
         except subprocess.TimeoutExpired:
-            log_with_timestamp(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
+            logger.error(f"[DEPLOYMENT API] POST - TIMEOUT - Action '{action}' timed out for app '{app_name}' by user {user_id}")
             return jsonify({'error': 'Operation timed out'}), 408
         except Exception as e:
-            log_with_timestamp(f"[DEPLOYMENT API] POST - ERROR - Action '{action}' failed for app '{app_name}' by user {user_id}: {str(e)}")
+            logger.error(f"[DEPLOYMENT API] POST - ERROR - Action '{action}' failed for app '{app_name}' by user {user_id}: {str(e)}")
             return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/deployments/<int:deployment_id>/logs')
@@ -1023,10 +1025,10 @@ def api_deployment_logs(deployment_id):
     user_id = session.get('user_id', 'anonymous')
     remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     
-    log_with_timestamp(f"[DEPLOYMENT LOGS] GET /api/deployments/{deployment_id}/logs - User: {user_id}, IP: {remote_ip}")
+    logger.info(f"[DEPLOYMENT LOGS] GET /api/deployments/{deployment_id}/logs - User: {user_id}, IP: {remote_ip}")
     
     if 'user_id' not in session:
-        log_with_timestamp(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
+        logger.warning(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
     deployment = db_manager.execute_query('''
@@ -1035,7 +1037,7 @@ def api_deployment_logs(deployment_id):
     ''', (deployment_id, session['user_id']), fetch_one=True)
     
     if not deployment:
-        log_with_timestamp(f"[DEPLOYMENT LOGS] FAILED - Deployment {deployment_id} not found for user {user_id}")
+        logger.warning(f"[DEPLOYMENT LOGS] FAILED - Deployment {deployment_id} not found for user {user_id}")
         return jsonify({'error': 'Deployment not found'}), 404
     
     # Extract deployment path safely
@@ -1043,14 +1045,14 @@ def api_deployment_logs(deployment_id):
     
     # Validate deployment path to prevent path traversal
     if not deploy_path or '..' in deploy_path or not deploy_path.startswith('/home/ubuntu/deployments/'):
-        log_with_timestamp(f"[DEPLOYMENT LOGS] SECURITY - Invalid deployment path: {deploy_path} for user {user_id}")
+        logger.warning(f"[DEPLOYMENT LOGS] SECURITY - Invalid deployment path: {deploy_path} for user {user_id}")
         return jsonify({'error': 'Invalid deployment path'}), 400
     
     log_file = os.path.join(deploy_path, 'deployment.log')
     
     # Additional security check for log file path
     if not log_file.startswith('/home/ubuntu/deployments/') or '..' in log_file:
-        log_with_timestamp(f"[DEPLOYMENT LOGS] SECURITY - Invalid log file path: {log_file} for user {user_id}")
+        logger.warning(f"[DEPLOYMENT LOGS] SECURITY - Invalid log file path: {log_file} for user {user_id}")
         return jsonify({'error': 'Invalid log file path'}), 400
     
     try:
@@ -1060,8 +1062,8 @@ def api_deployment_logs(deployment_id):
         else:
             logs = 'No logs available'
         
-        log_with_timestamp(f"[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment {deployment_id} to user {user_id}")
+        logger.info(f"[DEPLOYMENT LOGS] SUCCESS - Returned logs for deployment {deployment_id} to user {user_id}")
         return jsonify({'logs': logs})
     except Exception as e:
-        log_with_timestamp(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
+        logger.error(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500

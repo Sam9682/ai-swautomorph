@@ -253,10 +253,10 @@ def orchestrator_status():
             
             # Server utilization
             cursor.execute('''
-                SELECT s.SERVER_NAME, s.SERVER_CAPACITY_APPLI_MAX, COUNT(i.id) as current_instances
+                SELECT s.server_name, s.server_capacity_appli_max, COUNT(i.id) as current_instances
                 FROM servers s
                 LEFT JOIN instances i ON s.id = i.server_id AND i.status = 'running'
-                GROUP BY s.id, s.SERVER_NAME, s.SERVER_CAPACITY_APPLI_MAX
+                GROUP BY s.id, s.server_name, s.server_capacity_appli_max
             ''')
             server_stats = []
             for row in cursor.fetchall():

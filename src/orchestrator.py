@@ -6,7 +6,7 @@ import json
 import subprocess
 import requests
 from contextlib import contextmanager
-from .database import db_manager
+from .database_postgres import db_manager
 from .config import DB_PATH
 
 class LightOrchestrator:
@@ -25,33 +25,33 @@ class LightOrchestrator:
             # Services table - logical services with desired state
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS services (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE NOT NULL,
-                    image TEXT NOT NULL,
+                    id BIGSERIAL PRIMARY KEY,
+                    name VARCHAR(255) UNIQUE NOT NULL,
+                    image VARCHAR(255) NOT NULL,
                     desired_replicas INTEGER DEFAULT 1,
                     ports TEXT,  -- JSON: {"80": "8080", "443": "8443"}
                     environment TEXT,  -- JSON: {"ENV_VAR": "value"}
                     volumes TEXT,  -- JSON: ["/host:/container"]
-                    health_check_path TEXT DEFAULT '/health',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    health_check_path VARCHAR(255) DEFAULT '/health',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             
             # Instances table - actual running containers
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS instances (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    service_name TEXT NOT NULL,
-                    instance_id TEXT NOT NULL,  -- service_name-replica-N
-                    server_id INTEGER NOT NULL,
-                    container_id TEXT,
-                    status TEXT DEFAULT 'pending',  -- pending, running, failed, stopped
+                    id BIGSERIAL PRIMARY KEY,
+                    service_name VARCHAR(255) NOT NULL,
+                    instance_id VARCHAR(255) NOT NULL,  -- service_name-replica-N
+                    server_id BIGINT NOT NULL,
+                    container_id VARCHAR(255),
+                    status VARCHAR(50) DEFAULT 'pending',  -- pending, running, failed, stopped
                     port INTEGER,
-                    health_status TEXT DEFAULT 'unknown',  -- healthy, unhealthy, unknown
-                    last_health_check TIMESTAMP,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    health_status VARCHAR(50) DEFAULT 'unknown',  -- healthy, unhealthy, unknown
+                    last_health_check TIMESTAMP WITH TIME ZONE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (server_id) REFERENCES servers (id),
                     FOREIGN KEY (service_name) REFERENCES services (name),
                     UNIQUE(service_name, instance_id)
@@ -71,9 +71,17 @@ class LightOrchestrator:
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT OR REPLACE INTO services 
+                INSERT INTO services 
                 (name, image, desired_replicas, ports, environment, volumes, health_check_path, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (name) DO UPDATE SET
+                image = EXCLUDED.image,
+                desired_replicas = EXCLUDED.desired_replicas,
+                ports = EXCLUDED.ports,
+                environment = EXCLUDED.environment,
+                volumes = EXCLUDED.volumes,
+                health_check_path = EXCLUDED.health_check_path,
+                updated_at = CURRENT_TIMESTAMP
             ''', (name, image, desired_replicas, ports_json, env_json, volumes_json, health_check_path))
             conn.commit()
             print(f"[ORCHESTRATOR DEBUG] Service {name} created in database")
@@ -90,8 +98,8 @@ class LightOrchestrator:
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                UPDATE services SET desired_replicas = ?, updated_at = CURRENT_TIMESTAMP 
-                WHERE name = ?
+                UPDATE services SET desired_replicas = %s, updated_at = CURRENT_TIMESTAMP 
+                WHERE name = %s
             ''', (replicas, service_name))
             conn.commit()
         
@@ -104,8 +112,8 @@ class LightOrchestrator:
         
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM instances WHERE service_name = ?', (service_name,))
-            cursor.execute('DELETE FROM services WHERE name = ?', (service_name,))
+            cursor.execute('DELETE FROM instances WHERE service_name = %s', (service_name,))
+            cursor.execute('DELETE FROM services WHERE name = %s', (service_name,))
             conn.commit()
     
     def get_service_status(self, service_name=None):
@@ -114,7 +122,7 @@ class LightOrchestrator:
             cursor = conn.cursor()
             
             if service_name:
-                cursor.execute('SELECT * FROM services WHERE name = ?', (service_name,))
+                cursor.execute('SELECT * FROM services WHERE name = %s', (service_name,))
                 services = cursor.fetchall()
             else:
                 cursor.execute('SELECT * FROM services')
@@ -132,7 +140,7 @@ class LightOrchestrator:
                 
                 # Get instances for this service
                 cursor.execute('''
-                    SELECT i.*, s.SERVER_NAME, s.SERVER_IP 
+                    SELECT i.*, s.server_name, s.server_ip 
                     FROM instances i 
                     JOIN servers s ON i.server_id = s.id 
                     WHERE i.service_name = ?
@@ -161,7 +169,7 @@ class LightOrchestrator:
                 cursor = conn.cursor()
                 
                 # Get service configuration
-                cursor.execute('SELECT * FROM services WHERE name = ?', (service_name,))
+                cursor.execute('SELECT * FROM services WHERE name = %s', (service_name,))
                 service = cursor.fetchone()
                 if not service:
                     return
@@ -171,7 +179,7 @@ class LightOrchestrator:
                 # Get current running instances
                 cursor.execute('''
                     SELECT * FROM instances 
-                    WHERE service_name = ? AND status IN ('running', 'pending')
+                    WHERE service_name = %s AND status IN ('running', 'pending')
                 ''', (service_name,))
                 current_instances = cursor.fetchall()
                 
@@ -217,9 +225,9 @@ class LightOrchestrator:
             cursor.execute('''
                 INSERT INTO instances 
                 (service_name, instance_id, server_id, status, port)
-                VALUES (?, ?, ?, 'pending', ?)
+                VALUES (%s, %s, %s, 'pending', %s) RETURNING id
             ''', (service_name, instance_id, server_id, port))
-            db_instance_id = cursor.lastrowid
+            db_instance_id = cursor.fetchone()[0]
             conn.commit()
             print(f"[ORCHESTRATOR DEBUG] Created instance record {db_instance_id}")
         
@@ -236,8 +244,8 @@ class LightOrchestrator:
                 cursor = conn.cursor()
                 cursor.execute('''
                     UPDATE instances 
-                    SET container_id = ?, status = 'running', updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
+                    SET container_id = %s, status = 'running', updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
                 ''', (container_id, db_instance_id))
                 conn.commit()
                 
@@ -249,7 +257,7 @@ class LightOrchestrator:
                 cursor.execute('''
                     UPDATE instances 
                     SET status = 'failed', updated_at = CURRENT_TIMESTAMP
-                    WHERE id = ?
+                    WHERE id = %s
                 ''', (db_instance_id,))
                 conn.commit()
     
@@ -258,7 +266,7 @@ class LightOrchestrator:
         # Get server info
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT SERVER_IP FROM servers WHERE id = ?', (server_id,))
+            cursor.execute('SELECT server_ip FROM servers WHERE id = ?', (server_id,))
             server_ip = cursor.fetchone()[0]
         
         # Build docker run command
@@ -296,7 +304,7 @@ class LightOrchestrator:
         """Stop and remove an instance"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT container_id, instance_id FROM instances WHERE id = ?', (instance_db_id,))
+            cursor.execute('SELECT container_id, instance_id FROM instances WHERE id = %s', (instance_db_id,))
             instance = cursor.fetchone()
             
             if instance and instance[0]:  # has container_id
@@ -311,14 +319,14 @@ class LightOrchestrator:
                     print(f"Failed to stop container {container_id}: {e}")
             
             # Remove instance record
-            cursor.execute('DELETE FROM instances WHERE id = ?', (instance_db_id,))
+            cursor.execute('DELETE FROM instances WHERE id = %s', (instance_db_id,))
             conn.commit()
     
     def _stop_all_instances(self, service_name):
         """Stop all instances of a service"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id FROM instances WHERE service_name = ?', (service_name,))
+            cursor.execute('SELECT id FROM instances WHERE service_name = %s', (service_name,))
             instances = cursor.fetchall()
             
             for instance in instances:
@@ -330,17 +338,17 @@ class LightOrchestrator:
             cursor = conn.cursor()
             
             # Debug: Check all servers
-            cursor.execute('SELECT id, SERVER_NAME, SERVER_STATUS, SERVER_CAPACITY_APPLI_MAX FROM servers')
+            cursor.execute('SELECT id, server_name, server_status, server_capacity_appli_max FROM servers')
             all_servers = cursor.fetchall()
             print(f"[ORCHESTRATOR DEBUG] All servers: {all_servers}")
             
             cursor.execute('''
-                SELECT s.id, s.SERVER_CAPACITY_APPLI_MAX, COUNT(i.id) as current_instances
+                SELECT s.id, s.server_capacity_appli_max, COUNT(i.id) as current_instances
                 FROM servers s
                 LEFT JOIN instances i ON s.id = i.server_id AND i.status = 'running'
-                WHERE s.SERVER_STATUS IN ('STAND_BY', 'ACTIVE')
+                WHERE s.server_status IN ('STAND_BY', 'ACTIVE')
                 GROUP BY s.id
-                HAVING current_instances < s.SERVER_CAPACITY_APPLI_MAX
+                HAVING current_instances < s.server_capacity_appli_max
                 ORDER BY current_instances ASC
                 LIMIT 1
             ''')
@@ -354,7 +362,7 @@ class LightOrchestrator:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT port FROM instances 
-                WHERE server_id = ? AND status = 'running'
+                WHERE server_id = %s AND status = 'running'
                 ORDER BY port
             ''', (server_id,))
             used_ports = {row[0] for row in cursor.fetchall()}
@@ -369,7 +377,7 @@ class LightOrchestrator:
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT i.id, i.instance_id, i.port, s.health_check_path, srv.SERVER_IP
+                SELECT i.id, i.instance_id, i.port, s.health_check_path, srv.server_ip
                 FROM instances i
                 JOIN services s ON i.service_name = s.name
                 JOIN servers srv ON i.server_id = srv.id
@@ -396,8 +404,8 @@ class LightOrchestrator:
                 # Update health status
                 cursor.execute('''
                     UPDATE instances 
-                    SET health_status = ?, last_health_check = CURRENT_TIMESTAMP
-                    WHERE id = ?
+                    SET health_status = %s, last_health_check = CURRENT_TIMESTAMP
+                    WHERE id = %s
                 ''', (health_status, instance_id))
             
             conn.commit()
@@ -408,7 +416,7 @@ class LightOrchestrator:
         
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT DISTINCT service_name FROM instances WHERE status = "running"')
+            cursor.execute('SELECT DISTINCT service_name FROM instances WHERE status = %s', ('running',))
             services = cursor.fetchall()
             
             for service in services:
@@ -416,7 +424,7 @@ class LightOrchestrator:
                 
                 # Get healthy instances
                 cursor.execute('''
-                    SELECT srv.SERVER_IP, i.port
+                    SELECT srv.server_ip, i.port
                     FROM instances i
                     JOIN servers srv ON i.server_id = srv.id
                     WHERE i.service_name = ? AND i.status = 'running' 

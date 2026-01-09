@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(get_logs_dir(), 'billing_activities.log')),
+        logging.FileHandler(os.path.join(get_logs_dir(), os.path.basename(__file__).replace('.py', '.log'))),
         logging.StreamHandler()
     ]
 )
@@ -492,7 +492,7 @@ def generate_invoice():
         ORDER BY ba.created_at
     ''', (target_user_id, month), fetch_all=True)
     
-    logger = logging.getLogger('billing_activities')
+    logger = logging.getLogger('billing_routes')
     logger.info(f"Debug: Found {len(debug_activities)} activities for user {target_user_id} in month {month}")
     for activity in debug_activities:
         logger.info(f"Activity: {activity[1]}, cost: {activity[2]}, date: {activity[3]}, month: {activity[4]}")
@@ -703,7 +703,7 @@ def debug_billing_data(month):
 
 def record_billing_activity(user_id, application_name, action):
     """Record billing activity for application start/stop"""
-    logger = logging.getLogger('billing_activities')
+    logger = logging.getLogger('billing_routes')
     
     try:
         logger.info(f"Recording billing activity: user_id={user_id}, app={application_name}, action={action}")
@@ -747,7 +747,11 @@ def record_billing_activity(user_id, application_name, action):
                 logger.debug(f"record_billing_activity(): Found matching START activity: {start_id}")
                 
                 # Calculate duration and cost
-                start_time = datetime.fromisoformat(started_at)
+                if isinstance(started_at, str):
+                    start_time = datetime.fromisoformat(started_at)
+                else:
+                    # Handle case where started_at is already a datetime object (PostgreSQL)
+                    start_time = started_at
                 stop_time = datetime.now()
                 duration_seconds = int((stop_time - start_time).total_seconds())
                 
