@@ -185,10 +185,10 @@
         
         <!-- Billing Submenu -->
         <div class="billing-submenu" style="margin-bottom: 20px;">
-            <button class="btn btn-secondary" onclick="showBillingTab('overview')" id="billingOverviewBtn">Overview</button>
-            <button class="btn btn-secondary" onclick="showBillingTab('invoices')" id="billingInvoicesBtn">Invoices</button>
+            <button class="btn btn-secondary" onclick="showBillingTab('overview')" id="billingOverviewBtn">{{ get_text('overview') }}</button>
+            <button class="btn btn-secondary" onclick="showBillingTab('invoices')" id="billingInvoicesBtn">{{ get_text('invoices') }}</button>
             {% if username == 'admin' %}
-            <button class="btn btn-secondary" onclick="showBillingTab('costs')" id="billingCostsBtn">Manage Costs</button>
+            <button class="btn btn-secondary" onclick="showBillingTab('costs')" id="billingCostsBtn">{{ get_text('manage_costs') }}</button>
             {% endif %}
         </div>
         
@@ -230,7 +230,7 @@
         
         <!-- Invoices Tab -->
         <div id="billingInvoicesTab" class="billing-tab-content" style="display: none;">
-            <h3>Invoices</h3>
+            <h3>{{ get_text('invoices') }}</h3>
             
             {% if username == 'admin' %}
             <!-- Invoice Generation -->

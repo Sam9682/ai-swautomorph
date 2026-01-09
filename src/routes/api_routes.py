@@ -550,12 +550,12 @@ def api_servers():
         
         servers_list = [{
             'id': row[0],
-            'server_ip': row[1],
-            'server_name': row[2],
-            'server_capacity_user_max': row[3],
-            'server_capacity_appli_max': row[4],
-            'server_status': row[5],
-            'server_type': row[6],
+            'SERVER_IP': row[1],
+            'SERVER_NAME': row[2],
+            'SERVER_CAPACITY_USER_MAX': row[3],
+            'SERVER_CAPACITY_APPLI_MAX': row[4],
+            'SERVER_STATUS': row[5],
+            'SERVER_TYPE': row[6],
             'created_at': row[7]
         } for row in servers]
         
@@ -567,8 +567,8 @@ def api_servers():
         if not data or not isinstance(data, dict):
             return jsonify({'error': 'Invalid JSON data'}), 400
         
-        required_fields = ['server_ip', 'server_name', 'server_capacity_user_max', 
-                          'server_capacity_appli_max', 'server_status', 'server_type']
+        required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
+                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
         
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -578,8 +578,8 @@ def api_servers():
                 INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                    server_capacity_appli_max, server_status, server_type)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (data['server_ip'], data['server_name'], data['server_capacity_user_max'],
-                  data['server_capacity_appli_max'], data['server_status'], data['server_type']))
+            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
             
             return jsonify({'message': 'Server created successfully'}), 201
         except Exception as e:
@@ -606,8 +606,8 @@ def api_server_actions(server_id):
             if not data or not isinstance(data, dict):
                 return jsonify({'error': 'Invalid JSON data'}), 400
             
-            required_fields = ['server_ip', 'server_name', 'server_capacity_user_max', 
-                             'server_capacity_appli_max', 'server_status', 'server_type']
+            required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
+                             'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
             if not all(field in data for field in required_fields):
                 return jsonify({'error': 'Missing required fields'}), 400
             
@@ -616,8 +616,8 @@ def api_server_actions(server_id):
                                  server_capacity_user_max = ?, server_capacity_appli_max = ?,
                                  server_status = ?, server_type = ?
                 WHERE id = ?
-            ''', (data['server_ip'], data['server_name'], data['server_capacity_user_max'],
-                  data['server_capacity_appli_max'], data['server_status'], data['server_type'], server_id))
+            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE'], server_id))
             
             return jsonify({'message': 'Server updated successfully'})
         except Exception as e:
