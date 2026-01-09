@@ -407,34 +407,61 @@ def get_available_months():
         'SELECT username FROM users WHERE id = ?', 
         (session['user_id'],), fetch_one=True
     )
-    if not user or user[0] == 'admin':
+    is_admin = user and user[0] == 'admin'
+    
+    if is_admin:
         selected_user = request.args.get('user')
         
         if selected_user:
             # Get months with billing activities for specific user
-            activities = db_manager.execute_query('''
-                SELECT DISTINCT strftime('%Y-%m', ba.created_at) as month
-                FROM billing_activities ba
-                JOIN users u ON ba.user_id = u.id
-                WHERE u.username = ? AND ba.cost_amount > 0
-                ORDER BY month DESC
-            ''', (selected_user,), fetch_all=True)
+            if USE_POSTGRES:
+                activities = db_manager.execute_query('''
+                    SELECT DISTINCT TO_CHAR(ba.created_at, 'YYYY-MM') as month
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    WHERE u.username = ? AND ba.cost_amount > 0
+                    ORDER BY month DESC
+                ''', (selected_user,), fetch_all=True)
+            else:
+                activities = db_manager.execute_query('''
+                    SELECT DISTINCT strftime('%Y-%m', ba.created_at) as month
+                    FROM billing_activities ba
+                    JOIN users u ON ba.user_id = u.id
+                    WHERE u.username = ? AND ba.cost_amount > 0
+                    ORDER BY month DESC
+                ''', (selected_user,), fetch_all=True)
         else:
             # Get all months with billing activities
+            if USE_POSTGRES:
+                activities = db_manager.execute_query('''
+                    SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
+                    FROM billing_activities
+                    WHERE cost_amount > 0
+                    ORDER BY month DESC
+                ''', fetch_all=True)
+            else:
+                activities = db_manager.execute_query('''
+                    SELECT DISTINCT strftime('%Y-%m', created_at) as month
+                    FROM billing_activities
+                    WHERE cost_amount > 0
+                    ORDER BY month DESC
+                ''', fetch_all=True)
+    else:
+        # Regular users see their own months
+        if USE_POSTGRES:
+            activities = db_manager.execute_query('''
+                SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
+                FROM billing_activities
+                WHERE user_id = ? AND cost_amount > 0
+                ORDER BY month DESC
+            ''', (session['user_id'],), fetch_all=True)
+        else:
             activities = db_manager.execute_query('''
                 SELECT DISTINCT strftime('%Y-%m', created_at) as month
                 FROM billing_activities
-                WHERE cost_amount > 0
+                WHERE user_id = ? AND cost_amount > 0
                 ORDER BY month DESC
-            ''', fetch_all=True)
-    else:
-        # Regular users see their own months
-        activities = db_manager.execute_query('''
-            SELECT DISTINCT strftime('%Y-%m', created_at) as month
-            FROM billing_activities
-            WHERE user_id = ? AND cost_amount > 0
-            ORDER BY month DESC
-        ''', (session['user_id'],), fetch_all=True)
+            ''', (session['user_id'],), fetch_all=True)
     
     months = [row[0] for row in activities]
     return jsonify(months)
@@ -484,13 +511,22 @@ def generate_invoice():
         return jsonify({'error': 'Invoice already exists for this month'}), 400
     
     # Debug: Check what activities exist for this user and month
-    debug_activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.cost_amount, ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
-        FROM billing_activities ba
-        JOIN applications a ON ba.application_id = a.id
-        WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ?
-        ORDER BY ba.created_at
-    ''', (target_user_id, month), fetch_all=True)
+    if USE_POSTGRES:
+        debug_activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.cost_amount, ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ? AND TO_CHAR(ba.created_at, 'YYYY-MM') = ?
+            ORDER BY ba.created_at
+        ''', (target_user_id, month), fetch_all=True)
+    else:
+        debug_activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.cost_amount, ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ?
+            ORDER BY ba.created_at
+        ''', (target_user_id, month), fetch_all=True)
     
     logger = logging.getLogger('billing_routes')
     logger.info(f"Debug: Found {len(debug_activities)} activities for user {target_user_id} in month {month}")
@@ -498,10 +534,16 @@ def generate_invoice():
         logger.info(f"Activity: {activity[1]}, cost: {activity[2]}, date: {activity[3]}, month: {activity[4]}")
     
     # Calculate total amount for the month
-    total = db_manager.execute_query('''
-        SELECT SUM(cost_amount) FROM billing_activities
-        WHERE user_id = ? AND strftime('%Y-%m', created_at) = ? AND cost_amount > 0
-    ''', (target_user_id, month), fetch_one=True)
+    if USE_POSTGRES:
+        total = db_manager.execute_query('''
+            SELECT SUM(cost_amount) FROM billing_activities
+            WHERE user_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = ? AND cost_amount > 0
+        ''', (target_user_id, month), fetch_one=True)
+    else:
+        total = db_manager.execute_query('''
+            SELECT SUM(cost_amount) FROM billing_activities
+            WHERE user_id = ? AND strftime('%Y-%m', created_at) = ? AND cost_amount > 0
+        ''', (target_user_id, month), fetch_one=True)
     
     total_amount = total[0] if total and total[0] else 0.0
     logger.info(f"Calculated total amount: {total_amount} for user {target_user_id} in month {month}")
@@ -547,14 +589,24 @@ def generate_invoice_pdf(invoice_id):
         return jsonify({'error': 'Invoice not found'}), 404
     
     # Get billing activities for this month
-    activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.action, ba.started_at, ba.stopped_at,
-               ba.duration_seconds, ba.cost_amount, ba.created_at
-        FROM billing_activities ba
-        JOIN applications a ON ba.application_id = a.id
-        WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ? AND ba.cost_amount > 0
-        ORDER BY ba.created_at
-    ''', (invoice[1], invoice[6]), fetch_all=True)
+    if USE_POSTGRES:
+        activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.action, ba.started_at, ba.stopped_at,
+                   ba.duration_seconds, ba.cost_amount, ba.created_at
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ? AND TO_CHAR(ba.created_at, 'YYYY-MM') = ? AND ba.cost_amount > 0
+            ORDER BY ba.created_at
+        ''', (invoice[1], invoice[6]), fetch_all=True)
+    else:
+        activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.action, ba.started_at, ba.stopped_at,
+                   ba.duration_seconds, ba.cost_amount, ba.created_at
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ? AND ba.cost_amount > 0
+            ORDER BY ba.created_at
+        ''', (invoice[1], invoice[6]), fetch_all=True)
     
     # Generate simple HTML invoice (could be enhanced with proper PDF generation)
     html_content = f"""
@@ -668,14 +720,24 @@ def debug_billing_data(month):
     user_id = session['user_id']
     
     # Get all activities for this user and month
-    activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.action, ba.cost_amount, ba.duration_seconds,
-               ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
-        FROM billing_activities ba
-        JOIN applications a ON ba.application_id = a.id
-        WHERE ba.user_id = ?
-        ORDER BY ba.created_at DESC
-    ''', (user_id,), fetch_all=True)
+    if USE_POSTGRES:
+        activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.action, ba.cost_amount, ba.duration_seconds,
+                   ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ?
+            ORDER BY ba.created_at DESC
+        ''', (user_id,), fetch_all=True)
+    else:
+        activities = db_manager.execute_query('''
+            SELECT ba.id, a.name, ba.action, ba.cost_amount, ba.duration_seconds,
+                   ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
+            FROM billing_activities ba
+            JOIN applications a ON ba.application_id = a.id
+            WHERE ba.user_id = ?
+            ORDER BY ba.created_at DESC
+        ''', (user_id,), fetch_all=True)
     
     # Filter activities for the specific month
     month_activities = [a for a in activities if a[6] == month]
