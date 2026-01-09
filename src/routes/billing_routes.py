@@ -810,10 +810,15 @@ def record_billing_activity(user_id, application_name, action):
                 
                 # Calculate duration and cost
                 if isinstance(started_at, str):
-                    start_time = datetime.fromisoformat(started_at)
+                    start_time = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
                 else:
                     # Handle case where started_at is already a datetime object (PostgreSQL)
                     start_time = started_at
+                
+                # Ensure both datetimes are timezone-naive for comparison
+                if start_time.tzinfo is not None:
+                    start_time = start_time.replace(tzinfo=None)
+                
                 stop_time = datetime.now()
                 duration_seconds = int((stop_time - start_time).total_seconds())
                 
