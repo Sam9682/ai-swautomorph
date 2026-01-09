@@ -30,7 +30,7 @@ else:
 
 genai_bp = Blueprint('genai', __name__, url_prefix='/api')
 
-def return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email, version='default'):
+def return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email, repo_gitea_url='', branch_name='', repo_github_url='', message='', version='default'):
     l_prompt = ''
 
     if version == 'default':
@@ -78,9 +78,14 @@ def return_prompt_for_developer(detected_action, application_name, application_f
                 l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
                 l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
                 l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
-                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder)
-            except KeyError as e:
-                logger.error(f'AI Chat Developer - Session key error: {str(e)}')
+                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder or '')
+                l_prompt = l_prompt.replace('{APPLICATION_NAME}', application_name or '')
+                l_prompt = l_prompt.replace('{REPO_GITEA_URL}', repo_gitea_url or '')
+                l_prompt = l_prompt.replace('{BRANCH_NAME}', branch_name or '')
+                l_prompt = l_prompt.replace('{REPO_GITHUB_URL}', repo_github_url or '')
+                l_prompt = l_prompt.replace('{MESSAGE}', message or '')
+            except (KeyError, AttributeError) as e:
+                logger.error(f'AI Chat Developer - Template replacement error: {str(e)}')
                 l_prompt = ''
 
     return l_prompt
@@ -93,7 +98,7 @@ User Question: {message}
 Provide a helpful and informative response.
 """
 
-def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, message, version='default'):
+def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, repo_gitea_url='', branch_name='', repo_github_url='', message='', version='default'):
     l_prompt = ''
 
     if version == 'default':
@@ -139,9 +144,14 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
                 l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
                 l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
                 l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
-                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder)
-            except KeyError as e:
-                logger.error(f'AI Chat Operator - Session key error: {str(e)}')
+                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder or '')
+                l_prompt = l_prompt.replace('{APPLICATION_NAME}', application_name or '')
+                l_prompt = l_prompt.replace('{REPO_GITEA_URL}', repo_gitea_url or '')
+                l_prompt = l_prompt.replace('{BRANCH_NAME}', branch_name or '')
+                l_prompt = l_prompt.replace('{REPO_GITHUB_URL}', repo_github_url or '')
+                l_prompt = l_prompt.replace('{MESSAGE}', message or '')
+            except (KeyError, AttributeError) as e:
+                logger.error(f'AI Chat Operator - Template replacement error: {str(e)}')
                 l_prompt = ''
         else:
             logger.warning(f'AI Chat Operator - Context file not found: {context_file}, using default Q&A mode')
@@ -351,6 +361,9 @@ def api_qchat_operations():
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
     action_operation = data.get('action_operation', '')
+    repo_gitea_url = data.get('repo_gitea_url', '')
+    branch_name = data.get('branch_name', '')
+    repo_github_url = data.get('repo_github_url', '')
     
     if not message:
         return jsonify({'error': 'Message required'}), 400
@@ -390,7 +403,7 @@ def api_qchat_operations():
 
                 # 🧠 Prompt complet envoyé à Q Chat
                 try:
-                    l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, message)
+                    l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, repo_gitea_url, branch_name, repo_github_url, message)
                     logger.info(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
                 except Exception as e:
                     yield f"data: {json.dumps({'error': f'Failed to generate prompt: {str(e)}'})}\n\n"
