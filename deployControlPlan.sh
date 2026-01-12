@@ -1188,23 +1188,45 @@ EOF
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
-    # Gitea static assets with proper MIME types
-    location ~* ^/gitea/assets/.*\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
-        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
+    # Gitea CSS files with proper MIME type
+    location ~* ^/gitea/assets/.*\.css\$ {
+        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
         
-        # Force correct MIME types for static assets
-        location ~* \.css\$ {
-            add_header Content-Type text/css;
-            proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
-        }
-        location ~* \.js\$ {
-            add_header Content-Type application/javascript;
-            proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
-        }
+        # Override MIME type and disable content sniffing
+        proxy_hide_header Content-Type;
+        add_header Content-Type text/css always;
+        add_header X-Content-Type-Options nosniff always;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Gitea JS files with proper MIME type
+    location ~* ^/gitea/assets/.*\.js\$ {
+        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Override MIME type and disable content sniffing
+        proxy_hide_header Content-Type;
+        add_header Content-Type application/javascript always;
+        add_header X-Content-Type-Options nosniff always;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Gitea other static assets
+    location ~* ^/gitea/assets/(.*)\$ {
+        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
         
         # Cache static assets
         expires 1y;
@@ -1217,7 +1239,18 @@ EOF
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_set_header X-Forwarded-Host \$host;
         proxy_buffering off;
+        
+        # WebSocket support for Gitea
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
+        
+        # Increase timeouts for large operations
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 300s;
+        proxy_read_timeout 300s;
     }
 }
 EOF
