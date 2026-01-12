@@ -1192,12 +1192,36 @@ EOF
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
     
+    # Gitea static assets with proper MIME types
+    location ~* ^/gitea/assets/.*\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)\$ {
+        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        
+        # Force correct MIME types for static assets
+        location ~* \.css\$ {
+            add_header Content-Type text/css;
+            proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
+        }
+        location ~* \.js\$ {
+            add_header Content-Type application/javascript;
+            proxy_pass http://127.0.0.1:${GITEA_PORT:-3000};
+        }
+        
+        # Cache static assets
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    
     location /gitea/ {
         proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_buffering off;
     }
 }
 EOF

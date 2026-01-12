@@ -98,20 +98,20 @@ User Question: {message}
 Provide a helpful and informative response.
 """
 
-def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, repo_gitea_url='', branch_name='', repo_github_url='', message='', version='default'):
+def return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, version='default'):
     l_prompt = ''
 
     if version == 'default':
         # Sanitize detected_action to prevent path traversal
         if not detected_action or not isinstance(detected_action, str):
             logger.warning('AI Chat Operator - Context file not found: invalid action, using default Q&A mode')
-            return _create_fallback_prompt(message)
+            return _create_fallback_prompt(detected_action)
         
         # Remove any path traversal characters and limit to alphanumeric + underscore
         safe_action = ''.join(c for c in detected_action.upper() if c.isalnum() or c == '_')[:50]
         if not safe_action:
             logger.warning('AI Chat Operator - Context file not found: invalid action, using default Q&A mode')
-            return _create_fallback_prompt(message)
+            return _create_fallback_prompt(detected_action)
         
         context_file = f"/home/ubuntu/ai-swautomorph/shared/{safe_action}_context.md"
                 
@@ -146,16 +146,12 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
                 l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
                 l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder or '')
                 l_prompt = l_prompt.replace('{APPLICATION_NAME}', application_name or '')
-                l_prompt = l_prompt.replace('{REPO_GITEA_URL}', repo_gitea_url or '')
-                l_prompt = l_prompt.replace('{BRANCH_NAME}', branch_name or '')
-                l_prompt = l_prompt.replace('{REPO_GITHUB_URL}', repo_github_url or '')
-                l_prompt = l_prompt.replace('{MESSAGE}', message or '')
             except (KeyError, AttributeError) as e:
                 logger.error(f'AI Chat Operator - Template replacement error: {str(e)}')
                 l_prompt = ''
         else:
             logger.warning(f'AI Chat Operator - Context file not found: {context_file}, using default Q&A mode')
-            l_prompt = _create_fallback_prompt(message)
+            l_prompt = _create_fallback_prompt(detected_action)
             logger.info(f'AI Chat Operator - (Context {context_file} not found) Prompt : {l_prompt[:120]}')
 
     return l_prompt
@@ -261,7 +257,7 @@ def api_qchat_developer():
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n"
             
             # 🧠 Prompt complet envoyé à Q Chat
-            l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email)
+            l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email,  repo_gitea_url, branch_name, repo_github_url, message)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             from ..config import get_logs_dir
@@ -361,9 +357,6 @@ def api_qchat_operations():
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
     action_operation = data.get('action_operation', '')
-    repo_gitea_url = data.get('repo_gitea_url', '')
-    branch_name = data.get('branch_name', '')
-    repo_github_url = data.get('repo_github_url', '')
     
     if not message:
         return jsonify({'error': 'Message required'}), 400
@@ -403,7 +396,7 @@ def api_qchat_operations():
 
                 # 🧠 Prompt complet envoyé à Q Chat
                 try:
-                    l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email, repo_gitea_url, branch_name, repo_github_url, message)
+                    l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email)
                     logger.info(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
                 except Exception as e:
                     yield f"data: {json.dumps({'error': f'Failed to generate prompt: {str(e)}'})}\n\n"
