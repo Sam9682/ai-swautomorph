@@ -511,11 +511,7 @@ confirm_gitea_stop() {
         if [ "$KEEP_GITEA_RUNNING" = "true" ]; then
             echo "  🔧 Auto-selecting: No, keep Gitea configuration (--keep-gitea-running parameter set)"
             CHOICE="no"
-        # Auto-select "No" when STOP command is used (non-interactive mode)
-        elif [[ "$COMMAND" =~ ^(stop|-k|--stop)$ ]]; then
-            echo "  🔧 Auto-selecting: No, keep Gitea configuration (but nginx is stopped)"
-            CHOICE="no"
-        # Check if simple-term-menu is available
+        # Check if simple-term-menu is available for interactive selection
         elif python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
             # Use Python simple-term-menu for interactive selection
             CHOICE=$(python3 << 'EOF'
