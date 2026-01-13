@@ -1066,12 +1066,52 @@ start_docker_deployment() {
 install_python_dependencies() {
     if [ -f "requirements.txt" ]; then
         echo "  📦 Installing Python dependencies..."
-        pip3 install -r requirements.txt --break-system-packages
+        
+        # Create and activate virtual environment if it doesn't exist
+        if [ ! -d ".venv" ]; then
+            echo "  🔧 Creating virtual environment..."
+            python3 -m venv .venv
+        fi
+        
+        # Activate virtual environment
+        source .venv/bin/activate
+        
+        # Upgrade pip first
+        pip install --upgrade pip
+        
+        # Install dependencies
+        if pip install -r requirements.txt; then
+            echo "  ✅ Python dependencies installed successfully"
+        else
+            echo "  ⚠️ Failed to install some dependencies, trying alternative method..."
+            pip install --user -r requirements.txt
+        fi
+        
+        # Verify gunicorn installation
+        if ! command -v gunicorn >/dev/null 2>&1 && ! python3 -c "import gunicorn" >/dev/null 2>&1; then
+            echo "  ⚠️ Gunicorn not found, installing separately..."
+            pip install gunicorn
+        fi
+        
+        # Verify dotenv installation
+        if ! python3 -c "import dotenv" >/dev/null 2>&1; then
+            echo "  ⚠️ python-dotenv not found, installing separately..."
+            pip install python-dotenv
+        fi
     fi
 }
 
 start_flask_application() {
     echo "  🚀 Starting Flask application with Gunicorn..."
+    
+    # Install dependencies first
+    install_python_dependencies
+    
+    # Activate virtual environment
+    if [ -d ".venv" ]; then
+        source .venv/bin/activate
+        echo "  ✅ Virtual environment activated"
+    fi
     
     # Stop any existing Flask/Gunicorn processes
     EXISTING_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
@@ -1105,8 +1145,24 @@ start_flask_application() {
     # Start Gunicorn with production configuration
     echo "  🚀 Starting Gunicorn server..."
     
-    # Start Gunicorn in daemon mode with full path
-    if /home/ubuntu/.local/bin/gunicorn --config gunicorn.conf.py wsgi:application --daemon; then
+    # Find gunicorn executable
+    GUNICORN_CMD=""
+    if [ -d ".venv" ] && [ -f ".venv/bin/gunicorn" ]; then
+        GUNICORN_CMD=".venv/bin/gunicorn"
+    elif command -v gunicorn >/dev/null 2>&1; then
+        GUNICORN_CMD="gunicorn"
+    elif [ -f "/home/ubuntu/.local/bin/gunicorn" ]; then
+        GUNICORN_CMD="/home/ubuntu/.local/bin/gunicorn"
+    elif python3 -c "import gunicorn" >/dev/null 2>&1; then
+        GUNICORN_CMD="python3 -m gunicorn"
+    else
+        echo "  ❌ Gunicorn not found, installing..."
+        pip install gunicorn
+        GUNICORN_CMD="gunicorn"
+    fi
+    
+    # Start Gunicorn in daemon mode
+    if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application --daemon; then
         # Wait for daemon to start and get PID
         sleep 2
         GUNICORN_PID=$(pgrep -f "gunicorn.*wsgi:application" | head -1)

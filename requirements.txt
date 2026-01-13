@@ -6,3 +6,4 @@ Flask-CORS
 simple-term-menu
 gunicorn
 psycopg2-binary
+python-dotenv

@@ -35,7 +35,13 @@ user = os.getuid()
 group = os.getgid()
 
 # Preload application for better performance
-preload_app = False
+preload_app = True
 
 # Enable auto-reload in development
 reload = os.environ.get('FLASK_ENV') == 'development'
+
+# Environment variables
+raw_env = [
+    'PYTHONPATH=/home/ubuntu/ai-swautomorph',
+    'USE_POSTGRES=true'
+]
