@@ -910,6 +910,8 @@ EOF
     
     if systemctl is-active --quiet gitea; then
         echo "  ✅ Gitea is running on http://localhost:3000"
+        # Create admin user after Gitea is confirmed running
+        create_gitea_admin_user
     else
         echo "  ❌ Failed to start Gitea - continuing without it"
         return 1
@@ -993,13 +995,25 @@ create_gitea_admin_user() {
     
     # Create gitadmin user with timeout
     echo "👤 Creating gitadmin user..."
-    timeout 10 sudo -u git -E /usr/local/bin/gitea admin user create \
+    if timeout 10 sudo -u git -E /usr/local/bin/gitea admin user create \
         --username gitadmin \
         --password password \
         --email admin@swautomorph.com \
         --admin \
         --config /etc/gitea/app.ini \
-        --work-path /var/lib/gitea 2>/dev/null || true
+        --work-path /var/lib/gitea 2>/dev/null; then
+        echo "  ✅ Gitadmin user created successfully"
+    else
+        echo "  ⚠️ Failed to create gitadmin user automatically, trying manual creation..."
+        # Retry without timeout for better error visibility
+        sudo -u git -E /usr/local/bin/gitea admin user create \
+            --username gitadmin \
+            --password password \
+            --email admin@swautomorph.com \
+            --admin \
+            --config /etc/gitea/app.ini \
+            --work-path /var/lib/gitea || echo "  ❌ Manual user creation also failed"
+    fi
     
     echo "  🔑 Gitea Admin Credentials:"
     echo "      Username: gitadmin"
@@ -1181,60 +1195,15 @@ EOF
     cat >> /tmp/ai-swautomorph-site << EOF
     
     location / {
-        proxy_pass http://127.0.0.1:${FLASK_PORT:-5000};
+        proxy_pass http://localhost:${FLASK_PORT:-5000};
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
-    }
-    
-    # Gitea CSS files with proper MIME type
-    location ~* ^/gitea/assets/.*\.css\$ {
-        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Override MIME type and disable content sniffing
-        proxy_hide_header Content-Type;
-        add_header Content-Type text/css always;
-        add_header X-Content-Type-Options nosniff always;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # Gitea JS files with proper MIME type
-    location ~* ^/gitea/assets/.*\.js\$ {
-        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Override MIME type and disable content sniffing
-        proxy_hide_header Content-Type;
-        add_header Content-Type application/javascript always;
-        add_header X-Content-Type-Options nosniff always;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-    
-    # Gitea other static assets
-    location ~* ^/gitea/assets/(.*)\$ {
-        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/assets/$1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        
-        # Cache static assets
-        expires 1y;
-        add_header Cache-Control "public, immutable";
     }
     
     location /gitea/ {
-        proxy_pass http://127.0.0.1:${GITEA_PORT:-3000}/;
+        proxy_pass http://localhost:${GITEA_PORT:-3000}/;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
