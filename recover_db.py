@@ -2,7 +2,7 @@
 """Database recovery script for AI-SwAutoMorph"""
 
 import os
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import shutil
 from datetime import datetime
 
@@ -36,21 +36,23 @@ def recover_database():
         init_db()
         print("Database initialized successfully!")
         
-        # 4. Verify the new database
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
+        # 4. Verify the new database - COMMENTED OUT for PostgreSQL migration
+        # conn = sqlite3.connect(db_path)
+        # cursor = conn.cursor()
         
         # Check tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-        tables = cursor.fetchall()
-        print(f"Created tables: {[table[0] for table in tables]}")
+        # cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        # tables = cursor.fetchall()
+        # print(f"Created tables: {[table[0] for table in tables]}")
         
         # Check integrity
-        cursor.execute("PRAGMA integrity_check")
-        result = cursor.fetchone()
-        print(f"Database integrity: {result[0]}")
+        # cursor.execute("PRAGMA integrity_check")
+        # result = cursor.fetchone()
+        # print(f"Database integrity: {result[0]}")
         
-        conn.close()
+        # conn.close()
+        
+        print("Database verification skipped - using PostgreSQL now")
         
         return True
         

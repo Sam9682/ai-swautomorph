@@ -1,5 +1,5 @@
 """Light Orchestrator for multi-instance application management"""
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import threading
 import time
 import json
@@ -143,7 +143,7 @@ class LightOrchestrator:
                     SELECT i.*, s.server_name, s.server_ip 
                     FROM instances i 
                     JOIN servers s ON i.server_id = s.id 
-                    WHERE i.service_name = ?
+                    WHERE i.service_name = %s
                 ''', (service[1],))
                 instances = cursor.fetchall()
                 
@@ -266,7 +266,7 @@ class LightOrchestrator:
         # Get server info
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT server_ip FROM servers WHERE id = ?', (server_id,))
+            cursor.execute('SELECT server_ip FROM servers WHERE id = %s', (server_id,))
             server_ip = cursor.fetchone()[0]
         
         # Build docker run command
@@ -427,7 +427,7 @@ class LightOrchestrator:
                     SELECT srv.server_ip, i.port
                     FROM instances i
                     JOIN servers srv ON i.server_id = srv.id
-                    WHERE i.service_name = ? AND i.status = 'running' 
+                    WHERE i.service_name = %s AND i.status = 'running' 
                     AND (i.health_status = 'healthy' OR i.health_status = 'unknown')
                 ''', (service_name,))
                 instances = cursor.fetchall()

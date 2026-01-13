@@ -1,6 +1,6 @@
 """SSO routes"""
 from flask import Blueprint, request, jsonify, render_template, session, redirect, url_for
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import os
 from ..config import DB_PATH
 from ..auth import generate_sso_token, validate_sso_token

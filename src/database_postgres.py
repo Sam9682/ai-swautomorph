@@ -296,6 +296,15 @@ def init_db():
                     WHERE id = %s
                 ''', (HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2, record_id))
             
+            # Insert default configuration parameters if none exist
+            cursor.execute('SELECT COUNT(*) FROM configuration')
+            if cursor.fetchone()[0] == 0:
+                default_config = [
+                    (None, 'agentic_engine', 'q chat'),
+                    (None, 'agentic_command', '')
+                ]
+                cursor.executemany('INSERT INTO configuration (parent, key, value) VALUES (%s, %s, %s)', default_config)
+            
             conn.commit()
 
 def assign_default_apps_to_user(user_id):
@@ -346,3 +355,11 @@ def assign_app_to_all_users(app_id, app_name):
                 ''', (uid, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
             
             conn.commit()
+
+def get_config_value(key, parent=None, default_value=None):
+    """Get configuration value from database"""
+    result = db_manager.execute_query(
+        'SELECT value FROM configuration WHERE key = %s AND (parent = %s OR (parent IS NULL AND %s IS NULL))',
+        (key, parent, parent), fetch_one=True
+    )
+    return result[0] if result else default_value

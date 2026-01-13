@@ -1,5 +1,5 @@
 """Authentication and SSO functionality"""
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import secrets
 import hashlib
 import os

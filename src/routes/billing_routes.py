@@ -1,6 +1,6 @@
 """Billing management routes"""
 from flask import Blueprint, request, jsonify, session
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import logging
 import os
 from datetime import datetime, timedelta
@@ -37,7 +37,7 @@ def get_billing_activities():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     is_admin = user and user[0] == 'admin'
@@ -75,7 +75,7 @@ def get_billing_activities():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE u.username = ? AND ((ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?))
+                    WHERE u.username = %s AND ((ba.started_at >= %s AND ba.started_at < %s) OR (ba.stopped_at >= %s AND ba.stopped_at < %s))
                     ORDER BY ba.created_at DESC
                 ''', (selected_user, start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
@@ -85,7 +85,7 @@ def get_billing_activities():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE u.username = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
+                    WHERE u.username = %s AND (ba.started_at >= %s OR ba.stopped_at >= %s)
                     ORDER BY ba.created_at DESC
                 ''', (selected_user, start_date.isoformat(), start_date.isoformat()), fetch_all=True)
         else:
@@ -96,7 +96,7 @@ def get_billing_activities():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE (ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?)
+                    WHERE (ba.started_at >= %s AND ba.started_at < %s) OR (ba.stopped_at >= %s AND ba.stopped_at < %s)
                     ORDER BY ba.created_at DESC
                 ''', (start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
@@ -106,7 +106,7 @@ def get_billing_activities():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE (ba.started_at >= ? OR ba.stopped_at >= ?)
+                    WHERE (ba.started_at >= %s OR ba.stopped_at >= %s)
                     ORDER BY ba.created_at DESC
                 ''', (start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     else:
@@ -118,7 +118,7 @@ def get_billing_activities():
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE ba.user_id = ? AND ((ba.started_at >= ? AND ba.started_at < ?) OR (ba.stopped_at >= ? AND ba.stopped_at < ?))
+                WHERE ba.user_id = %s AND ((ba.started_at >= %s AND ba.started_at < %s) OR (ba.stopped_at >= %s AND ba.stopped_at < %s))
                 ORDER BY ba.created_at DESC
             ''', (session['user_id'], start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
         else:
@@ -128,7 +128,7 @@ def get_billing_activities():
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE ba.user_id = ? AND (ba.started_at >= ? OR ba.stopped_at >= ?)
+                WHERE ba.user_id = %s AND (ba.started_at >= %s OR ba.stopped_at >= %s)
                 ORDER BY ba.created_at DESC
             ''', (session['user_id'], start_date.isoformat(), start_date.isoformat()), fetch_all=True)
     
@@ -155,7 +155,7 @@ def get_billing_summary():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     is_admin = user and user[0] == 'admin'
@@ -192,7 +192,7 @@ def get_billing_summary():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE u.username = ? AND ba.created_at >= ? AND ba.created_at < ?
+                    WHERE u.username = %s AND ba.created_at >= %s AND ba.created_at < %s
                     GROUP BY u.username, a.name
                     ORDER BY u.username, a.name
                 ''', (selected_user, start_date.isoformat(), end_date.isoformat()), fetch_all=True)
@@ -202,7 +202,7 @@ def get_billing_summary():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE u.username = ? AND ba.created_at >= ?
+                    WHERE u.username = %s AND ba.created_at >= %s
                     GROUP BY u.username, a.name
                     ORDER BY u.username, a.name
                 ''', (selected_user, start_date.isoformat()), fetch_all=True)
@@ -213,7 +213,7 @@ def get_billing_summary():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE ba.created_at >= ? AND ba.created_at < ?
+                    WHERE ba.created_at >= %s AND ba.created_at < %s
                     GROUP BY u.username, a.name
                     ORDER BY u.username, a.name
                 ''', (start_date.isoformat(), end_date.isoformat()), fetch_all=True)
@@ -223,7 +223,7 @@ def get_billing_summary():
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
-                    WHERE ba.created_at >= ?
+                    WHERE ba.created_at >= %s
                     GROUP BY u.username, a.name
                     ORDER BY u.username, a.name
                 ''', (start_date.isoformat(),), fetch_all=True)
@@ -235,7 +235,7 @@ def get_billing_summary():
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE ba.user_id = ? AND ba.created_at >= ? AND ba.created_at < ?
+                WHERE ba.user_id = %s AND ba.created_at >= %s AND ba.created_at < %s
                 GROUP BY u.username, a.name
                 ORDER BY a.name
             ''', (session['user_id'], start_date.isoformat(), end_date.isoformat()), fetch_all=True)
@@ -245,7 +245,7 @@ def get_billing_summary():
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
-                WHERE ba.user_id = ? AND ba.created_at >= ?
+                WHERE ba.user_id = %s AND ba.created_at >= %s
                 GROUP BY u.username, a.name
                 ORDER BY a.name
             ''', (session['user_id'], start_date.isoformat()), fetch_all=True)
@@ -265,7 +265,7 @@ def get_application_costs():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     if not user or user[0] != 'admin':
@@ -295,7 +295,7 @@ def update_application_cost(app_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     if not user or user[0] != 'admin':
@@ -306,20 +306,20 @@ def update_application_cost(app_id):
     
     # Check if cost record exists
     existing = db_manager.execute_query(
-        'SELECT COUNT(*) FROM application_costs WHERE application_id = ?', 
+        'SELECT COUNT(*) FROM application_costs WHERE application_id = %s', 
         (app_id,), fetch_one=True
     )
     
     if existing and existing[0] > 0:
         db_manager.execute_query('''
             UPDATE application_costs 
-            SET cost_per_day = ?, updated_at = CURRENT_TIMESTAMP 
-            WHERE application_id = ?
+            SET cost_per_day = %s, updated_at = CURRENT_TIMESTAMP 
+            WHERE application_id = %s
         ''', (cost_per_day, app_id))
     else:
         db_manager.execute_query('''
             INSERT INTO application_costs (application_id, cost_per_day) 
-            VALUES (?, ?)
+            VALUES (%s, %s)
         ''', (app_id, cost_per_day))
     
     return jsonify({'message': 'Cost updated successfully'})
@@ -334,7 +334,7 @@ def get_invoices():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (user_id,), fetch_one=True
     )
     is_admin = user and user[0] == 'admin'
@@ -357,7 +357,7 @@ def get_invoices():
             FROM invoicing i
             JOIN users u ON i.user_id = u.id
             LEFT JOIN payment_modes pm ON i.payment_mode_id = pm.id
-            WHERE i.user_id = ?
+            WHERE i.user_id = %s
             ORDER BY i.invoice_month DESC
         ''', (user_id,), fetch_all=True)
     
@@ -380,7 +380,7 @@ def get_billing_users():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     if not user or user[0] != 'admin':
@@ -404,7 +404,7 @@ def get_available_months():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     is_admin = user and user[0] == 'admin'
@@ -419,7 +419,7 @@ def get_available_months():
                     SELECT DISTINCT TO_CHAR(ba.created_at, 'YYYY-MM') as month
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
-                    WHERE u.username = ? AND ba.cost_amount > 0
+                    WHERE u.username = %s AND ba.cost_amount > 0
                     ORDER BY month DESC
                 ''', (selected_user,), fetch_all=True)
             else:
@@ -427,7 +427,7 @@ def get_available_months():
                     SELECT DISTINCT strftime('%Y-%m', ba.created_at) as month
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
-                    WHERE u.username = ? AND ba.cost_amount > 0
+                    WHERE u.username = %s AND ba.cost_amount > 0
                     ORDER BY month DESC
                 ''', (selected_user,), fetch_all=True)
         else:
@@ -452,14 +452,14 @@ def get_available_months():
             activities = db_manager.execute_query('''
                 SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
                 FROM billing_activities
-                WHERE user_id = ? AND cost_amount > 0
+                WHERE user_id = %s AND cost_amount > 0
                 ORDER BY month DESC
             ''', (session['user_id'],), fetch_all=True)
         else:
             activities = db_manager.execute_query('''
                 SELECT DISTINCT strftime('%Y-%m', created_at) as month
                 FROM billing_activities
-                WHERE user_id = ? AND cost_amount > 0
+                WHERE user_id = %s AND cost_amount > 0
                 ORDER BY month DESC
             ''', (session['user_id'],), fetch_all=True)
     
@@ -474,7 +474,7 @@ def generate_invoice():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     if not user or user[0] != 'admin':
@@ -492,7 +492,7 @@ def generate_invoice():
     
     # Get target user ID
     target_user = db_manager.execute_query(
-        'SELECT id FROM users WHERE username = ?',
+        'SELECT id FROM users WHERE username = %s',
         (target_username,), fetch_one=True
     )
     
@@ -503,7 +503,7 @@ def generate_invoice():
     
     # Check if invoice already exists for this month
     existing = db_manager.execute_query(
-        'SELECT id FROM invoicing WHERE user_id = ? AND invoice_month = ?',
+        'SELECT id FROM invoicing WHERE user_id = %s AND invoice_month = %s',
         (target_user_id, month), fetch_one=True
     )
     
@@ -516,7 +516,7 @@ def generate_invoice():
             SELECT ba.id, a.name, ba.cost_amount, ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND TO_CHAR(ba.created_at, 'YYYY-MM') = ?
+            WHERE ba.user_id = %s AND TO_CHAR(ba.created_at, 'YYYY-MM') = %s
             ORDER BY ba.created_at
         ''', (target_user_id, month), fetch_all=True)
     else:
@@ -524,7 +524,7 @@ def generate_invoice():
             SELECT ba.id, a.name, ba.cost_amount, ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ?
+            WHERE ba.user_id = %s AND strftime('%Y-%m', ba.created_at) = %s
             ORDER BY ba.created_at
         ''', (target_user_id, month), fetch_all=True)
     
@@ -537,12 +537,12 @@ def generate_invoice():
     if USE_POSTGRES:
         total = db_manager.execute_query('''
             SELECT SUM(cost_amount) FROM billing_activities
-            WHERE user_id = ? AND TO_CHAR(created_at, 'YYYY-MM') = ? AND cost_amount > 0
+            WHERE user_id = %s AND TO_CHAR(created_at, 'YYYY-MM') = %s AND cost_amount > 0
         ''', (target_user_id, month), fetch_one=True)
     else:
         total = db_manager.execute_query('''
             SELECT SUM(cost_amount) FROM billing_activities
-            WHERE user_id = ? AND strftime('%Y-%m', created_at) = ? AND cost_amount > 0
+            WHERE user_id = %s AND strftime('%Y-%m', created_at) = %s AND cost_amount > 0
         ''', (target_user_id, month), fetch_one=True)
     
     total_amount = total[0] if total and total[0] else 0.0
@@ -557,7 +557,7 @@ def generate_invoice():
     # Create invoice
     invoice_id = db_manager.execute_query('''
         INSERT INTO invoicing (user_id, invoice_month, total_amount, status)
-        VALUES (?, ?, ?, 'unpaid')
+        VALUES (%s, %s, %s, 'unpaid')
     ''', (target_user_id, month, total_amount))
     
     return jsonify({
@@ -582,7 +582,7 @@ def generate_invoice_pdf(invoice_id):
         FROM invoicing i
         JOIN users u ON i.user_id = u.id
         LEFT JOIN payment_modes pm ON i.payment_mode_id = pm.id
-        WHERE i.id = ? AND (i.user_id = ? OR ? IN (SELECT id FROM users WHERE username = 'admin'))
+        WHERE i.id = %s AND (i.user_id = %s OR %s IN (SELECT id FROM users WHERE username = 'admin'))
     ''', (invoice_id, user_id, user_id), fetch_one=True)
     
     if not invoice:
@@ -595,7 +595,7 @@ def generate_invoice_pdf(invoice_id):
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND TO_CHAR(ba.created_at, 'YYYY-MM') = ? AND ba.cost_amount > 0
+            WHERE ba.user_id = %s AND TO_CHAR(ba.created_at, 'YYYY-MM') = %s AND ba.cost_amount > 0
             ORDER BY ba.created_at
         ''', (invoice[1], invoice[6]), fetch_all=True)
     else:
@@ -604,7 +604,7 @@ def generate_invoice_pdf(invoice_id):
                    ba.duration_seconds, ba.cost_amount, ba.created_at
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ? AND strftime('%Y-%m', ba.created_at) = ? AND ba.cost_amount > 0
+            WHERE ba.user_id = %s AND strftime('%Y-%m', ba.created_at) = %s AND ba.cost_amount > 0
             ORDER BY ba.created_at
         ''', (invoice[1], invoice[6]), fetch_all=True)
     
@@ -687,7 +687,7 @@ def mark_invoice_paid(invoice_id):
     
     # Check if user owns this invoice or is admin
     invoice = db_manager.execute_query(
-        'SELECT user_id FROM invoicing WHERE id = ?',
+        'SELECT user_id FROM invoicing WHERE id = %s',
         (invoice_id,), fetch_one=True
     )
     
@@ -696,7 +696,7 @@ def mark_invoice_paid(invoice_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?',
+        'SELECT username FROM users WHERE id = %s',
         (user_id,), fetch_one=True
     )
     is_admin = user and user[0] == 'admin'
@@ -708,7 +708,7 @@ def mark_invoice_paid(invoice_id):
     db_manager.execute_query('''
         UPDATE invoicing 
         SET status = 'paid', payment_date = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = %s
     ''', (invoice_id,))
     
 @billing_bp.route('/api/billing/debug/<month>')
@@ -726,7 +726,7 @@ def debug_billing_data(month):
                    ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ?
+            WHERE ba.user_id = %s
             ORDER BY ba.created_at DESC
         ''', (user_id,), fetch_all=True)
     else:
@@ -735,7 +735,7 @@ def debug_billing_data(month):
                    ba.created_at, strftime('%Y-%m', ba.created_at) as month_str
             FROM billing_activities ba
             JOIN applications a ON ba.application_id = a.id
-            WHERE ba.user_id = ?
+            WHERE ba.user_id = %s
             ORDER BY ba.created_at DESC
         ''', (user_id,), fetch_all=True)
     
@@ -772,7 +772,7 @@ def record_billing_activity(user_id, application_name, action):
         
         # Get application ID
         app_result = db_manager.execute_query(
-            'SELECT id FROM applications WHERE name = ?', 
+            'SELECT id FROM applications WHERE name = %s', 
             (application_name,), fetch_one=True
         )
         if not app_result:
@@ -786,7 +786,7 @@ def record_billing_activity(user_id, application_name, action):
             # Record start activity
             result = db_manager.execute_query('''
                 INSERT INTO billing_activities (user_id, application_id, action, started_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             ''', (user_id, application_id, action))
             
             if result is not None:
@@ -800,7 +800,7 @@ def record_billing_activity(user_id, application_name, action):
             # Find the most recent start activity for this user and app
             start_activity = db_manager.execute_query('''
                 SELECT id, started_at FROM billing_activities
-                WHERE user_id = ? AND application_id = ? AND (action = 'start' OR action = 'START') AND stopped_at IS NULL
+                WHERE user_id = %s AND application_id = %s AND (action = 'start' OR action = 'START') AND stopped_at IS NULL
                 ORDER BY created_at DESC LIMIT 1
             ''', (user_id, application_id), fetch_one=True)
             
@@ -824,7 +824,7 @@ def record_billing_activity(user_id, application_name, action):
                 
                 # Get cost per day for this application
                 cost_result = db_manager.execute_query(
-                    'SELECT cost_per_day FROM application_costs WHERE application_id = ?', 
+                    'SELECT cost_per_day FROM application_costs WHERE application_id = %s', 
                     (application_id,), fetch_one=True
                 )
                 cost_per_day = cost_result[0] if cost_result else 1.0
@@ -837,8 +837,8 @@ def record_billing_activity(user_id, application_name, action):
                 # Update the start activity with stop information
                 update_result = db_manager.execute_query('''
                     UPDATE billing_activities 
-                    SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = ?, cost_amount = ?
-                    WHERE id = ?
+                    SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = %s, cost_amount = %s
+                    WHERE id = %s
                 ''', (duration_seconds, cost_amount, start_id))
                 
                 if update_result is None:
@@ -849,7 +849,7 @@ def record_billing_activity(user_id, application_name, action):
             # Also record the stop activity
             result = db_manager.execute_query('''
                 INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             ''', (user_id, application_id, action))
             
             if result is not None:

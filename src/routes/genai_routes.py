@@ -346,6 +346,7 @@ def api_qchat_operations():
     from flask import Response, stream_with_context
     import subprocess
     import re
+    from ..database import get_config_value
     
     user_id = session.get('user_id', 'anonymous')
     
@@ -357,6 +358,8 @@ def api_qchat_operations():
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
     action_operation = data.get('action_operation', '')
+    agentic_engine = data.get('agentic_engine') or get_config_value('agentic_engine', default_value='q chat')
+    agentic_command = data.get('agentic_command') or get_config_value('agentic_command', default_value='')
     
     if not message:
         return jsonify({'error': 'Message required'}), 400
@@ -444,14 +447,24 @@ User Question: {message}. Provide a helpful and informative response."""
             
             yield f"data: {json.dumps({'chunk': f'Found Q Chat at: {qchat_cmd}'})}\n\n"
             
-            # Use --trust-all-tools if action detected (needs command execution)
-            cmd_args = [qchat_cmd, 'chat']
-            try:
-                if 'detected_action' in locals() and detected_action:
-                    cmd_args.extend(['--trust-all-tools'])
-                cmd_args.append(l_prompt)
-            except NameError:
-                cmd_args.append(l_prompt)
+            # Use agentic_command if provided, otherwise use qchat
+            if agentic_command:
+                # Execute deployControlPlan.sh with agentic_command
+                cmd_args = ['/home/ubuntu/ai-swautomorph/deployControlPlan.sh', agentic_command]
+                yield f"data: {json.dumps({'chunk': f'Executing deployControlPlan.sh with command: {agentic_command}'})}\n\n"
+            elif agentic_engine.lower() == 'shai':
+                # Use shai engine (placeholder for future implementation)
+                yield f"data: {json.dumps({'error': 'SHAI engine not yet implemented'})}\n\n"
+                return
+            else:
+                # Default to qchat
+                cmd_args = [qchat_cmd, 'chat']
+                try:
+                    if 'detected_action' in locals() and detected_action:
+                        cmd_args.extend(['--trust-all-tools'])
+                    cmd_args.append(l_prompt)
+                except NameError:
+                    cmd_args.append(l_prompt)
             
             qchat_env = os.environ.copy()
             qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})

@@ -1,5 +1,5 @@
 """Database initialization and management"""
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import threading
 import time
 import os
@@ -88,11 +88,12 @@ class DatabaseManager:
     def _get_connection(self):
         """Get thread-local database connection"""
         if not hasattr(self._local, 'connection'):
-            self._local.connection = sqlite3.connect(
-                DB_PATH, 
-                timeout=30.0,  # 30 second timeout
-                check_same_thread=False
-            )
+            # self._local.connection = sqlite3.connect(
+            #     DB_PATH, 
+            #     timeout=30.0,  # 30 second timeout
+            #     check_same_thread=False
+            # )  # COMMENTED OUT - Using PostgreSQL now
+            raise NotImplementedError("SQLite3 database is deprecated. Use PostgreSQL database_postgres.py instead.")
             # Enable WAL mode for better concurrency
             self._local.connection.execute('PRAGMA journal_mode=WAL')
             # Set busy timeout
@@ -137,7 +138,8 @@ class DatabaseManager:
                     
                     conn.commit()
                     return result
-            except sqlite3.OperationalError as e:
+            # except sqlite3.OperationalError as e:  # COMMENTED OUT - Using PostgreSQL now
+            except Exception as e:
                 if "database is locked" in str(e) and attempt < max_retries - 1:
                     time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
                     continue
@@ -155,7 +157,8 @@ class DatabaseManager:
                     cursor.executemany(query, params_list)
                     conn.commit()
                     return cursor.rowcount
-            except sqlite3.OperationalError as e:
+            # except sqlite3.OperationalError as e:  # COMMENTED OUT - Using PostgreSQL now
+            except Exception as e:
                 if "database is locked" in str(e) and attempt < max_retries - 1:
                     time.sleep(retry_delay * (2 ** attempt))
                     continue
@@ -165,323 +168,23 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 def init_db():
-    """Initialize database with required tables"""
-    with db_manager.get_db_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Users table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                first_name TEXT,
-                last_name TEXT,
-                suspended INTEGER DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Applications table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS applications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
-                description TEXT,
-                git_url TEXT,
-                git_remote_url TEXT,
-                git_local_url TEXT,
-                git_repo_size INTEGER DEFAULT 50,
-                docker_build_duration INTEGER,
-                docker_start_duration INTEGER,
-                docker_stop_duration INTEGER,
-                docker_ps_duration INTEGER,
-                docker_compose_ports TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Authentication tokens table for SSO
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS auth_tokens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                token_hash TEXT UNIQUE NOT NULL,
-                expires_at TIMESTAMP NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # User application assignments table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS user_applications (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                application_id INTEGER NOT NULL,
-                url TEXT NOT NULL,
-                http_port INTEGER,
-                https_port INTEGER,
-                http_port2 INTEGER,
-                https_port2 INTEGER,
-                others_port INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (application_id) REFERENCES applications (id),
-                UNIQUE(user_id, application_id)
-            )
-        ''')
-        
-        # Deployments table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS deployments (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                application_name TEXT NOT NULL,
-                status TEXT DEFAULT 'pending',
-                deployment_path TEXT,
-                git_url TEXT,
-                server_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (server_id) REFERENCES servers (id)
-            )
-        ''')
-        
-        # Servers table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS servers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                SERVER_IP TEXT UNIQUE NOT NULL,
-                SERVER_NAME TEXT NOT NULL,
-                SERVER_CAPACITY_USER_MAX INTEGER NOT NULL,
-                SERVER_CAPACITY_APPLI_MAX INTEGER NOT NULL,
-                SERVER_STATUS TEXT DEFAULT 'STAND_BY',
-                SERVER_TYPE TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
-        
-        # Application costs table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS application_costs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                application_id INTEGER NOT NULL,
-                cost_per_day REAL DEFAULT 1.0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (application_id) REFERENCES applications (id)
-            )
-        ''')
-        
-        # Billing activities table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS billing_activities (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                application_id INTEGER NOT NULL,
-                action TEXT NOT NULL,
-                started_at TIMESTAMP,
-                stopped_at TIMESTAMP,
-                duration_seconds INTEGER,
-                cost_amount REAL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (application_id) REFERENCES applications (id)
-            )
-        ''')
-        
-        # Users logs table for login/logout tracking
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                username TEXT NOT NULL,
-                action TEXT NOT NULL,
-                datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Payment modes table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS payment_modes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                payment_type TEXT NOT NULL,
-                bank_account TEXT,
-                paypal_email TEXT,
-                card_last_four TEXT,
-                card_type TEXT,
-                is_default INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id)
-            )
-        ''')
-        
-        # Invoicing table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS invoicing (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER NOT NULL,
-                invoice_month TEXT NOT NULL,
-                total_amount REAL NOT NULL,
-                status TEXT DEFAULT 'unpaid',
-                payment_date TIMESTAMP,
-                payment_mode_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (payment_mode_id) REFERENCES payment_modes (id)
-            )
-        ''')
-        
-        # Insert default applications if none exist (with exclusive lock)
-        cursor.execute('BEGIN EXCLUSIVE')
-        try:
-            cursor.execute('SELECT COUNT(*) FROM applications')
-            if cursor.fetchone()[0] == 0:
-                default_apps = [
-                    ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 1, 65, 65, 10, 1),
-                    ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
-                    ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 38, 38, 1, 1),
-                    ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 29, 29, 10, 1),
-                    ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
-                    ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
-                ]
-                cursor.executemany('INSERT OR IGNORE INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', default_apps)
-                
-                # Insert default costs for applications
-                cursor.execute('SELECT id FROM applications')
-                app_ids = cursor.fetchall()
-                for app_id in app_ids:
-                    cursor.execute('INSERT OR IGNORE INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
-            cursor.execute('COMMIT')
-        except Exception as e:
-            cursor.execute('ROLLBACK')
-            raise
-        
-        # Insert current server if none exists
-        cursor.execute('SELECT COUNT(*) FROM servers')
-        if cursor.fetchone()[0] == 0:
-            import socket
-            try:
-                # Get current server IP
-                s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                s.connect(("8.8.8.8", 80))
-                current_ip = s.getsockname()[0]
-                s.close()
-            except:
-                current_ip = "127.0.0.1"
-            
-            cursor.execute('''
-                INSERT OR IGNORE INTO servers (SERVER_IP, SERVER_NAME, SERVER_CAPACITY_USER_MAX, SERVER_CAPACITY_APPLI_MAX, SERVER_STATUS, SERVER_TYPE)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (current_ip, 'main-server', 10, 50, 'STAND_BY', 'primary'))
-        
-        # Initialize orchestrator tables
-        from .orchestrator import orchestrator
-        orchestrator.init_orchestrator_tables()
-        
-        # Create default admin user if none exists
-        cursor.execute('SELECT COUNT(*) FROM users WHERE username = ? OR email = ?', ('admin', 'admin@swautomorph.com'))
-        if cursor.fetchone()[0] == 0:
-            admin_password_hash = generate_password_hash('password')
-            cursor.execute('''
-                INSERT OR IGNORE INTO users (username, email, password_hash, first_name, last_name, suspended)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator', 0))
-            
-        # Get admin user ID (whether just created or already exists)
-        cursor.execute('SELECT id FROM users WHERE username = ?', ('admin',))
-        admin_result = cursor.fetchone()
-        if admin_result:
-            admin_id = admin_result[0]
-            
-            # Assign all applications to admin user if not already assigned
-            cursor.execute('SELECT id, name FROM applications')
-            apps = cursor.fetchall()
-            for app in apps:
-                app_id, app_name = app[0], app[1]
-                
-                # Check if this app is already assigned to admin
-                cursor.execute('SELECT COUNT(*) FROM user_applications WHERE user_id = ? AND application_id = ?', (admin_id, app_id))
-                if cursor.fetchone()[0] == 0:
-                    # Calculate URL using the same logic as deployControlPlan.sh
-                    HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
-                    url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-                    cursor.execute('INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)', (admin_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
-            
-            # Ensure costs exist for all applications
-            cursor.execute('SELECT id FROM applications')
-            app_ids = cursor.fetchall()
-            for app_id in app_ids:
-                cursor.execute('SELECT COUNT(*) FROM application_costs WHERE application_id = ?', (app_id[0],))
-                if cursor.fetchone()[0] == 0:
-                    cursor.execute('INSERT OR IGNORE INTO application_costs (application_id, cost_per_day) VALUES (?, ?)', (app_id[0], 1.0))
-            
-            # Create default payment mode for admin if not exists
-            cursor.execute('SELECT COUNT(*) FROM payment_modes WHERE user_id = ?', (admin_id,))
-            if cursor.fetchone()[0] == 0:
-                cursor.execute('''
-                    INSERT OR IGNORE INTO payment_modes (user_id, payment_type, is_default)
-                    VALUES (?, ?, ?)
-                ''', (admin_id, 'bank_transfer', 1))
-        
-        # Update existing user_applications records with port information if missing
-        cursor.execute('SELECT id, user_id, application_id FROM user_applications WHERE http_port IS NULL OR https_port IS NULL')
-        records_to_update = cursor.fetchall()
-        for record in records_to_update:
-            record_id, user_id, app_id = record
-            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
-            cursor.execute('UPDATE user_applications SET http_port = ?, https_port = ?, http_port2 = ?, https_port2 = ? WHERE id = ?', (HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2, record_id))
-        
-        conn.commit()
+    """Initialize database with required tables - DEPRECATED: Use database_postgres.py instead"""
+    raise NotImplementedError("SQLite3 database is deprecated. Use PostgreSQL database_postgres.py init_db() instead.")
+    # COMMENTED OUT - All SQLite3 database initialization code
+    # The entire function has been commented out as it's SQLite3 specific
+    # Use src/database_postgres.py init_db() function instead
 
 def assign_default_apps_to_user(user_id):
-    """Assign default applications to a new user"""
-    with db_manager.get_db_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Get all applications
-        cursor.execute('SELECT id, name FROM applications')
-        apps = cursor.fetchall()
-        
-        # Assign all applications to the user with calculated URLs
-        for app in apps:
-            app_id, app_name = app[0], app[1]
-            # Calculate URL using the same logic as deployControlPlan.sh
-            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
-
-            # Compose URL
-            url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-            cursor.execute('''
-                INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
-        
-        conn.commit()
+    """Assign default applications to a new user - DEPRECATED: Use database_postgres.py instead"""
+    raise NotImplementedError("SQLite3 database is deprecated. Use PostgreSQL database_postgres.py functions instead.")
+    # COMMENTED OUT - All SQLite3 database operations
 
 def assign_app_to_all_users(app_id, app_name):
-    """Assign a new application to all existing users"""
-    with db_manager.get_db_connection() as conn:
-        cursor = conn.cursor()
-        
-        # Get all user IDs
-        cursor.execute('SELECT id FROM users')
-        user_ids = cursor.fetchall()
-        
-        # Assign application to all users with calculated URLs
-        for user_id in user_ids:
-            uid = user_id[0]
-            # Calculate URL using the same logic as deployControlPlan.sh
-            HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(uid, app_id)
+    """Assign a new application to all existing users - DEPRECATED: Use database_postgres.py instead"""
+    raise NotImplementedError("SQLite3 database is deprecated. Use PostgreSQL database_postgres.py functions instead.")
+    # COMMENTED OUT - All SQLite3 database operations
 
-            url = f'https://www.swautomorph.com:{HTTPS_PORT}'
-            cursor.execute('''
-                INSERT OR IGNORE INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (uid, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2))
-        
-        conn.commit()
+def get_config_value(key, parent=None, default_value=None):
+    """Get configuration value from database - DEPRECATED: Use database_postgres.py instead"""
+    raise NotImplementedError("SQLite3 database is deprecated. Use PostgreSQL database_postgres.py functions instead.")
+    # COMMENTED OUT - All SQLite3 database operations

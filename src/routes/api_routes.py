@@ -1,7 +1,7 @@
 """API routes"""
 from flask import Blueprint, request, jsonify, session, Response, stream_with_context
 from werkzeug.security import generate_password_hash
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import os
 import requests
 import json
@@ -138,7 +138,7 @@ def database_health():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -170,7 +170,7 @@ def api_applications():
         
         # Check if user is admin
         user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = ?', 
+            'SELECT username FROM users WHERE id = %s', 
             (session['user_id'],), fetch_one=True
         )
         
@@ -187,7 +187,7 @@ def api_applications():
         git_url = data.get('git_url', '')
         git_repo_size = data.get('git_repo_size', 50)
         app_id = db_manager.execute_query(
-            'INSERT INTO applications (name, description, git_url, git_repo_size) VALUES (?, ?, ?, ?)',
+            'INSERT INTO applications (name, description, git_url, git_repo_size) VALUES (%s, %s, %s, %s)',
             (name, description, git_url, git_repo_size)
         )
         
@@ -204,7 +204,7 @@ def api_application_actions(app_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -228,15 +228,15 @@ def api_application_actions(app_id):
             docker_ps_duration = data.get('docker_ps_duration')
             
             db_manager.execute_query('''
-                UPDATE applications SET name = ?, description = ?, git_url = ?, git_repo_size = ?,
-                       docker_build_duration = ?, docker_start_duration = ?, docker_stop_duration = ?, docker_ps_duration = ?
-                WHERE id = ?
+                UPDATE applications SET name = %s, description = %s, git_url = %s, git_repo_size = %s,
+                       docker_build_duration = %s, docker_start_duration = %s, docker_stop_duration = %s, docker_ps_duration = %s
+                WHERE id = %s
             ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
             
             return jsonify({'message': 'Application updated successfully'})
         
         elif request.method == 'DELETE':
-            db_manager.execute_query('DELETE FROM applications WHERE id = ?', (app_id,))
+            db_manager.execute_query('DELETE FROM applications WHERE id = %s', (app_id,))
             return jsonify({'message': 'Application deleted successfully'})
             
     except Exception as e:
@@ -250,7 +250,7 @@ def api_users():
     try:
         # Check if user is admin
         user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = ?', 
+            'SELECT username FROM users WHERE id = %s', 
             (session['user_id'],), fetch_one=True
         )
         
@@ -290,7 +290,7 @@ def api_users():
                 password_hash = generate_password_hash(password)
                 user_id = db_manager.execute_query('''
                     INSERT INTO users (username, email, password_hash, first_name, last_name)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (%s, %s, %s, %s, %s)
                 ''', (username, email, password_hash, first_name, last_name))
                 
                 # Assign default applications to new user
@@ -322,7 +322,7 @@ def api_user_actions(user_id):
     try:
         # Check if user is admin
         user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = ?', 
+            'SELECT username FROM users WHERE id = %s', 
             (session['user_id'],), fetch_one=True
         )
         
@@ -334,9 +334,9 @@ def api_user_actions(user_id):
             action = data.get('action')
             
             if action == 'suspend':
-                db_manager.execute_query('UPDATE users SET suspended = TRUE WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = TRUE WHERE id = %s', (user_id,))
             elif action == 'unsuspend':
-                db_manager.execute_query('UPDATE users SET suspended = FALSE WHERE id = ?', (user_id,))
+                db_manager.execute_query('UPDATE users SET suspended = FALSE WHERE id = %s', (user_id,))
             elif action == 'update':
                 username = data.get('username')
                 email = data.get('email')
@@ -348,8 +348,8 @@ def api_user_actions(user_id):
                 
                 try:
                     db_manager.execute_query('''
-                        UPDATE users SET username = ?, email = ?, first_name = ?, last_name = ?
-                        WHERE id = ?
+                        UPDATE users SET username = %s, email = %s, first_name = %s, last_name = %s
+                        WHERE id = %s
                     ''', (username, email, first_name, last_name, user_id))
                 except Exception as e:
                     if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
@@ -359,7 +359,7 @@ def api_user_actions(user_id):
             return jsonify({'message': 'User updated successfully'})
         
         elif request.method == 'DELETE':
-            db_manager.execute_query('DELETE FROM users WHERE id = ?', (user_id,))
+            db_manager.execute_query('DELETE FROM users WHERE id = %s', (user_id,))
             return jsonify({'message': 'User deleted successfully'})
             
     except Exception as e:
@@ -373,7 +373,7 @@ def api_user_applications(user_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -386,7 +386,7 @@ def api_user_applications(user_id):
             assigned_data = db_manager.execute_query('''
                 SELECT a.id, a.name FROM applications a
                 JOIN user_applications ua ON a.id = ua.application_id
-                WHERE ua.user_id = ?
+                WHERE ua.user_id = %s
             ''', (user_id,), fetch_all=True)
             assigned = [{'id': row[0], 'name': row[1]} for row in assigned_data]
             
@@ -413,7 +413,7 @@ def api_user_applications(user_id):
                 
                 # Get application name for URL generation
                 app_result = db_manager.execute_query(
-                    'SELECT name FROM applications WHERE id = ?', 
+                    'SELECT name FROM applications WHERE id = %s', 
                     (app_id,), fetch_one=True
                 )
                 if not app_result:
@@ -423,7 +423,7 @@ def api_user_applications(user_id):
                 url = f'https://www.swautomorph.com:{HTTPS_PORT}'
                 
                 db_manager.execute_query(
-                    'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (%s, %s, %s, %s, %s, %s, %s)',
                     (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2)
                 )
                 return jsonify({'message': 'Application assigned successfully'})
@@ -440,7 +440,7 @@ def api_user_applications(user_id):
                 return jsonify({'error': 'Application ID required'}), 400
             
             db_manager.execute_query(
-                'DELETE FROM user_applications WHERE user_id = ? AND application_id = ?',
+                'DELETE FROM user_applications WHERE user_id = %s AND application_id = %s',
                 (user_id, app_id)
             )
             return jsonify({'message': 'Application unassigned successfully'})
@@ -458,7 +458,7 @@ def api_database_table(table_name):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -481,7 +481,7 @@ def api_database_table(table_name):
                 # PostgreSQL: Get table structure from information_schema
                 columns_data = db_manager.execute_query('''
                     SELECT column_name FROM information_schema.columns 
-                    WHERE table_name = ? AND table_schema = 'public'
+                    WHERE table_name = %s AND table_schema = 'public'
                     ORDER BY ordinal_position
                 ''', (table_name,), fetch_all=True)
                 columns = [col[0] for col in columns_data]
@@ -515,7 +515,7 @@ def api_database_table(table_name):
             
             # Build INSERT query dynamically
             columns = list(data.keys())
-            placeholders = ', '.join(['?' for _ in columns])
+            placeholders = ', '.join(['%s' for _ in columns])
             column_names = ', '.join(columns)
             values = [data[col] for col in columns]
             
@@ -534,7 +534,7 @@ def api_servers():
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -577,7 +577,7 @@ def api_servers():
             db_manager.execute_query('''
                 INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                    server_capacity_appli_max, server_status, server_type)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s)
             ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
                   data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
             
@@ -593,7 +593,7 @@ def api_server_actions(server_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -612,10 +612,10 @@ def api_server_actions(server_id):
                 return jsonify({'error': 'Missing required fields'}), 400
             
             db_manager.execute_query('''
-                UPDATE servers SET server_ip = ?, server_name = ?, 
-                                 server_capacity_user_max = ?, server_capacity_appli_max = ?,
-                                 server_status = ?, server_type = ?
-                WHERE id = ?
+                UPDATE servers SET server_ip = %s, server_name = %s, 
+                                 server_capacity_user_max = %s, server_capacity_appli_max = %s,
+                                 server_status = %s, server_type = %s
+                WHERE id = %s
             ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
                   data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE'], server_id))
             
@@ -627,7 +627,7 @@ def api_server_actions(server_id):
         try:
             # Check if server is ACTIVE
             server = db_manager.execute_query(
-                'SELECT server_status FROM servers WHERE id = ?', 
+                'SELECT server_status FROM servers WHERE id = %s', 
                 (server_id,), fetch_one=True
             )
             
@@ -637,7 +637,7 @@ def api_server_actions(server_id):
             if server[0] == 'ACTIVE':
                 return jsonify({'error': 'Cannot delete ACTIVE server'}), 400
             
-            db_manager.execute_query('DELETE FROM servers WHERE id = ?', (server_id,))
+            db_manager.execute_query('DELETE FROM servers WHERE id = %s', (server_id,))
             return jsonify({'message': 'Server deleted successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -686,7 +686,7 @@ def api_server_allocate():
                 # Update server status to ACTIVE only if currently STAND_BY
                 db_manager.execute_query('''
                     UPDATE servers SET server_status = 'ACTIVE' 
-                    WHERE id = ? AND server_status = 'STAND_BY'
+                    WHERE id = %s AND server_status = 'STAND_BY'
                 ''', (server_id,))
                 
                 return jsonify({'server_id': server_id})
@@ -704,7 +704,7 @@ def api_database_record(table_name, record_id):
     
     # Check if user is admin
     user = db_manager.execute_query(
-        'SELECT username FROM users WHERE id = ?', 
+        'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -734,7 +734,7 @@ def api_database_record(table_name, record_id):
             try:
                 for column, value in data.items():
                     if column.lower() != 'id':  # Don't update ID
-                        set_clauses.append(f'{column} = ?')
+                        set_clauses.append(f'{column} = %s')
                         values.append(value)
             except (AttributeError, TypeError) as e:
                 return jsonify({'error': 'Invalid data format'}), 400
@@ -744,7 +744,7 @@ def api_database_record(table_name, record_id):
             
             values.append(record_id)  # Add ID for WHERE clause
             set_clause = ', '.join(set_clauses)
-            query = f'UPDATE {table_name} SET {set_clause} WHERE id = ?'
+            query = f'UPDATE {table_name} SET {set_clause} WHERE id = %s'
             
             db_manager.execute_query(query, values)
             
@@ -754,7 +754,7 @@ def api_database_record(table_name, record_id):
     
     elif request.method == 'DELETE':
         try:
-            db_manager.execute_query(f'DELETE FROM {table_name} WHERE id = ?', (record_id,))
+            db_manager.execute_query(f'DELETE FROM {table_name} WHERE id = %s', (record_id,))
             return jsonify({'message': 'Record deleted successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
@@ -782,7 +782,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         current_server_ip = "127.0.0.1"
     
     target_server = db_manager.execute_query(
-        'SELECT server_ip FROM servers WHERE id = ?', 
+        'SELECT server_ip FROM servers WHERE id = %s', 
         (server_id,), fetch_one=True
     )
     
@@ -839,18 +839,18 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         
         # Record deployment
         existing_record = db_manager.execute_query(
-            'SELECT id FROM deployments WHERE user_id = ? AND application_name = ? AND server_id = ?',
+            'SELECT id FROM deployments WHERE user_id = %s AND application_name = %s AND server_id = %s',
             (user_id, app_name, server_id), fetch_one=True
         )
         
         if existing_record:
             db_manager.execute_query(
-                'UPDATE deployments SET status = ?, deployment_path = ?, git_url = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ? AND server_id = ?',
+                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
                 (status, deployment_path, git_url, session['user_id'], app_name, server_id)
             )
         else:
             db_manager.execute_query(
-                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id) VALUES (?, ?, ?, ?, ?, ?)',
+                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id) VALUES (%s, %s, %s, %s, %s, %s)',
                 (session['user_id'], app_name, status, deployment_path, git_url, server_id)
             )
         
@@ -874,7 +874,7 @@ def _handle_app_action(user_id, app_name, action, data):
     """Handle application lifecycle actions (start, stop, restart, ps, logs)"""
     # Check if deployment exists
     deployment = db_manager.execute_query(
-        'SELECT deployment_path FROM deployments WHERE user_id = ? AND application_name = ? AND status NOT IN (?, ?) ORDER BY updated_at DESC LIMIT 1',
+        'SELECT deployment_path FROM deployments WHERE user_id = %s AND application_name = %s AND status NOT IN (%s, %s) ORDER BY updated_at DESC LIMIT 1',
         (user_id, app_name, 'failed', 'error'), fetch_one=True
     )
     
@@ -891,7 +891,7 @@ def _handle_app_action(user_id, app_name, action, data):
     
     # Get user details
     user_details = db_manager.execute_query(
-        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        'SELECT username, email, first_name, last_name FROM users WHERE id = %s', 
         (user_id,), fetch_one=True
     )
     user_name = f"{user_details[2] or ''} {user_details[3] or ''}" if user_details else 'User'
@@ -916,7 +916,7 @@ def _handle_app_action(user_id, app_name, action, data):
                 process.wait()
                 status = 'running' if action.upper() == 'START' else 'STOPPED' if action.upper() == 'STOP' else 'COMPLETED'
                 db_manager.execute_query(
-                    'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
+                    'UPDATE deployments SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s',
                     (status, user_id, app_name)
                 )
                 if action.upper() in ['START', 'STOP'] and process.returncode == 0:
@@ -940,7 +940,7 @@ def _handle_app_action(user_id, app_name, action, data):
         
         status = 'RUNNING' if action.upper() == 'START' else 'STOPPED' if action.upper() == 'STOP' else 'COMPLETED'
         db_manager.execute_query(
-            'UPDATE deployments SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND application_name = ?',
+            'UPDATE deployments SET status = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s',
             (status, session['user_id'], app_name)
         )
         
@@ -972,7 +972,7 @@ def api_deployments():
         logger.info(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
         deployments_data = db_manager.execute_query('''
             SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
-            FROM deployments WHERE user_id = ? ORDER BY updated_at DESC
+            FROM deployments WHERE user_id = %s ORDER BY updated_at DESC
         ''', (session['user_id'],), fetch_all=True)
         
         deployments = [{
@@ -998,7 +998,7 @@ def api_deployments():
         
         # Get username for deployment path
         user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = ?', 
+            'SELECT username FROM users WHERE id = %s', 
             (session['user_id'],), fetch_one=True
         )
         username = user[0] if user else f'user_{session["user_id"]}'
@@ -1033,7 +1033,7 @@ def api_deployment_logs(deployment_id):
     
     deployment = db_manager.execute_query('''
         SELECT deployment_path FROM deployments 
-        WHERE id = ? AND user_id = ?
+        WHERE id = %s AND user_id = %s
     ''', (deployment_id, session['user_id']), fetch_one=True)
     
     if not deployment:
@@ -1067,3 +1067,102 @@ def api_deployment_logs(deployment_id):
     except Exception as e:
         logger.error(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
+
+@api_bp.route('/configuration', methods=['GET', 'POST'])
+def api_configuration():
+    """Configuration parameters management endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'GET':
+        try:
+            configs = db_manager.execute_query(
+                'SELECT param_id, parent, key, value FROM configuration ORDER BY param_id',
+                fetch_all=True
+            )
+            
+            config_list = [{
+                'param_id': row[0],
+                'parent': row[1],
+                'key': row[2],
+                'value': row[3]
+            } for row in configs]
+            
+            return jsonify(config_list)
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+            if not data or not isinstance(data, dict):
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            
+            parent = data.get('parent')
+            key = data.get('key')
+            value = data.get('value')
+            
+            if not key or not value:
+                return jsonify({'error': 'Key and value are required'}), 400
+            
+            db_manager.execute_query(
+                'INSERT INTO configuration (parent, key, value) VALUES (%s, %s, %s)',
+                (parent, key, value)
+            )
+            
+            return jsonify({'message': 'Configuration parameter added successfully'}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/configuration/<int:param_id>', methods=['PUT', 'DELETE'])
+def api_configuration_actions(param_id):
+    """Configuration parameter update/delete endpoint"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    if request.method == 'PUT':
+        try:
+            data = request.get_json()
+            if not data or not isinstance(data, dict):
+                return jsonify({'error': 'Invalid JSON data'}), 400
+            
+            parent = data.get('parent')
+            key = data.get('key')
+            value = data.get('value')
+            
+            if not key or not value:
+                return jsonify({'error': 'Key and value are required'}), 400
+            
+            db_manager.execute_query(
+                'UPDATE configuration SET parent = %s, key = %s, value = %s WHERE param_id = %s',
+                (parent, key, value, param_id)
+            )
+            
+            return jsonify({'message': 'Configuration parameter updated successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+    
+    elif request.method == 'DELETE':
+        try:
+            db_manager.execute_query('DELETE FROM configuration WHERE param_id = %s', (param_id,))
+            return jsonify({'message': 'Configuration parameter deleted successfully'})
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500

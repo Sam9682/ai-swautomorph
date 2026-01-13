@@ -2,7 +2,7 @@
 import click
 import requests
 import json
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import subprocess
 import os
 import sys
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BASE_URL = 'http://www.swautomorph.com:80'
 
 # Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
+USE_POSTGRES = os.environ.get('USE_POSTGRES', 'true').lower() == 'true'
 
 @click.group()
 def cli():
@@ -79,14 +79,15 @@ def add_app(name, url, description):
     }
     
     try:
-        # Note: For CLI, we'd need to implement session handling or token-based auth
-        # For now, this is a direct database operation
-        conn = sqlite3.connect('softfluid/db/ai_swautomorph.db')
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)',
-                      (name, url, description or ''))
-        conn.commit()
-        conn.close()
+        if USE_POSTGRES:
+            from src.database_postgres import db_manager
+            db_manager.execute_query(
+                'INSERT INTO applications (name, git_url, description) VALUES (%s, %s, %s)',
+                (name, url, description or '')
+            )
+        else:
+            click.echo('Error: SQLite operations are deprecated. Use PostgreSQL database instead.')
+            return
         click.echo('Application added successfully!')
     except Exception as e:
         click.echo(f'Error: {str(e)}')

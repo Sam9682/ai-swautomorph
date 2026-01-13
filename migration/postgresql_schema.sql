@@ -150,6 +150,14 @@ CREATE TABLE invoicing (
     FOREIGN KEY (payment_mode_id) REFERENCES payment_modes (id) ON DELETE SET NULL
 );
 
+-- Configuration table for nested parameters
+CREATE TABLE configuration (
+    param_id BIGSERIAL PRIMARY KEY,
+    parent VARCHAR(255),
+    key VARCHAR(255),
+    value TEXT
+);
+
 -- Indexes for performance
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_users_email ON users(email);

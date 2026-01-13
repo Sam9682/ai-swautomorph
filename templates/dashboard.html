@@ -22,7 +22,7 @@
             <input type="hidden" class="application_status" value="is_not_cloned">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[5] or 50 }}, {{ app[6] or 'null' }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }})" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[6] or 50 }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }}, {{ app[10] or 'null' }})" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
@@ -31,7 +31,7 @@
             </div>
             {% else %}
             <div class="app-actions">
-                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}')" class="btn-icon" title="View Details">
+                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="View Details">
                     👁️
                 </button>
             </div>
@@ -42,10 +42,10 @@
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone', {{ app[5] or 50 }})" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone', {{ app[6] or 50 }})" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
                     {% if username == 'admin' %}
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start', null, {{ app[6] or 30 }})" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop', null, null, {{ app[8] or 10 }})" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start', null, {{ app[7] or 30 }})" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop', null, null, {{ app[9] or 10 }})" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small" id="logsBtn-{{ app[1] | replace(' ', '-') | lower }}">📋 {{ get_text('logs') }}</button>
@@ -174,6 +174,10 @@
         <div class="form-group">
             <label>{{ get_text('github_repo_url') }}:</label>
             <div id="viewAppGitUrl" class="readonly-field" style="color: green;"></div>
+        </div>
+        <div class="form-group">
+            <label>Gitea Repository:</label>
+            <div id="viewAppGitLocalUrl" class="readonly-field" style="color: green;"></div>
         </div>
 
         <button type="button" class="btn btn-secondary" onclick="hideViewAppForm()">{{ get_text('close') }}</button>
@@ -483,6 +487,61 @@
     </div>
     {% endif %}
     
+    <!-- Settings Section -->
+    {% if username == 'admin' %}
+    <div id="settingsSection" class="tab-content" style="display: none;">
+        <h2>⚙️ Settings</h2>
+        
+        <div class="settings-controls">
+            <button class="btn btn-primary" onclick="showAddConfigForm()">Add Parameter</button>
+            <button class="btn btn-secondary" onclick="refreshConfigTable()">Refresh</button>
+        </div>
+        
+        <div id="configTableContainer" class="table-container">
+            <div class="loading">Loading configuration parameters...</div>
+        </div>
+        
+        <!-- Add Config Form -->
+        <div id="addConfigForm" class="config-form" style="display: none;">
+            <h3>Add Configuration Parameter</h3>
+            <div class="form-group">
+                <label for="newConfigParent">Parent:</label>
+                <input type="text" id="newConfigParent" placeholder="Optional parent parameter">
+            </div>
+            <div class="form-group">
+                <label for="newConfigKey">Key:</label>
+                <input type="text" id="newConfigKey" placeholder="Parameter key" required>
+            </div>
+            <div class="form-group">
+                <label for="newConfigValue">Value:</label>
+                <input type="text" id="newConfigValue" placeholder="Parameter value" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="saveNewConfig()">Save</button>
+            <button type="button" class="btn btn-secondary" onclick="hideAddConfigForm()">Cancel</button>
+        </div>
+        
+        <!-- Edit Config Form -->
+        <div id="editConfigForm" class="config-form" style="display: none;">
+            <h3>Edit Configuration Parameter</h3>
+            <input type="hidden" id="editConfigId">
+            <div class="form-group">
+                <label for="editConfigParent">Parent:</label>
+                <input type="text" id="editConfigParent" placeholder="Optional parent parameter">
+            </div>
+            <div class="form-group">
+                <label for="editConfigKey">Key:</label>
+                <input type="text" id="editConfigKey" placeholder="Parameter key" required>
+            </div>
+            <div class="form-group">
+                <label for="editConfigValue">Value:</label>
+                <input type="text" id="editConfigValue" placeholder="Parameter value" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="saveEditConfig()">Update</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditConfigForm()">Cancel</button>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Deployment Logs Section -->
     <!-- Logs section removed from main panel -->
         </div>
@@ -641,6 +700,9 @@ function showTab(tab) {
     const databaseSection = document.getElementById('databaseSection');
     if (databaseSection) databaseSection.style.display = 'none';
     
+    const settingsSection = document.getElementById('settingsSection');
+    if (settingsSection) settingsSection.style.display = 'none';
+    
     // Control virtual agents panel visibility
     const agentsPanel = document.getElementById('agentsPanel');
     if (agentsPanel) {
@@ -678,6 +740,11 @@ function showTab(tab) {
             databaseSection.style.display = 'block';
             document.getElementById('tableSelect').value = '';
             document.getElementById('tableDataContainer').innerHTML = '<p>Select a table to view data</p>';
+        }
+    } else if (tab === 'settings') {
+        if (settingsSection) {
+            settingsSection.style.display = 'block';
+            loadConfigTable();
         }
     }
     
@@ -895,12 +962,13 @@ function hideEditAppForm() {
     document.getElementById('updateAppForm').reset();
 }
 
-function viewApp(id, name, url, description, gitUrl) {
+function viewApp(id, name, url, description, gitUrl, gitLocalUrl) {
     document.getElementById('viewAppIdentity').textContent = id;
     document.getElementById('viewAppName').textContent = name;
     document.getElementById('viewAppUrl').innerHTML = `<a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">${url}</a>`;
     document.getElementById('viewAppDescription').textContent = description || 'No description';
     document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
+    document.getElementById('viewAppGitLocalUrl').innerHTML = gitLocalUrl ? `<a href="${gitLocalUrl}" target="_blank" style="color: #3498db; text-decoration: none;">${gitLocalUrl}</a>` : 'Not available';
     document.getElementById('viewAppForm').style.display = 'block';
 }
 
@@ -3762,5 +3830,155 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
+<script>
+// Configuration management functions
+function loadConfigTable() {
+    fetch('/api/configuration')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('configTableContainer');
+            if (data.length === 0) {
+                container.innerHTML = '<p>No configuration parameters found.</p>';
+                return;
+            }
+            
+            let html = '<table class="config-table"><thead><tr><th>ID</th><th>Parent</th><th>Key</th><th>Value</th><th>Actions</th></tr></thead><tbody>';
+            data.forEach(config => {
+                html += `<tr>
+                    <td>${config.param_id}</td>
+                    <td>${config.parent || ''}</td>
+                    <td>${config.key}</td>
+                    <td>${config.value}</td>
+                    <td class="actions">
+                        <button onclick="editConfig(${config.param_id})" class="btn-small">Edit</button>
+                        <button onclick="deleteConfig(${config.param_id})" class="btn-small btn-danger">Delete</button>
+                    </td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('configTableContainer').innerHTML = '<p>Error loading configuration parameters.</p>';
+        });
+}
+
+function refreshConfigTable() {
+    loadConfigTable();
+}
+
+function showAddConfigForm() {
+    document.getElementById('addConfigForm').style.display = 'block';
+}
+
+function hideAddConfigForm() {
+    document.getElementById('addConfigForm').style.display = 'none';
+    document.getElementById('newConfigParent').value = '';
+    document.getElementById('newConfigKey').value = '';
+    document.getElementById('newConfigValue').value = '';
+}
+
+function saveNewConfig() {
+    const formData = {
+        parent: document.getElementById('newConfigParent').value || null,
+        key: document.getElementById('newConfigKey').value,
+        value: document.getElementById('newConfigValue').value
+    };
+    
+    if (!formData.key || !formData.value) {
+        alert('Key and Value are required');
+        return;
+    }
+    
+    fetch('/api/configuration', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            hideAddConfigForm();
+            loadConfigTable();
+        }
+    })
+    .catch(error => {
+        alert('Error saving configuration parameter');
+    });
+}
+
+function editConfig(paramId) {
+    fetch('/api/configuration')
+        .then(response => response.json())
+        .then(configs => {
+            const config = configs.find(c => c.param_id === paramId);
+            if (config) {
+                document.getElementById('editConfigId').value = config.param_id;
+                document.getElementById('editConfigParent').value = config.parent || '';
+                document.getElementById('editConfigKey').value = config.key;
+                document.getElementById('editConfigValue').value = config.value;
+                document.getElementById('editConfigForm').style.display = 'block';
+            }
+        });
+}
+
+function hideEditConfigForm() {
+    document.getElementById('editConfigForm').style.display = 'none';
+}
+
+function saveEditConfig() {
+    const paramId = document.getElementById('editConfigId').value;
+    const formData = {
+        parent: document.getElementById('editConfigParent').value || null,
+        key: document.getElementById('editConfigKey').value,
+        value: document.getElementById('editConfigValue').value
+    };
+    
+    if (!formData.key || !formData.value) {
+        alert('Key and Value are required');
+        return;
+    }
+    
+    fetch(`/api/configuration/${paramId}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            hideEditConfigForm();
+            loadConfigTable();
+        }
+    })
+    .catch(error => {
+        alert('Error updating configuration parameter');
+    });
+}
+
+function deleteConfig(paramId) {
+    if (confirm('Are you sure you want to delete this configuration parameter?')) {
+        fetch(`/api/configuration/${paramId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                loadConfigTable();
+            }
+        })
+        .catch(error => {
+            alert('Error deleting configuration parameter');
+        });
+    }
+}
 </script>
 {% endblock %}

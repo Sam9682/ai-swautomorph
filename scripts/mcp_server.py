@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """MCP Server for AI-SwAutoMorph"""
 import json
-import sqlite3
+# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 from typing import Any, Dict, List
 import asyncio
+import sys
+import os
+
+# Add the parent directory to the path so we can import from src
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.database_postgres import db_manager
 
 class MCPServer:
     def __init__(self, db_path: str = 'softfluid/db/ai_swautomorph.db'):
@@ -72,34 +79,69 @@ class MCPServer:
     
     async def list_applications(self) -> List[Dict[str, Any]]:
         """List all applications"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
-        apps = [{'id': row[0], 'name': row[1], 'url': row[2], 'description': row[3]} 
-                for row in cursor.fetchall()]
-        conn.close()
-        return apps
+        # conn = sqlite3.connect(self.db_path)  # COMMENTED OUT - Using PostgreSQL now
+        # cursor = conn.cursor()
+        # cursor.execute('SELECT id, name, url, description FROM applications ORDER BY name')
+        # apps = [{'id': row[0], 'name': row[1], 'url': row[2], 'description': row[3]} 
+        #         for row in cursor.fetchall()]
+        # conn.close()
+        # return apps
+        
+        # Using PostgreSQL now
+        try:
+            result = db_manager.execute_query(
+                'SELECT id, name, git_url, description FROM applications ORDER BY name',
+                fetch_all=True
+            )
+            apps = [{'id': row[0], 'name': row[1], 'url': row[2], 'description': row[3]} 
+                    for row in result] if result else []
+            return apps
+        except Exception as e:
+            return [{'error': f'Database error: {str(e)}'}]
     
     async def add_application(self, name: str, url: str, description: str = '') -> Dict[str, str]:
         """Add a new application"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)',
-                      (name, url, description))
-        conn.commit()
-        conn.close()
-        return {'message': 'Application added successfully'}
+        # conn = sqlite3.connect(self.db_path)  # COMMENTED OUT - Using PostgreSQL now
+        # cursor = conn.cursor()
+        # cursor.execute('INSERT INTO applications (name, url, description) VALUES (?, ?, ?)',
+        #               (name, url, description))
+        # conn.commit()
+        # conn.close()
+        # return {'message': 'Application added successfully'}
+        
+        # Using PostgreSQL now
+        try:
+            db_manager.execute_query(
+                'INSERT INTO applications (name, git_url, description) VALUES (%s, %s, %s)',
+                (name, url, description)
+            )
+            return {'message': 'Application added successfully'}
+        except Exception as e:
+            return {'error': f'Database error: {str(e)}'}
     
     async def list_users(self) -> List[Dict[str, Any]]:
         """List all users (without sensitive data)"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, username, email, first_name, last_name, created_at FROM users')
-        users = [{'id': row[0], 'username': row[1], 'email': row[2], 
-                 'first_name': row[3], 'last_name': row[4], 'created_at': row[5]} 
-                for row in cursor.fetchall()]
-        conn.close()
-        return users
+        # conn = sqlite3.connect(self.db_path)  # COMMENTED OUT - Using PostgreSQL now
+        # cursor = conn.cursor()
+        # cursor.execute('SELECT id, username, email, first_name, last_name, created_at FROM users')
+        # users = [{'id': row[0], 'username': row[1], 'email': row[2], 
+        #          'first_name': row[3], 'last_name': row[4], 'created_at': row[5]} 
+        #         for row in cursor.fetchall()]
+        # conn.close()
+        # return users
+        
+        # Using PostgreSQL now
+        try:
+            result = db_manager.execute_query(
+                'SELECT id, username, email, first_name, last_name, created_at FROM users',
+                fetch_all=True
+            )
+            users = [{'id': row[0], 'username': row[1], 'email': row[2], 
+                     'first_name': row[3], 'last_name': row[4], 'created_at': row[5]} 
+                    for row in result] if result else []
+            return users
+        except Exception as e:
+            return [{'error': f'Database error: {str(e)}'}]
 
 async def main():
     """Main MCP server loop"""
