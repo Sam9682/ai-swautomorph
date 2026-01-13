@@ -101,8 +101,12 @@ def userguide():
 @main_bp.route('/favicon.ico')
 def favicon():
     """Serve favicon.ico"""
-    static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
-    return send_from_directory(static_dir, 'favicon.ico')
+    try:
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'static')
+        return send_from_directory(static_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    except Exception as e:
+        print(f"Error serving favicon: {e}")
+        return '', 404
 
 @main_bp.route('/.well-known/pki-validation/<filename>')
 def ssl_validation(filename):
