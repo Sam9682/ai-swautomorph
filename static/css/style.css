@@ -2682,12 +2682,18 @@ body {
     border-radius: 16px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 1rem;
     font-size: 1.1rem;
     font-weight: 500;
     color: #2c3e50;
     border: 1px solid rgba(255, 255, 255, 0.3);
+    height: auto !important;
+    max-height: 90vh !important;
+    overflow: hidden !important;
+    width: 90vw !important;
+    max-width: 600px !important;
 }
 
 .loading-spinner {

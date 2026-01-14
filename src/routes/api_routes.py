@@ -817,10 +817,10 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
     # Handle result
     output_parts = []
     if result.stdout and result.stdout.strip():
-        output_parts.append(f"STDOUT:\n{result.stdout}")
-    if result.stderr and result.stderr.strip():
-        output_parts.append(f"STDERR:\n{result.stderr}")
-    command_output = "\n\n".join(output_parts) if output_parts else "No output"
+        output_parts.append(f"\n{result.stdout}")
+    #if result.stderr and result.stderr.strip():
+    #    output_parts.append(f"STDERR:\n{result.stderr}")
+    #command_output = "\n\n".join(output_parts) if output_parts else "No output"
     
     if result.returncode == 0:
         status = 'cloned'

@@ -1,6 +1,32 @@
 """Configuration settings for AI-SwAutoMorph"""
 import os
+import subprocess
+import logging
 
+# Timeouts
+TIMEOUT_GITEA_HTTP_POST=30
+TIMEOUT_SUBPROCESS_RUN=600
+TIMEOUT_QCHAT_DEVELOPER_RUN=1800
+TIMEOUT_CLEAN_SHUTDOWN=60
+TIMEOUT_QCHAT_OPERATOR_RUN=1800
+
+# Path configuration functions
+def get_logs_dir():
+    """Get logs directory path"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, 'logs')
+
+# Configure logging for genai activities
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(get_logs_dir(), os.path.basename(__file__).replace('.py', '.log'))),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
 # Database configuration
 DB_PATH = 'softfluid/db/ai_swautomorph.db'
 
@@ -33,12 +59,55 @@ def get_logs_dir():
 def get_qchat_paths():
     """Get qchat command paths to search"""
     home_dir = os.path.expanduser('~')
-    return [
+    qchat_cmd = None
+    qchat_paths = [
         os.path.join(home_dir, '.local', 'bin', 'qchat'),
         '/usr/local/bin/qchat',
         '/usr/bin/qchat',
-        'qchat'
+        'qchat',
+        os.path.join(home_dir, '.local', 'bin', 'kiro-cli'),
+        '/usr/local/bin/kiro-cli',
+        '/usr/bin/kiro-cli',
+        'kiro-cli'
     ]
+    for path in qchat_paths:
+        try:
+            result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            if result.returncode == 0:
+                qchat_cmd = path
+                break
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+            logger.error(f'AI Chat Developer - Failed to check KIRO at {path}: {str(e)}')
+            continue
+        except Exception as e:
+            logger.error(f'AI Chat Developer - Unexpected error checking KIRO at {path}: {str(e)}')
+            continue
+    return qchat_cmd
+
+#get shai path
+def get_shai_paths():
+    """Get shai command path"""
+    home_dir = os.path.expanduser('~')
+    qchat_paths = [
+        os.path.join(home_dir, '.local', 'bin', 'shai'),
+        '/home/ubuntu/.local/bin/shai',
+        '/usr/local/bin/shai',
+        '/usr/bin/shai',
+        'shai'
+    ]
+    for path in qchat_paths:
+        try:
+            result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            if result.returncode == 0:
+                qchat_cmd = path
+                break
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+            logger.error(f'AI Chat Developer - Failed to check SHAI at {path}: {str(e)}')
+            continue
+        except Exception as e:
+            logger.error(f'AI Chat Developer - Unexpected error checking SHAI at {path}: {str(e)}')
+            continue
+    return qchat_cmd
 
 def get_database_config():
     """Get PostgreSQL database configuration from environment variables"""

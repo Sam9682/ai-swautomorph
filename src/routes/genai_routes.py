@@ -1,7 +1,5 @@
 """GenAI routes for AI-powered deployment and development operations"""
-from flask import Blueprint, request, jsonify, session, Response, stream_with_context
-import subprocess
-import re
+from flask import Blueprint, request, jsonify, session, stream_with_context
 import os
 import json
 import logging
@@ -20,13 +18,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
-
-if USE_POSTGRES:
-    from ..database_postgres import db_manager
-else:
-    from ..database import db_manager
+# Use PostgreSQL database manager
+from ..database_postgres import db_manager
 
 genai_bp = Blueprint('genai', __name__, url_prefix='/api')
 
@@ -59,7 +52,7 @@ def return_prompt_for_developer(detected_action, application_name, application_f
             application_id = 0  # Default fallback
             if application_name:
                 app_data = db_manager.execute_query(
-                    'SELECT id FROM applications WHERE name = ?', 
+                    'SELECT id FROM applications WHERE name = %s', 
                     (application_name,), fetch_one=True
                 )
                 if app_data:
@@ -68,8 +61,8 @@ def return_prompt_for_developer(detected_action, application_name, application_f
                 else:
                     logger.warning(f"Application {application_name} not found in database, using ID 0")
             
-            # Load configuration values from database.py (unused but required for context)
-            from ..database import load_deploy_config
+            # Load configuration values from database_postgres.py (unused but required for context)
+            from ..database_postgres import load_deploy_config
             _ = load_deploy_config()  # Load but don't unpack unused variables
             
             # Replace placeholders
@@ -125,7 +118,7 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
             application_id = 0  # Default fallback
             if application_name:
                 app_data = db_manager.execute_query(
-                    'SELECT id FROM applications WHERE name = ?', 
+                    'SELECT id FROM applications WHERE name = %s', 
                     (application_name,), fetch_one=True
                 )
                 if app_data:
@@ -134,8 +127,8 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
                 else:
                     logger.warning(f"Application {application_name} not found in database, using ID 0")
 
-            # Load configuration values from database.py (unused but required for context)
-            from ..database import load_deploy_config
+            # Load configuration values from database_postgres.py (unused but required for context)
+            from ..database_postgres import load_deploy_config
             _ = load_deploy_config()  # Load but don't unpack unused variables
             
             # Replace placeholders
@@ -170,7 +163,7 @@ def api_deployment_logs(deployment_id):
     
     deployment = db_manager.execute_query('''
         SELECT deployment_path FROM deployments 
-        WHERE id = ? AND user_id = ?
+        WHERE id = %s AND user_id = %s
     ''', (deployment_id, session['user_id']), fetch_one=True)
     
     if not deployment:
@@ -221,12 +214,29 @@ def api_qchat_developer():
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
     detected_action = data.get('action_operation', '')
+    agentic_engine = data.get('agentic_engine')
+    if not agentic_engine:
+        # Get from PostgreSQL database
+        config_result = db_manager.execute_query(
+            'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
+            ('agentic_engine',), fetch_one=True
+        )
+        agentic_engine = config_result[0] if config_result else 'q chat'
+    
+    agentic_command = data.get('agentic_command')
+    if not agentic_command:
+        # Get from PostgreSQL database
+        config_result = db_manager.execute_query(
+            'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
+            ('agentic_command',), fetch_one=True
+        )
+        agentic_command = config_result[0] if config_result else ''
 
     if not message:
         return jsonify({'error': 'Message required'}), 400
     
     user_details = db_manager.execute_query(
-        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        'SELECT username, email, first_name, last_name FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -268,38 +278,53 @@ def api_qchat_developer():
             except (IOError, OSError) as e:
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
 
-            # Find qchat command
-            from ..config import get_qchat_paths
-            qchat_paths = get_qchat_paths()
-            qchat_cmd = None
-            for path in qchat_paths:
+            engine_env = os.environ.copy()
+            engine_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + engine_env.get('PATH', '')})
+
+            # Use agentic_command if provided, otherwise use qchat
+            if agentic_command:
+                # Execute deployControlPlan.sh with agentic_command
+                cmd_args = ['/home/ubuntu/ai-swautomorph/deployControlPlan.sh', agentic_command]
+                yield f"data: {json.dumps({'chunk': f'Executing deployControlPlan.sh with command: {agentic_command}'})}\n\n"
+
+            elif agentic_engine.lower() == 'shai':
+                # Find engine command
+                from ..config import get_shai_paths
+                engine_cmd = get_shai_paths()
+                
+                if not engine_cmd:
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for SHAI '})}\n\n"
+                    return
+
+                # Use shai engine (placeholder for future implementation)
+                cmd_args = [agentic_engine, 'chat', '--trust-all-tools', l_prompt]
+
+            else:
+                # Default to qchat
+                from ..config import get_qchat_paths
+                engine_cmd = get_qchat_paths()
+                
+                if not engine_cmd:
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/KIRO '})}\n\n"
+                    return
+
+                cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]
                 try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
-                    if result.returncode == 0:
-                        qchat_cmd = path
-                        break
-                except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
-                    logger.error(f'AI Chat Developer - Failed to check qchat at {path}: {str(e)}')
-                    continue
-                except Exception as e:
-                    logger.error(f'AI Chat Developer - Unexpected error checking qchat at {path}: {str(e)}')
-                    continue
-            
-            if not qchat_cmd:
-                yield f"data: {json.dumps({'error': 'Q Chat not found in paths: ' + str(qchat_paths)})}\n\n"
-                return
-            
-            yield f"data: {json.dumps({'chunk': f'Found Q Chat at: {qchat_cmd}'})}\n\n"
-            
-            cmd_args = [qchat_cmd, 'chat', '--trust-all-tools', l_prompt]
-            qchat_env = os.environ.copy()
-            qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
-            
-            yield f"data: {json.dumps({'chunk': 'Executing Q Chat command...'})}\n\n"
-            
+                    if 'detected_action' in locals() and detected_action:
+                        cmd_args.extend(['--trust-all-tools'])
+                    cmd_args.append(l_prompt)
+                except NameError:
+                    cmd_args.append(l_prompt)
+
+            yield f"data: {json.dumps({'chunk': f'Found {agentic_engine} at: {engine_cmd}'})}\n\n"
+
             # Start process with longer timeout and better error handling
-            process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                      text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
+            try:
+                process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
+                                          text=True, bufsize=1, env=engine_env, preexec_fn=os.setsid)
+            except (OSError, subprocess.SubprocessError) as e:
+                yield f"data: {json.dumps({'error': f'Failed to start Q Chat process: {str(e)}'})}\n\n"
+                return
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
             
@@ -346,7 +371,6 @@ def api_qchat_operations():
     from flask import Response, stream_with_context
     import subprocess
     import re
-    from ..database import get_config_value
     
     user_id = session.get('user_id', 'anonymous')
     
@@ -358,14 +382,29 @@ def api_qchat_operations():
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
     action_operation = data.get('action_operation', '')
-    agentic_engine = data.get('agentic_engine') or get_config_value('agentic_engine', default_value='q chat')
-    agentic_command = data.get('agentic_command') or get_config_value('agentic_command', default_value='')
+    agentic_engine = data.get('agentic_engine')
+    if not agentic_engine:
+        # Get from PostgreSQL database
+        config_result = db_manager.execute_query(
+            'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
+            ('agentic_engine',), fetch_one=True
+        )
+        agentic_engine = config_result[0] if config_result else 'q chat'
+    
+    agentic_command = data.get('agentic_command')
+    if not agentic_command:
+        # Get from PostgreSQL database
+        config_result = db_manager.execute_query(
+            'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
+            ('agentic_command',), fetch_one=True
+        )
+        agentic_command = config_result[0] if config_result else ''
     
     if not message:
         return jsonify({'error': 'Message required'}), 400
     
     user_details = db_manager.execute_query(
-        'SELECT username, email, first_name, last_name FROM users WHERE id = ?', 
+        'SELECT username, email, first_name, last_name FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
     
@@ -381,7 +420,7 @@ def api_qchat_operations():
         import os
         
         try:
-            yield f"data: {json.dumps({'chunk': 'Starting Q Chat DevOps session...'})}\n\n"
+            yield f"data: {json.dumps({'chunk': 'Starting agentic AI DevOps session...'})}\n\n"
             
             # Build prompt directly here instead of calling process_qchat_devops
             # Detect application management actions
@@ -424,55 +463,59 @@ User Question: {message}. Provide a helpful and informative response."""
             except (IOError, OSError) as e:
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
 
-            # Find qchat command
-            from ..config import get_qchat_paths
-            qchat_paths = get_qchat_paths()
-            qchat_cmd = None
-            for path in qchat_paths:
-                try:
-                    result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
-                    if result.returncode == 0:
-                        qchat_cmd = path
-                        break
-                except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
-                    logger.error(f'AI Chat Operator - Failed to check qchat at {path}: {str(e)}')
-                    continue
-                except Exception as e:
-                    logger.error(f'AI Chat Operator - Unexpected error checking qchat at {path}: {str(e)}')
-                    continue
-            
-            if not qchat_cmd:
-                yield f"data: {json.dumps({'error': 'Q Chat not found in paths: ' + str(qchat_paths)})}\n\n"
-                return
-            
-            yield f"data: {json.dumps({'chunk': f'Found Q Chat at: {qchat_cmd}'})}\n\n"
-            
+            # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
+            from ..config import get_logs_dir
+            prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
+            try:
+                with open(prompt_file_path, 'w') as f:
+                    f.write(l_prompt+"\n")
+            except (IOError, OSError) as e:
+                yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
+
+            engine_env = os.environ.copy()
+            engine_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + engine_env.get('PATH', '')})
+
             # Use agentic_command if provided, otherwise use qchat
             if agentic_command:
                 # Execute deployControlPlan.sh with agentic_command
                 cmd_args = ['/home/ubuntu/ai-swautomorph/deployControlPlan.sh', agentic_command]
                 yield f"data: {json.dumps({'chunk': f'Executing deployControlPlan.sh with command: {agentic_command}'})}\n\n"
+
             elif agentic_engine.lower() == 'shai':
+                # Find engine command
+                from ..config import get_shai_paths
+                engine_cmd = get_shai_paths()
+                
+                if not engine_cmd:
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for SHAI '})}\n\n"
+                    return
+
                 # Use shai engine (placeholder for future implementation)
-                yield f"data: {json.dumps({'error': 'SHAI engine not yet implemented'})}\n\n"
-                return
+                cmd_args = [agentic_engine, 'chat', '--trust-all-tools', l_prompt]
+
             else:
                 # Default to qchat
-                cmd_args = [qchat_cmd, 'chat']
+                from ..config import get_qchat_paths
+                engine_cmd = get_qchat_paths()
+                
+                if not engine_cmd:
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/KIRO '})}\n\n"
+                    return
+
+                cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]
                 try:
                     if 'detected_action' in locals() and detected_action:
                         cmd_args.extend(['--trust-all-tools'])
                     cmd_args.append(l_prompt)
                 except NameError:
                     cmd_args.append(l_prompt)
-            
-            qchat_env = os.environ.copy()
-            qchat_env.update({'HOME': '/home/ubuntu', 'USER': 'ubuntu', 'PATH': '/home/ubuntu/.local/bin:' + qchat_env.get('PATH', '')})
+
+            yield f"data: {json.dumps({'chunk': f'Found {agentic_engine} at: {engine_cmd}'})}\n\n"
             
             # Start process with longer timeout and better error handling
             try:
                 process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
-                                          text=True, bufsize=1, env=qchat_env, preexec_fn=os.setsid)
+                                          text=True, bufsize=1, env=engine_env, preexec_fn=os.setsid)
             except (OSError, subprocess.SubprocessError) as e:
                 yield f"data: {json.dumps({'error': f'Failed to start Q Chat process: {str(e)}'})}\n\n"
                 return
@@ -518,7 +561,7 @@ User Question: {message}. Provide a helpful and informative response."""
                 except Exception as billing_error:
                     yield f"data: {json.dumps({'chunk': f'Warning: Failed to record billing activity: {str(billing_error)}'})}\n\n"
             
-            yield f"data: {json.dumps({'chunk': f'=== Q Chat Session Completed ==='})}\n\n"
+            yield f"data: {json.dumps({'chunk': f'=== Agentic AI Session Completed ==='})}\n\n"
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': f'Exception in generate(): {str(e)}'})}\n\n"
