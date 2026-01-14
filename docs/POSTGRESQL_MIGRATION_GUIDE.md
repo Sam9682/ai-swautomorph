@@ -250,7 +250,7 @@ if __name__ == "__main__":
 #### 🏥 Health Check
 ```bash
 # Run health check
-python3 ./scripts/cli.py db-health
+python3 ./scripts/cli_db.py db-health
 
 # Check connection pool status
 python3 -c "

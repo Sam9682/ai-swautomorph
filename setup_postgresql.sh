@@ -34,11 +34,11 @@ export POSTGRES_PASSWORD=swautomorph_secure_password_2024
 
 # Initialize database
 echo "💾 Initializing PostgreSQL database..."
-python3 ./scripts/cli.py init-db
+python3 ./scripts/cli_db.py init-db
 
 # Verify setup
 echo "✅ Verifying PostgreSQL setup..."
-python3 ./scripts/cli.py status --show-env
+python3 ./scripts/cli_db.py status --show-env
 
 echo ""
 echo "🎉 PostgreSQL setup complete!"

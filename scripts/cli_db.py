@@ -2,7 +2,6 @@
 import click
 import requests
 import json
-# import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import subprocess
 import os
 import sys
@@ -12,9 +11,6 @@ from werkzeug.security import generate_password_hash
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 BASE_URL = 'http://www.swautomorph.com:80'
-
-# Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'true').lower() == 'true'
 
 @click.group()
 def cli():
@@ -72,22 +68,12 @@ def list_apps():
 @click.option('--description', help='Application description')
 def add_app(name, url, description):
     """Add a new application (requires authentication)"""
-    data = {
-        'name': name,
-        'url': url,
-        'description': description or ''
-    }
-    
     try:
-        if USE_POSTGRES:
-            from src.database_postgres import db_manager
-            db_manager.execute_query(
-                'INSERT INTO applications (name, git_url, description) VALUES (%s, %s, %s)',
-                (name, url, description or '')
-            )
-        else:
-            click.echo('Error: SQLite operations are deprecated. Use PostgreSQL database instead.')
-            return
+        from src.database_postgres import db_manager
+        db_manager.execute_query(
+            'INSERT INTO applications (name, git_url, description) VALUES (%s, %s, %s)',
+            (name, url, description or '')
+        )
         click.echo('Application added successfully!')
     except Exception as e:
         click.echo(f'Error: {str(e)}')
@@ -115,15 +101,10 @@ def validate_token(token):
 
 @cli.command()
 def init_db():
-    """Initialize the database"""
+    """Initialize the PostgreSQL database"""
     try:
-        if USE_POSTGRES:
-            from src.database_postgres import init_db as app_init_db
-            click.echo('Initializing PostgreSQL database...')
-        else:
-            from src.database import init_db as app_init_db
-            click.echo('Initializing SQLite database...')
-        
+        from src.database_postgres import init_db as app_init_db
+        click.echo('Initializing PostgreSQL database...')
         app_init_db()
         click.echo('Database initialized successfully!')
     except Exception as e:
@@ -184,25 +165,17 @@ def mount_s3fs(bucket_name, mount_point, passwd_file):
 @click.option('--show-env', is_flag=True, help='Show current environment settings')
 def status(show_env):
     """Show application status and configuration"""
-    db_type = "PostgreSQL" if USE_POSTGRES else "SQLite"
-    click.echo(f'Database Type: {db_type}')
+    click.echo('Database Type: PostgreSQL')
     
     if show_env:
         click.echo('\nEnvironment Variables:')
-        click.echo(f'USE_POSTGRES: {os.environ.get("USE_POSTGRES", "false")}')
-        if USE_POSTGRES:
-            click.echo(f'POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "localhost")}')
-            click.echo(f'POSTGRES_DB: {os.environ.get("POSTGRES_DB", "ai_swautomorph")}')
-            click.echo(f'POSTGRES_USER: {os.environ.get("POSTGRES_USER", "swautomorph")}')
-            click.echo(f'POSTGRES_PASSWORD: {"***" if os.environ.get("POSTGRES_PASSWORD") else "not set"}')
+        click.echo(f'POSTGRES_HOST: {os.environ.get("POSTGRES_HOST", "localhost")}')
+        click.echo(f'POSTGRES_DB: {os.environ.get("POSTGRES_DB", "ai_swautomorph")}')
+        click.echo(f'POSTGRES_USER: {os.environ.get("POSTGRES_USER", "swautomorph")}')
+        click.echo(f'POSTGRES_PASSWORD: {"***" if os.environ.get("POSTGRES_PASSWORD") else "not set"}')
     
     try:
-        if USE_POSTGRES:
-            from src.database_postgres import db_manager
-        else:
-            from src.database import db_manager
-        
-        # Test connection
+        from src.database_postgres import db_manager
         result = db_manager.execute_query("SELECT 1", fetch_one=True)
         if result:
             click.echo(f'✅ Database connection: OK')
@@ -210,6 +183,37 @@ def status(show_env):
             click.echo(f'❌ Database connection: Failed')
     except Exception as e:
         click.echo(f'❌ Database connection: Failed - {str(e)}')
+
+@cli.command()
+@click.confirmation_option(prompt='⚠️  This will permanently delete PostgreSQL database. Continue?')
+def delete_db():
+    """Delete PostgreSQL database completely"""
+    import shutil
+    
+    deleted = []
+    errors = []
+    
+    # PostgreSQL data directory
+    postgres_data = 'softfluid/postgres_data'
+    if os.path.exists(postgres_data):
+        try:
+            shutil.rmtree(postgres_data)
+            deleted.append(postgres_data)
+        except Exception as e:
+            errors.append(f'{postgres_data}: {str(e)}')
+    
+    if deleted:
+        click.echo('\n✅ Deleted:')
+        for item in deleted:
+            click.echo(f'  - {item}')
+    
+    if errors:
+        click.echo('\n❌ Errors:')
+        for error in errors:
+            click.echo(f'  - {error}')
+    
+    if not deleted and not errors:
+        click.echo('No PostgreSQL database files found.')
 
 if __name__ == '__main__':
     cli()

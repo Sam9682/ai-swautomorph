@@ -199,7 +199,7 @@ def init_db():
             
             if not cursor.fetchone():
                 # Read and execute schema
-                schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migration', 'postgresql_schema.sql')
+                schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'scripts', 'postgresql_schema.sql')
                 with open(schema_path, 'r') as f:
                     schema_sql = f.read()
                 cursor.execute(schema_sql)

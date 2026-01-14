@@ -1135,7 +1135,7 @@ start_flask_application() {
         export USE_POSTGRES=true
         export PYTHONPATH=/home/ubuntu/ai-swautomorph
         
-        if python3 ./scripts/cli.py init-db; then
+        if python3 ./scripts/cli_db.py init-db; then
             echo "  ✅ Database initialized successfully"
         else
             echo "  ⚠️ Database initialization failed - continuing anyway"
