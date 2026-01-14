@@ -309,12 +309,6 @@ def api_qchat_developer():
                     return
 
                 cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]
-                try:
-                    if 'detected_action' in locals() and detected_action:
-                        cmd_args.extend(['--trust-all-tools'])
-                    cmd_args.append(l_prompt)
-                except NameError:
-                    cmd_args.append(l_prompt)
 
             yield f"data: {json.dumps({'chunk': f'Found {agentic_engine} at: {engine_cmd}'})}\n\n"
 
@@ -503,12 +497,6 @@ User Question: {message}. Provide a helpful and informative response."""
                     return
 
                 cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]
-                try:
-                    if 'detected_action' in locals() and detected_action:
-                        cmd_args.extend(['--trust-all-tools'])
-                    cmd_args.append(l_prompt)
-                except NameError:
-                    cmd_args.append(l_prompt)
 
             yield f"data: {json.dumps({'chunk': f'Found {agentic_engine} at: {engine_cmd}'})}\n\n"
             
