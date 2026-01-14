@@ -338,7 +338,8 @@ TRANSLATIONS = {
         'dev_modify_code_request2': 'Please, hereafter is the specification of the request :',
         'ops_exec_request1': 'I need an operations specialist to execute the',
         'ops_exec_request2': 'action on the application',
-        'select_app_tooltip': 'Select an application on which you want to ask the virtual IT specialists to perform an action'
+        'select_app_tooltip': 'Select an application on which you want to ask the virtual IT specialists to perform an action',
+        'unified_input_tooltip': 'Type in French or English what you want to ask your virtual IT specialist regarding modifications to be made to the application. Be specific, for example: change the phone number displayed on the main page of the website from 06 19 89 90 50 to 01 46 43 23 56'
     },
     'fr': {
         'login': 'Connexion',
@@ -558,6 +559,7 @@ TRANSLATIONS = {
         'dev_modify_code_request2': 'Veuillez trouver ci-dessous la spécification de la demande :',
         'ops_exec_request1': 'J’ai besoin d’un spécialiste des opérations pour exécuter',
         'ops_exec_request2': 'l’action sur l’application',
-        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d’effectuer une action'
+        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d’effectuer une action',
+        'unified_input_tooltip': 'Tapez en français ce que vous voulez demander à votre informaticien virtuel concernant les modifications à réaliser concernant l\'application. Soyez précis, par exemple: modifie le numéro de téléphone qui s\'affiche sur la page principale du site web 06 19 89 90 50 et remplace par 01 46 43 23 56'
     }
 }

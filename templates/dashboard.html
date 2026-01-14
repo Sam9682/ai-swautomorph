@@ -587,7 +587,7 @@
                             <div class="message-content" id="persistentMessageContent" style="white-space: pre-wrap; font-family: 'Courier New', monospace; padding: 0; margin: 0; border: none; border-radius: 0; width: 100%; height: 100%; overflow-y: auto; color: #00ff00; background-color: #000000; box-sizing: border-box;"></div>
                         </div>
                     <div class="input-area" style="background-color: rgb(177, 177, 177);">
-                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="2" oninput="updateSendButtonState()"></textarea>
+                        <textarea id="unifiedInput" placeholder="{{ get_text('describe_changes_placeholder') }}" rows="2" oninput="updateSendButtonState()" title="{{ get_text('unified_input_tooltip') }}"></textarea>
                         <div class="input-controls">
                             <label style="display: none;">
                                 <input type="checkbox" id="unifiedAutoApprove" checked> {{ get_text('auto_approve') }}
@@ -2106,7 +2106,7 @@ function showVirtualAgentLoading() {
     loadingContent.innerHTML = `
         <div style="width: 60px; height: 60px; border: 6px solid rgba(255, 255, 255, 0.3); border-top: 6px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
         <div style="font-size: 16px; font-weight: 500;">⏳ Processing...</div>
-        <div style="font-size: 12px; margin-top: 8px; opacity: 0.2;">Please wait</div>
+        <div style="font-size: 12px; margin-top: 8px; opacity: 0;">Please wait</div>
     `;
     
     overlay.appendChild(loadingContent);
