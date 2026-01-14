@@ -31,7 +31,7 @@
             </div>
             {% else %}
             <div class="app-actions">
-                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}')" class="btn-icon" title="View Details">
+                <button onclick="viewApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', '{{ app[5] or '' }}', '{{ app[11] or 'Not yet deployed' }}')" class="btn-icon" title="View Details">
                     👁️
                 </button>
             </div>
@@ -173,9 +173,8 @@
             <div id="viewAppUrl" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
-            <label for="editAppSwautomorphUrl">SwAutoMorph URL:</label>
-            <input type="text" id="editAppSwautomorphUrl" placeholder="Not yet deployed" readonly style="background-color: #f0f0f0;">
-            <small>Dynamic URL for accessing the deployed application (read-only)</small>
+            <label>SwAutoMorph URL:</label>
+            <div id="viewAppSwautomorphUrl" class="readonly-field" style="color: green;"></div>
         </div>
         <div class="form-group">
             <label>{{ get_text('description') }}:</label>
@@ -973,13 +972,22 @@ function hideEditAppForm() {
     document.getElementById('updateAppForm').reset();
 }
 
-function viewApp(id, name, url, description, gitUrl, gitLocalUrl) {
+function viewApp(id, name, url, description, gitUrl, gitLocalUrl, swautomorphUrl) {
     document.getElementById('viewAppIdentity').textContent = id;
     document.getElementById('viewAppName').textContent = name;
     document.getElementById('viewAppUrl').innerHTML = `<a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">${url}</a>`;
     document.getElementById('viewAppDescription').textContent = description || 'No description';
     document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
     document.getElementById('viewAppGitLocalUrl').innerHTML = gitLocalUrl ? `<a href="${gitLocalUrl}" target="_blank" style="color: #3498db; text-decoration: none;">${gitLocalUrl}</a>` : 'Not available';
+    
+    // Make SwAutoMorph URL a link if it exists and is not "Not yet deployed"
+    const swautomorphUrlElement = document.getElementById('viewAppSwautomorphUrl');
+    if (swautomorphUrl && swautomorphUrl !== 'Not yet deployed') {
+        swautomorphUrlElement.innerHTML = `<a href="${swautomorphUrl}" target="_blank" style="color: #3498db; text-decoration: none;">${swautomorphUrl}</a>`;
+    } else {
+        swautomorphUrlElement.textContent = 'Not yet deployed';
+    }
+    
     document.getElementById('viewAppForm').style.display = 'block';
 }
 

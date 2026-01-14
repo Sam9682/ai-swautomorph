@@ -441,5 +441,23 @@ def select_table(table_name, limit):
     except Exception as e:
         click.echo(f'Error: {str(e)}')
 
+@cli.command()
+def sync_nginx_locations():
+    """Sync nginx locations from database"""
+    try:
+        from src.database_postgres import db_manager
+        from src.nginx_manager import sync_all_locations
+        
+        click.echo('Syncing nginx locations from database...')
+        
+        if sync_all_locations(db_manager):
+            click.echo('✓ Nginx locations synced successfully')
+        else:
+            click.echo('✗ Failed to sync nginx locations')
+            sys.exit(1)
+    except Exception as e:
+        click.echo(f'✗ Error: {str(e)}')
+        sys.exit(1)
+
 if __name__ == '__main__':
     cli()
