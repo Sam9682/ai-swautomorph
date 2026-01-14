@@ -359,6 +359,42 @@ def api_qchat_developer():
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 process.returncode = -1
             
+            # After MODIFY_CODE completion, create Gitea branch and update database
+            if process.returncode == 0 and detected_action == 'MODIFY_CODE' and application_name:
+                try:
+                    yield f"data: {json.dumps({'chunk': 'Creating Gitea branch and updating database...'})}\n\n"
+                    
+                    # Get deployment record
+                    deployment = db_manager.execute_query(
+                        'SELECT id, modification_history FROM deployments WHERE user_id = %s AND application_name = %s ORDER BY created_at DESC LIMIT 1',
+                        (session['user_id'], application_name), fetch_one=True
+                    )
+                    
+                    if deployment:
+                        deployment_id, history = deployment[0], deployment[1] or []
+                        
+                        # Add new modification to history
+                        new_mod = {
+                            'timestamp': datetime.now().isoformat(),
+                            'branch_name': branch_name,
+                            'gitea_url': repo_gitea_url,
+                            'user': username,
+                            'message': message[:200]
+                        }
+                        history.append(new_mod)
+                        
+                        # Update deployment with Gitea URL and history
+                        db_manager.execute_query(
+                            'UPDATE deployments SET gitea_branch_url = %s, modification_history = %s::jsonb WHERE id = %s',
+                            (repo_gitea_url, json.dumps(history), deployment_id)
+                        )
+                        yield f"data: {json.dumps({'chunk': f'Database updated with Gitea branch: {branch_name}'})}\n\n"
+                    else:
+                        yield f"data: {json.dumps({'chunk': 'Warning: Deployment record not found'})}\n\n"
+                        
+                except Exception as e:
+                    yield f"data: {json.dumps({'chunk': f'Warning: Failed to update Gitea/database: {str(e)}'})}\n\n"
+            
             yield f"data: {json.dumps({'done': True, 'success': process.returncode == 0, 'returncode': process.returncode})}\n\n"
             
         except Exception as e:
