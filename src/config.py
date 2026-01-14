@@ -27,6 +27,7 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
 # Database configuration
 DB_PATH = 'softfluid/db/ai_swautomorph.db'
 

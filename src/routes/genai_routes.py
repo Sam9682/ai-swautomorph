@@ -4,7 +4,13 @@ import os
 import json
 import logging
 from datetime import datetime
-from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, get_logs_dir
+from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN
+
+# Path configuration functions
+def get_logs_dir():
+    """Get logs directory path"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, 'logs')
 
 # Configure logging for genai activities
 logging.basicConfig(
@@ -250,7 +256,7 @@ def api_qchat_developer():
 
     def generate():
         try:
-            yield f"data: {json.dumps({'chunk': 'Starting Q Chat Developer session...'})}\n\n"
+            yield f"data: {json.dumps({'chunk': 'Starting Agentic AI Developer session...'})}\n\n"
             
             # Build prompt directly here
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -266,11 +272,10 @@ def api_qchat_developer():
             
             yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n"
             
-            # 🧠 Prompt complet envoyé à Q Chat
+            # 🧠 Prompt complet envoyé à Agentic AI
             l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email,  repo_gitea_url, branch_name, repo_github_url, message)
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            from ..config import get_logs_dir
             prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
             try:
                 with open(prompt_file_path, 'w') as f:
@@ -317,7 +322,7 @@ def api_qchat_developer():
                 process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                           text=True, bufsize=1, env=engine_env, preexec_fn=os.setsid)
             except (OSError, subprocess.SubprocessError) as e:
-                yield f"data: {json.dumps({'error': f'Failed to start Q Chat process: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'error': f'Failed to start Agentic AI process: {str(e)}'})}\n\n"
                 return
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -325,7 +330,7 @@ def api_qchat_developer():
             import signal
             import time
             
-            # Set a longer timeout for Q Chat operations (30 minutes)
+            # Set a longer timeout for Agentic AI operations (30 minutes)
             timeout_seconds = TIMEOUT_QCHAT_DEVELOPER_RUN
             start_time = time.time()
             
@@ -338,7 +343,7 @@ def api_qchat_developer():
                     
                     # Check timeout
                     if time.time() - start_time > timeout_seconds:
-                        yield f"data: {json.dumps({'chunk': 'WARNING: Q Chat operation timeout reached (30 minutes), terminating...'})}\n\n"
+                        yield f"data: {json.dumps({'chunk': 'WARNING: Agentic AI operation timeout reached (30 minutes), terminating...'})}\n\n"
                         os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                         time.sleep(5)
                         if process.poll() is None:
@@ -348,7 +353,7 @@ def api_qchat_developer():
                 process.wait(timeout=TIMEOUT_CLEAN_SHUTDOWN)  # Wait up to 1 minute for clean shutdown
                 
             except subprocess.TimeoutExpired:
-                yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
+                yield f"data: {json.dumps({'chunk': 'Agentic AI process cleanup timeout, forcing termination...'})}\n\n"
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 process.returncode = -1
             
@@ -375,7 +380,7 @@ def api_qchat_operations():
     message = data.get('message', '').strip()
     application_name = data.get('application_name', '')
     application_folder = data.get('application_folder', '')
-    action_operation = data.get('action_operation', '')
+    detected_action = data.get('action_operation', '')
     agentic_engine = data.get('agentic_engine')
     if not agentic_engine:
         # Get from PostgreSQL database
@@ -419,18 +424,16 @@ def api_qchat_operations():
             # Build prompt directly here instead of calling process_qchat_devops
             # Detect application management actions
             
-            if action_operation:
+            if detected_action:
                 # Map complete sentences to actions
-                if 'MODIFY_CODE' in action_operation:
+                if 'MODIFY_CODE' in detected_action:
                     l_msg = f"[VIRTUAL OPERATIONS] ERROR : asking to modify the code, should be sent to Developer agent"
                     yield f"data: {json.dumps({'error': l_msg})}\n\n"
                     return
-                else:
-                    detected_action = action_operation
 
                 yield f"data: {json.dumps({'chunk': f'Detected complete sentence action: {detected_action}'})}\n\n"
 
-                # 🧠 Prompt complet envoyé à Q Chat
+                # 🧠 Prompt complet envoyé à Agentic AI
                 try:
                     l_prompt = return_prompt_for_operator(detected_action, application_name, application_folder, user_name, user_email)
                     logger.info(f'AI Chat Operator - Prompt : {l_prompt[:120]}')
@@ -446,7 +449,6 @@ User Question: {message}. Provide a helpful and informative response."""
                 logger.info(f'AI Chat Operator - (Simple Q&A) Prompt : {l_prompt[:120]}')
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            from ..config import get_logs_dir
             prompt_file_path = os.path.join(get_logs_dir(), 'ope_prompts_generated.log')
             try:
                 with open(prompt_file_path, 'w') as f:
@@ -458,7 +460,6 @@ User Question: {message}. Provide a helpful and informative response."""
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
-            from ..config import get_logs_dir
             prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
             try:
                 with open(prompt_file_path, 'w') as f:
@@ -505,7 +506,7 @@ User Question: {message}. Provide a helpful and informative response."""
                 process = subprocess.Popen(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, 
                                           text=True, bufsize=1, env=engine_env, preexec_fn=os.setsid)
             except (OSError, subprocess.SubprocessError) as e:
-                yield f"data: {json.dumps({'error': f'Failed to start Q Chat process: {str(e)}'})}\n\n"
+                yield f"data: {json.dumps({'error': f'Failed to start Agentic AI process: {str(e)}'})}\n\n"
                 return
             
             ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -513,7 +514,7 @@ User Question: {message}. Provide a helpful and informative response."""
             import signal
             import time
             
-            # Set a longer timeout for Q Chat operations (30 minutes)
+            # Set a longer timeout for Agentic AI operations (30 minutes)
             timeout_seconds = TIMEOUT_QCHAT_OPERATOR_RUN
             start_time = time.time()
             
@@ -526,7 +527,7 @@ User Question: {message}. Provide a helpful and informative response."""
                     
                     # Check timeout
                     if time.time() - start_time > timeout_seconds:
-                        yield f"data: {json.dumps({'chunk': 'WARNING: Q Chat operation timeout reached (30 minutes), terminating...'})}\n\n"
+                        yield f"data: {json.dumps({'chunk': 'WARNING: Agentic AI operation timeout reached (30 minutes), terminating...'})}\n\n"
                         os.killpg(os.getpgid(process.pid), signal.SIGTERM)
                         time.sleep(5)
                         if process.poll() is None:
@@ -536,7 +537,7 @@ User Question: {message}. Provide a helpful and informative response."""
                 process.wait(timeout=TIMEOUT_CLEAN_SHUTDOWN)  # Wait up to 1 minute for clean shutdown
                 
             except subprocess.TimeoutExpired:
-                yield f"data: {json.dumps({'chunk': 'Q Chat process cleanup timeout, forcing termination...'})}\n\n"
+                yield f"data: {json.dumps({'chunk': 'Agentic AI process cleanup timeout, forcing termination...'})}\n\n"
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
                 process.returncode = -1
             

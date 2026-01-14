@@ -1162,10 +1162,11 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                 reader.read().then(({done, value}) => {
                     if (done) {
                         appendLog(`=== ${action.toUpperCase()} COMPLETED ===\n`);
+                        if (window.statusOutput) {
+                            showResultInWaitingBox(window.statusOutput);
+                            window.statusOutput = '';
+                        }
                         setTimeout(() => checkApplicationStatus(appName), 1000);
-                        // Don't call setButtonLoadingState for clone to keep loading box open
-
-                        // Reset clone button state manually
                         const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
                         if (cloneBtn && cloneBtn.dataset.originalContent) {
                             cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
@@ -1190,13 +1191,16 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                     window.statusOutput += data.chunk + '\n';
                                 } else if (data.error) {
                                     appendLog(`ERROR: ${data.error}`);
+                                    if (window.statusOutput) {
+                                        showResultInWaitingBox(window.statusOutput + '\nERROR: ' + data.error);
+                                        window.statusOutput = '';
+                                    }
                                 } else if (data.done) {
-                                    if (!data.success) appendLog('Operation failed');
+                                    appendLog(data.success ? '✅ Operation completed successfully' : '❌ Operation failed');
                                     if (window.statusOutput) {
                                         showResultInWaitingBox(window.statusOutput);
                                         window.statusOutput = '';
                                     }
-                                    // Reset clone button state manually without closing the loading box
                                     const cloneBtn = document.getElementById(`cloneBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
                                     if (cloneBtn && cloneBtn.dataset.originalContent) {
                                         cloneBtn.innerHTML = cloneBtn.dataset.originalContent;
@@ -1205,6 +1209,7 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
                                         cloneBtn.style.cursor = 'pointer';
                                         delete cloneBtn.dataset.originalContent;
                                     }
+                                    return;
                                 }
                             } catch (e) {}
                         }

@@ -858,7 +858,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
             def generate_clone_response():
                 yield f"data: {json.dumps({'chunk': f'Clone completed successfully for {app_name}'})}\n\n"
                 yield f"data: {json.dumps({'chunk': f'Repository cloned to: {deployment_path}'})}\n\n"
-                yield f"data: {json.dumps({'chunk': command_output})}\n\n"
+                yield f"data: {json.dumps({'chunk': ssl_result.stdout})}\n\n"
                 yield f"data: {json.dumps({'done': True, 'success': True})}\n\n"
             return Response(stream_with_context(generate_clone_response()), mimetype='text/event-stream',
                            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
@@ -866,9 +866,9 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         status = 'failed'
         error_msg = f'Git clone failed: {result.stderr}'
         logger.error(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
-        return jsonify({'error': error_msg, 'logs': command_output}), 400
+        return jsonify({'error': error_msg, 'logs': ssl_result.stdout}), 400
     
-    return jsonify({'message': f'Clone completed for {app_name}', 'status': status, 'logs': command_output}), 202
+    return jsonify({'message': f'Clone completed for {app_name}', 'status': status, 'logs': ssl_result.stdout}), 202
 
 def _handle_app_action(user_id, app_name, action, data):
     """Handle application lifecycle actions (start, stop, restart, ps, logs)"""
