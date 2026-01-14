@@ -267,6 +267,50 @@ def delete_db():
         click.echo('No PostgreSQL database or tables found.')
 
 @cli.command()
+def list_tables():
+    """List all tables with record counts"""
+    try:
+        from src.database_postgres import db_manager
+        
+        tables_query = "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
+        tables = db_manager.execute_query(tables_query, fetch_all=True)
+        
+        if not tables:
+            click.echo('No tables found in database.')
+            return
+        
+        click.echo('\n' + '='*60)
+        click.echo('DATABASE TABLES')
+        click.echo('='*60)
+        click.echo(f"{'Table Name':<40} {'Records':>15}")
+        click.echo('-'*60)
+        
+        for (table_name,) in tables:
+            count_query = f"SELECT COUNT(*) FROM {table_name}"
+            result = db_manager.execute_query(count_query, fetch_one=True)
+            count = result[0] if result else 0
+            click.echo(f"{table_name:<40} {count:>15,}")
+        
+        click.echo('='*60)
+        
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
+@cli.command()
+@click.argument('sql_query')
+@click.confirmation_option(prompt='⚠️  This will execute an SQL query. Continue?')
+def exec_sql_request(sql_query):
+    """Execute SQL query on database"""
+    try:
+        from src.database_postgres import db_manager
+        
+        result = db_manager.execute_query(sql_query)
+        click.echo(f'✅ Query executed successfully. Rows affected: {result if result else 0}')
+        
+    except Exception as e:
+        click.echo(f'❌ Error: {str(e)}')
+
+@cli.command()
 @click.argument('table_name', required=False)
 def describe_table(table_name):
     """Describe table structure"""
