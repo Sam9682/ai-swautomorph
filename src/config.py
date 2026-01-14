@@ -51,12 +51,6 @@ TIMEOUT_QCHAT_DEVELOPER_RUN=1800
 TIMEOUT_CLEAN_SHUTDOWN=60
 TIMEOUT_QCHAT_OPERATOR_RUN=1800
 
-# Path configuration functions
-def get_logs_dir():
-    """Get logs directory path"""
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_dir, 'logs')
-
 def get_qchat_paths():
     """Get qchat command paths to search"""
     home_dir = os.path.expanduser('~')

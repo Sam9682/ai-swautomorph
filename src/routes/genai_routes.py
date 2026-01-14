@@ -10,6 +10,8 @@ from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOU
 def get_logs_dir():
     """Get logs directory path"""
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # retreive the parent folder of base_dir
+    base_dir = os.path.dirname(base_dir)
     return os.path.join(base_dir, 'logs')
 
 # Configure logging for genai activities
@@ -73,16 +75,16 @@ def return_prompt_for_developer(detected_action, application_name, application_f
             
             # Replace placeholders
             try:
-                l_prompt = context_template.replace('{USER_ID}', str(session.get('user_id', 0)))
-                l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
-                l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
-                l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
-                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder or '')
-                l_prompt = l_prompt.replace('{APPLICATION_NAME}', application_name or '')
-                l_prompt = l_prompt.replace('{REPO_GITEA_URL}', repo_gitea_url or '')
-                l_prompt = l_prompt.replace('{BRANCH_NAME}', branch_name or '')
-                l_prompt = l_prompt.replace('{REPO_GITHUB_URL}', repo_github_url or '')
-                l_prompt = l_prompt.replace('{MESSAGE}', message or '')
+                l_prompt = context_template.replace('{{USER_ID}}', str(session.get('user_id', 0)))
+                l_prompt = l_prompt.replace('{{USER_NAME}}', user_name or '')
+                l_prompt = l_prompt.replace('{{USER_EMAIL}}', user_email or '')
+                l_prompt = l_prompt.replace('{{TAIL_LINES}}', '100')
+                l_prompt = l_prompt.replace('{{APPLICATION_FOLDER}}', application_folder or '')
+                l_prompt = l_prompt.replace('{{APPLICATION_NAME}}', application_name or '')
+                l_prompt = l_prompt.replace('{{REPO_GITEA_URL}}', repo_gitea_url or '')
+                l_prompt = l_prompt.replace('{{BRANCH_NAME}}', branch_name or '')
+                l_prompt = l_prompt.replace('{{REPO_GITHUB_URL}}', repo_github_url or '')
+                l_prompt = l_prompt.replace('{{MESSAGE}}', message or '')
             except (KeyError, AttributeError) as e:
                 logger.error(f'AI Chat Developer - Template replacement error: {str(e)}')
                 l_prompt = ''
@@ -139,12 +141,12 @@ def return_prompt_for_operator(detected_action, application_name, application_fo
             
             # Replace placeholders
             try:
-                l_prompt = context_template.replace('{USER_ID}', str(session.get('user_id', 0)))
-                l_prompt = l_prompt.replace('{USER_NAME}', user_name or '')
-                l_prompt = l_prompt.replace('{USER_EMAIL}', user_email or '')
-                l_prompt = l_prompt.replace('{TAIL_LINES}', '100')
-                l_prompt = l_prompt.replace('{APPLICATION_FOLDER}', application_folder or '')
-                l_prompt = l_prompt.replace('{APPLICATION_NAME}', application_name or '')
+                l_prompt = context_template.replace('{{USER_ID}}', str(session.get('user_id', 0)))
+                l_prompt = l_prompt.replace('{{USER_NAME}}', user_name or '')
+                l_prompt = l_prompt.replace('{{USER_EMAIL}}', user_email or '')
+                l_prompt = l_prompt.replace('{{TAIL_LINES}}', '100')
+                l_prompt = l_prompt.replace('{{APPLICATION_FOLDER}}', application_folder or '')
+                l_prompt = l_prompt.replace('{{APPLICATION_NAME}}', application_name or '')
             except (KeyError, AttributeError) as e:
                 logger.error(f'AI Chat Operator - Template replacement error: {str(e)}')
                 l_prompt = ''
