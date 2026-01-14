@@ -1787,6 +1787,9 @@ function sendUnifiedMessage() {
     sendBtn.disabled = true;
     startProcessingTimer(sendBtn);
     
+    // Show loading overlay on virtual agent panel
+    showVirtualAgentLoading();
+    
     sendUnifiedMessageWithText(message);
     input.value = '';
     updateSendButtonState();
@@ -1819,7 +1822,7 @@ function sendUnifiedMessageWithText(message) {
     
     if (!selectedApp) {
         addAgentMessage('unified', 'error', 'Please select an application before sending your request.');
-        // Reset send button
+        hideVirtualAgentLoading();
         const sendBtn = document.getElementById('unifiedSendBtn');
         if (sendBtn) {
             stopProcessingTimer(sendBtn);
@@ -1833,7 +1836,7 @@ function sendUnifiedMessageWithText(message) {
     const virtualAgentOption = document.getElementById(`virtualAgent-${selectedApp.replace(/\s+/g, '-').toLowerCase()}`);
     if (virtualAgentOption && virtualAgentOption.disabled) {
         addAgentMessage('unified', 'error', `Application "${selectedApp}" must be cloned first before using the Virtual Agent.`);
-        // Reset send button
+        hideVirtualAgentLoading();
         const sendBtn = document.getElementById('unifiedSendBtn');
         if (sendBtn) {
             stopProcessingTimer(sendBtn);
@@ -1879,14 +1882,13 @@ function sendUnifiedMessageWithText(message) {
             function readStream() {
                 reader.read().then(({done, value}) => {
                     if (done) {
-                        // Reset send button when action is complete
+                        hideVirtualAgentLoading();
                         const sendBtn = document.getElementById('unifiedSendBtn');
                         if (sendBtn) {
                             stopProcessingTimer(sendBtn);
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
                         }
-                        // Refresh action dropdown based on current application status
                         const selectedApp = document.getElementById('unifiedAppSelect').value;
                         if (selectedApp) {
                             checkApplicationStatusForActions(selectedApp);
@@ -1908,7 +1910,7 @@ function sendUnifiedMessageWithText(message) {
                                     contentDiv.textContent += `\n❌ Error: ${data.error}`;
                                 } else if (data.done) {
                                     contentDiv.textContent += '\n✅ Completed';
-                                    // Reset send button when action is complete
+                                    hideVirtualAgentLoading();
                                     const sendBtn = document.getElementById('unifiedSendBtn');
                                     if (sendBtn) {
                                         stopProcessingTimer(sendBtn);
@@ -1926,7 +1928,7 @@ function sendUnifiedMessageWithText(message) {
         })
         .catch(error => {
             contentDiv.textContent += `\n❌ Error: ${error.message}`;
-            // Reset send button on error
+            hideVirtualAgentLoading();
             const sendBtn = document.getElementById('unifiedSendBtn');
             if (sendBtn) {
                 stopProcessingTimer(sendBtn);
@@ -1981,14 +1983,13 @@ function sendUnifiedMessageWithText(message) {
                     if (done) {
                         contentDiv.textContent += '\n=== Agentic AI Session Completed ===\n';
                         appendLog(`===== OPERATIONS COMPLETED =====\n`);
-                        // Reset send button when stream is complete
+                        hideVirtualAgentLoading();
                         const sendBtn = document.getElementById('unifiedSendBtn');
                         if (sendBtn) {
                             stopProcessingTimer(sendBtn);
                             sendBtn.textContent = '{{ get_text("send") }}';
                             updateSendButtonState();
                         }
-                        // Refresh action dropdown based on current application status
                         const selectedApp = document.getElementById('unifiedAppSelect').value;
                         if (selectedApp) {
                             checkApplicationStatusForActions(selectedApp);
@@ -2019,7 +2020,7 @@ function sendUnifiedMessageWithText(message) {
                                     appendLog(`❌ Error: ${data.error}`);
                                 } else if (data.done) {
                                     contentDiv.textContent += '\n✅ Agentic AI Processing Completed';
-                                    // Reset send button when action is complete
+                                    hideVirtualAgentLoading();
                                     const sendBtn = document.getElementById('unifiedSendBtn');
                                     if (sendBtn) {
                                         stopProcessingTimer(sendBtn);
@@ -2038,7 +2039,7 @@ function sendUnifiedMessageWithText(message) {
                     console.error('Stream reading error:', error);
                     contentDiv.textContent += `\n❌ Stream Error: ${error.message}`;
                     appendLog(`❌ Stream Error: ${error.message}`);
-                    // Reset send button on error
+                    hideVirtualAgentLoading();
                     const sendBtn = document.getElementById('unifiedSendBtn');
                     if (sendBtn) {
                         stopProcessingTimer(sendBtn);
@@ -2053,7 +2054,7 @@ function sendUnifiedMessageWithText(message) {
             console.error('Fetch error:', error);
             contentDiv.textContent = `❌ Connection Error: ${error.message}`;
             appendLog(`❌ Connection Error: ${error.message}`);
-            // Reset send button on error
+            hideVirtualAgentLoading();
             const sendBtn = document.getElementById('unifiedSendBtn');
             if (sendBtn) {
                 stopProcessingTimer(sendBtn);
@@ -2076,6 +2077,46 @@ function toggleAgentsPanel() {
         panel.classList.add('collapsed');
         toggleBtn.textContent = '+';
     }
+}
+
+function showVirtualAgentLoading() {
+    hideVirtualAgentLoading();
+    
+    const agentPanel = document.getElementById('virtualAgentsPanel');
+    if (!agentPanel) return;
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'virtualAgentLoadingOverlay';
+    overlay.style.cssText = `
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        backdrop-filter: blur(2px);
+    `;
+    
+    const loadingContent = document.createElement('div');
+    loadingContent.style.cssText = `text-align: center; color: white;`;
+    loadingContent.innerHTML = `
+        <div style="width: 60px; height: 60px; border: 6px solid rgba(255, 255, 255, 0.3); border-top: 6px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
+        <div style="font-size: 16px; font-weight: 500;">⏳ Processing...</div>
+        <div style="font-size: 12px; margin-top: 8px; opacity: 0.2;">Please wait</div>
+    `;
+    
+    overlay.appendChild(loadingContent);
+    agentPanel.style.position = 'relative';
+    agentPanel.appendChild(overlay);
+}
+
+function hideVirtualAgentLoading() {
+    const overlay = document.getElementById('virtualAgentLoadingOverlay');
+    if (overlay) overlay.remove();
 }
 
 // Handle Enter key in unified agent input

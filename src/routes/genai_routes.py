@@ -15,16 +15,29 @@ def get_logs_dir():
     return os.path.join(base_dir, 'logs')
 
 # Configure logging for genai activities
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(get_logs_dir(), os.path.basename(__file__).replace('.py', '.log'))),
-        logging.StreamHandler()
-    ]
-)
-
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Remove existing handlers to avoid duplicates
+if logger.handlers:
+    logger.handlers.clear()
+
+# File handler
+log_file = os.path.join(get_logs_dir(), 'genai_routes.log')
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(file_formatter)
+logger.addHandler(console_handler)
+
+# Prevent propagation to avoid duplicate logs
+logger.propagate = False
 
 # Use PostgreSQL database manager
 from ..database_postgres import db_manager
@@ -277,10 +290,10 @@ def api_qchat_developer():
             # 🧠 Prompt complet envoyé à Agentic AI
             l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email,  repo_gitea_url, branch_name, repo_github_url, message)
 
-            # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
+            # dump the value of l_prompt to a file (append to the file). Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
             try:
-                with open(prompt_file_path, 'w') as f:
+                with open(prompt_file_path, 'a') as f:
                     f.write(l_prompt+"\n")
             except (IOError, OSError) as e:
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
@@ -489,18 +502,19 @@ User Question: {message}. Provide a helpful and informative response."""
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = os.path.join(get_logs_dir(), 'ope_prompts_generated.log')
             try:
-                with open(prompt_file_path, 'w') as f:
+                with open(prompt_file_path, 'a') as f:
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     f.write(f"----------------- Generated Prompt for Virtual Operator at {timestamp}: \n")
                     f.write(l_prompt+"\n")
-                    f.write(f"----------------- END OF Generated Prompt for Virtual Operator at {timestamp}: \n")
             except (IOError, OSError) as e:
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
 
             # dump the value of l_prompt to a file. Be aware that l_prompt is a variable composed of multiple lines
             prompt_file_path = os.path.join(get_logs_dir(), 'dev_prompt_generated.txt')
             try:
-                with open(prompt_file_path, 'w') as f:
+                with open(prompt_file_path, 'a') as f:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    f.write(f"----------------- Generated Prompt for Virtual Operator at {timestamp}: \n")
                     f.write(l_prompt+"\n")
             except (IOError, OSError) as e:
                 yield f"data: {json.dumps({'chunk': f'Warning: Failed to write prompt to file: {str(e)}'})}\n\n"
