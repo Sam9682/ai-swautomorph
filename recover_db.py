@@ -30,7 +30,7 @@ def recover_database():
     try:
         import sys
         sys.path.append('/home/ubuntu/ai-swautomorph')
-        from src.database import init_db
+        from src.database_postgres import init_db
         
         print("Initializing new database...")
         init_db()

@@ -2,7 +2,7 @@
 # import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import time
 from .config import DB_PATH
-from .database import db_manager
+from .database_postgres import db_manager
 
 def check_database_health():
     """Check database health and return status"""

@@ -51,10 +51,13 @@ def list_apps():
             apps = response.json()
             if apps:
                 click.echo('\nAvailable Applications:')
+                nb = 1
                 for app in apps:
-                    click.echo(f"- {app['name']}: {app['url']}")
-                    if app['description']:
+                    url = app.get('git_url') or app.get('url', 'N/A')
+                    click.echo(f"{nb}- {app['name']}: {url}")
+                    if app.get('description'):
                         click.echo(f"  Description: {app['description']}")
+                    nb = nb + 1
             else:
                 click.echo('No applications found.')
         else:

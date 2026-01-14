@@ -9,10 +9,7 @@ from werkzeug.security import check_password_hash
 # Determine database type based on environment
 USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
 
-if USE_POSTGRES:
-    from ..database_postgres import db_manager
-else:
-    from ..database import db_manager
+from ..database_postgres import db_manager
 
 sso_bp = Blueprint('sso', __name__, url_prefix='/sso')
 

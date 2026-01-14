@@ -12,7 +12,7 @@ if USE_POSTGRES:
     print("Using PostgreSQL database")
 else:
     # Use SQLite (legacy)
-    from src.database import db_manager, init_db
+    from src.database_postgres import db_manager, init_db
     from src.config import *
     print("Using SQLite database")
 

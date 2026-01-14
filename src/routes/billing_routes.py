@@ -7,12 +7,7 @@ from datetime import datetime, timedelta
 from ..config import DB_PATH, get_logs_dir
 
 # Determine database type based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
-
-if USE_POSTGRES:
-    from ..database_postgres import db_manager
-else:
-    from ..database import db_manager
+from ..database_postgres import db_manager
 
 # Configure logging for billing activities
 logging.basicConfig(
