@@ -109,7 +109,7 @@ export POSTGRES_TIMEOUT="10"
 #### 3️⃣ Schema Creation
 ```bash
 # Create PostgreSQL schema
-psql -h localhost -U swautomorph -d ai_swautomorph -f ./migration/postgresql_schema.sql
+psql -h localhost -U swautomorph -d ai_swautomorph -f ./scripts/postgresql_schema.sql
 ```
 
 #### 4️⃣ Data Migration
@@ -160,7 +160,7 @@ services:
       POSTGRES_PASSWORD: swautomorph_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./migration/postgresql_schema.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./scripts/postgresql_schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     healthcheck:

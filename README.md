@@ -316,14 +316,12 @@ ai-swautomorph/
 │   └── auth.py                   # Authentication utilities
 ├── scripts/               # CLI tools and utilities
 │   ├── cli.py                    # Command-line interface
-│   └── mcp_server.py             # Model Context Protocol server
+│   ├── mcp_server.py             # Model Context Protocol server
+│   └── postgresql_schema.sql          # PostgreSQL schema definition
 ├── templates/            # HTML templates with EN/FR support
 ├── static/               # CSS, JS, and static files
 ├── ssl/                  # SSL certificates
 ├── logs/                 # Application logs with Gunicorn support
-├── migration/                # Database migration tools
-│   ├── migrate_sqlite_to_postgres.py  # Automated migration script
-│   └── postgresql_schema.sql          # PostgreSQL schema definition
 ├── shared/               # Context files for virtual agents
 ├── docs/                 # Comprehensive documentation
 │   ├── USER_GUIDE.md             # AI agent usage guide

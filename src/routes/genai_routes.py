@@ -272,7 +272,7 @@ def api_qchat_developer():
             repo_github_url = f"git@github.com:Sam9682/{application_name}" if application_name else "git@github.com:Sam9682/"
             repo_gitea_url = f"http://gitadmin:password@localhost:3000/gitadmin/{branch_name}"
             
-            yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_dir}'})}\n"
+            yield f"data: {json.dumps({'chunk': f'App: {application_name}, Folder: {repo_gitea_url}'})}\n\n"
             
             # 🧠 Prompt complet envoyé à Agentic AI
             l_prompt = return_prompt_for_developer(detected_action, application_name, application_folder, user_name, user_email,  repo_gitea_url, branch_name, repo_github_url, message)
