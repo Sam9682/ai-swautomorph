@@ -160,8 +160,44 @@ CREATE TABLE configuration (
     value TEXT
 );
 
+-- Services table - logical services with desired state (Light Orchestrator)
+CREATE TABLE services (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    image VARCHAR(255) NOT NULL,
+    desired_replicas INTEGER DEFAULT 1,
+    ports TEXT,  -- JSON: {"80": "8080", "443": "8443"}
+    environment TEXT,  -- JSON: {"ENV_VAR": "value"}
+    volumes TEXT,  -- JSON: ["/host:/container"]
+    health_check_path VARCHAR(255) DEFAULT '/health',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Instances table - actual running containers (Light Orchestrator)
+CREATE TABLE instances (
+    id BIGSERIAL PRIMARY KEY,
+    service_name VARCHAR(255) NOT NULL,
+    instance_id VARCHAR(255) NOT NULL,  -- service_name-replica-N
+    server_id BIGINT NOT NULL,
+    container_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'pending',  -- pending, running, failed, stopped
+    port INTEGER,
+    health_status VARCHAR(50) DEFAULT 'unknown',  -- healthy, unhealthy, unknown
+    last_health_check TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (server_id) REFERENCES servers (id),
+    FOREIGN KEY (service_name) REFERENCES services (name),
+    UNIQUE(service_name, instance_id)
+);
+
 -- Indexes for performance
 CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_services_name ON services(name);
+CREATE INDEX idx_instances_service_name ON instances(service_name);
+CREATE INDEX idx_instances_server_id ON instances(server_id);
+CREATE INDEX idx_instances_status ON instances(status);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_auth_tokens_user_id ON auth_tokens(user_id);
 CREATE INDEX idx_auth_tokens_expires_at ON auth_tokens(expires_at);
@@ -189,4 +225,10 @@ CREATE TRIGGER update_deployments_updated_at BEFORE UPDATE ON deployments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_application_costs_updated_at BEFORE UPDATE ON application_costs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_instances_updated_at BEFORE UPDATE ON instances
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

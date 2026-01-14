@@ -1,7 +1,6 @@
 """API routes for Light Orchestrator"""
 from flask import Blueprint, request, jsonify, session
 from ..database_postgres import db_manager
-import json
 
 orchestrator_bp = Blueprint('orchestrator', __name__, url_prefix='/api/orchestrator')
 

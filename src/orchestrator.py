@@ -18,47 +18,10 @@ class LightOrchestrator:
         self._running = False
     
     def init_orchestrator_tables(self):
-        """Initialize orchestrator-specific tables"""
-        with db_manager.get_db_connection() as conn:
-            cursor = conn.cursor()
-            
-            # Services table - logical services with desired state
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS services (
-                    id BIGSERIAL PRIMARY KEY,
-                    name VARCHAR(255) UNIQUE NOT NULL,
-                    image VARCHAR(255) NOT NULL,
-                    desired_replicas INTEGER DEFAULT 1,
-                    ports TEXT,  -- JSON: {"80": "8080", "443": "8443"}
-                    environment TEXT,  -- JSON: {"ENV_VAR": "value"}
-                    volumes TEXT,  -- JSON: ["/host:/container"]
-                    health_check_path VARCHAR(255) DEFAULT '/health',
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            
-            # Instances table - actual running containers
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS instances (
-                    id BIGSERIAL PRIMARY KEY,
-                    service_name VARCHAR(255) NOT NULL,
-                    instance_id VARCHAR(255) NOT NULL,  -- service_name-replica-N
-                    server_id BIGINT NOT NULL,
-                    container_id VARCHAR(255),
-                    status VARCHAR(50) DEFAULT 'pending',  -- pending, running, failed, stopped
-                    port INTEGER,
-                    health_status VARCHAR(50) DEFAULT 'unknown',  -- healthy, unhealthy, unknown
-                    last_health_check TIMESTAMP WITH TIME ZONE,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (server_id) REFERENCES servers (id),
-                    FOREIGN KEY (service_name) REFERENCES services (name),
-                    UNIQUE(service_name, instance_id)
-                )
-            ''')
-            
-            conn.commit()
+        """Initialize orchestrator-specific tables (now handled by postgresql_schema.sql)"""
+        # Tables are now created via postgresql_schema.sql
+        # This method kept for backward compatibility
+        pass
     
     def create_service(self, name, image, desired_replicas=1, ports=None, environment=None, volumes=None, health_check_path='/health'):
         """Create a new service"""

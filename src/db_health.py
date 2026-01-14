@@ -49,20 +49,15 @@ def get_database_stats():
         stats = {}
         
         # Get table row counts
-        tables = ['users', 'applications', 'deployments', 'auth_tokens', 'billing_activities']
+        tables = ['application_costs', 'applications', 'auth_tokens', 'billing_activities', 'configuration', 'deployments', 'invoicing', 'payment_modes', 'servers', 'user_applications', 'users', 'users_logs', 'instances', 'services']
         for table in tables:
             count = db_manager.execute_query(f'SELECT COUNT(*) FROM {table}', fetch_one=True)
             stats[f'{table}_count'] = count[0] if count else 0
         
-        # Get database size - COMMENTED OUT for PostgreSQL migration
-        # size_result = db_manager.execute_query('PRAGMA page_count', fetch_one=True)
-        # page_size_result = db_manager.execute_query('PRAGMA page_size', fetch_one=True)
-        
-        # if size_result and page_size_result:
-        #     stats['database_size_bytes'] = size_result[0] * page_size_result[0]
-        
-        # PostgreSQL size calculation would be different
-        stats['database_size_bytes'] = 0  # Placeholder for PostgreSQL
+        # PostgreSQL database size
+        size_query = "SELECT pg_database_size(current_database())"
+        size_result = db_manager.execute_query(size_query, fetch_one=True)
+        stats['database_size_bytes'] = size_result[0] if size_result else 0
         
         return stats
     except Exception as e:
