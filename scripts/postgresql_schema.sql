@@ -80,6 +80,7 @@ CREATE TABLE deployments (
     status VARCHAR(50) DEFAULT 'pending',
     deployment_path TEXT,
     git_url TEXT,
+    swautomorph_url TEXT,
     gitea_branch_url TEXT,
     modification_history JSONB DEFAULT '[]'::jsonb,
     server_id BIGINT,

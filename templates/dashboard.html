@@ -143,6 +143,11 @@
                 <input type="number" id="editAppDockerPsDuration" min="1" max="3600" placeholder="e.g., 1">
                 <small>Estimated time for docker ps operation</small>
             </div>
+            <div class="form-group">
+                <label for="editAppSwautomorphUrl">SwAutoMorph URL:</label>
+                <input type="text" id="editAppSwautomorphUrl" placeholder="Not yet deployed" readonly style="background-color: #f0f0f0;">
+                <small>Dynamic URL for accessing the deployed application (read-only)</small>
+            </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('update_application') }}</button>
             <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">{{ get_text('cancel') }}</button>

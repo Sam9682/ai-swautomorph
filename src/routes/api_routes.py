@@ -874,6 +874,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         logger.info(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
         
         # Record deployment
+        swautomorph_url = f"https://www.swautomorph.com/{user_id}/{app_name}"
         existing_record = db_manager.execute_query(
             'SELECT id FROM deployments WHERE user_id = %s AND application_name = %s AND server_id = %s',
             (user_id, app_name, server_id), fetch_one=True
@@ -881,13 +882,13 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         
         if existing_record:
             db_manager.execute_query(
-                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
-                (status, deployment_path, git_url, session['user_id'], app_name, server_id)
+                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, swautomorph_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
+                (status, deployment_path, git_url, swautomorph_url, session['user_id'], app_name, server_id)
             )
         else:
             db_manager.execute_query(
-                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id) VALUES (%s, %s, %s, %s, %s, %s)',
-                (session['user_id'], app_name, status, deployment_path, git_url, server_id)
+                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                (session['user_id'], app_name, status, deployment_path, git_url, server_id, swautomorph_url)
             )
         
         if data.get('stream', False):
