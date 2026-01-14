@@ -22,7 +22,7 @@
             <input type="hidden" class="application_status" value="is_not_cloned">
             {% if username == 'admin' %}
             <div class="app-actions">
-                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[6] or 50 }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }}, {{ app[10] or 'null' }})" class="btn-icon" title="Edit">
+                <button onclick="editApp({{ app[0] }}, '{{ app[1] }}', '{{ app[2] }}', '{{ app[3] or '' }}', '{{ app[4] or '' }}', {{ app[6] or 50 }}, {{ app[7] or 'null' }}, {{ app[8] or 'null' }}, {{ app[9] or 'null' }}, {{ app[10] or 'null' }}, '{{ app[11] or 'Not yet deployed' }}')" class="btn-icon" title="Edit">
                     ✏️
                 </button>
                 <button onclick="deleteApp({{ app[0] }}, '{{ app[1] }}')" class="btn-icon" title="Delete">
@@ -111,6 +111,11 @@
                 <input type="url" id="editAppUrl" required>
             </div>
             <div class="form-group">
+                <label for="editAppSwautomorphUrl">SwAutoMorph URL:</label>
+                <input type="text" id="editAppSwautomorphUrl" placeholder="Not yet deployed" readonly style="background-color: #f0f0f0;">
+                <small>Dynamic URL for accessing the deployed application (read-only)</small>
+            </div>
+            <div class="form-group">
                 <label for="editAppDescription">{{ get_text('description') }}:</label>
                 <textarea id="editAppDescription" rows="3"></textarea>
             </div>
@@ -143,11 +148,6 @@
                 <input type="number" id="editAppDockerPsDuration" min="1" max="3600" placeholder="e.g., 1">
                 <small>Estimated time for docker ps operation</small>
             </div>
-            <div class="form-group">
-                <label for="editAppSwautomorphUrl">SwAutoMorph URL:</label>
-                <input type="text" id="editAppSwautomorphUrl" placeholder="Not yet deployed" readonly style="background-color: #f0f0f0;">
-                <small>Dynamic URL for accessing the deployed application (read-only)</small>
-            </div>
 
             <button type="submit" class="btn btn-secondary">{{ get_text('update_application') }}</button>
             <button type="button" class="btn btn-secondary" onclick="hideEditAppForm()">{{ get_text('cancel') }}</button>
@@ -171,6 +171,11 @@
         <div class="form-group">
             <label>{{ get_text('url') }}:</label>
             <div id="viewAppUrl" class="readonly-field" style="color: green;"></div>
+        </div>
+        <div class="form-group">
+            <label for="editAppSwautomorphUrl">SwAutoMorph URL:</label>
+            <input type="text" id="editAppSwautomorphUrl" placeholder="Not yet deployed" readonly style="background-color: #f0f0f0;">
+            <small>Dynamic URL for accessing the deployed application (read-only)</small>
         </div>
         <div class="form-group">
             <label>{{ get_text('description') }}:</label>
@@ -947,7 +952,7 @@ function hideAddAppForm() {
     document.getElementById('addAppForm').reset();
 }
 
-function editApp(id, name, url, description, gitUrl, gitSize, buildDuration, startDuration, stopDuration, psDuration) {
+function editApp(id, name, url, description, gitUrl, gitSize, buildDuration, startDuration, stopDuration, psDuration, swautomorphUrl) {
     document.getElementById('editAppId').value = id;
     document.getElementById('editAppIdentity').textContent = id;
     document.getElementById('editAppName').value = name;
@@ -959,6 +964,7 @@ function editApp(id, name, url, description, gitUrl, gitSize, buildDuration, sta
     document.getElementById('editAppDockerStartDuration').value = startDuration || '';
     document.getElementById('editAppDockerStopDuration').value = stopDuration || '';
     document.getElementById('editAppDockerPsDuration').value = psDuration || '';
+    document.getElementById('editAppSwautomorphUrl').value = swautomorphUrl || 'Not yet deployed';
     document.getElementById('editAppForm').style.display = 'block';
 }
 

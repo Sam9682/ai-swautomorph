@@ -25,23 +25,25 @@ def dashboard():
     )
     username = user[0] if user else ''
     
-    # Get applications based on user role
+    # Get applications based on user role with swautomorph_url from deployments
     applications_raw = db_manager.execute_query('''
         SELECT a.id, a.name, ua.url, a.description, a.git_url, a.git_local_url, a.git_repo_size, 
-               a.docker_build_duration, a.docker_start_duration, a.docker_stop_duration, a.docker_ps_duration
+               a.docker_build_duration, a.docker_start_duration, a.docker_stop_duration, a.docker_ps_duration,
+               d.swautomorph_url
         FROM applications a
         JOIN user_applications ua ON a.id = ua.application_id
+        LEFT JOIN deployments d ON d.user_id = %s AND d.application_name = a.name
         WHERE ua.user_id = %s
         ORDER BY a.name
-    ''', (session['user_id'],), fetch_all=True)
+    ''', (session['user_id'], session['user_id']), fetch_all=True)
     
     # Use URLs directly from the database table user_applications
     applications = []
     for app in applications_raw:
-        app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration = app
+        app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, swautomorph_url = app
         
         # Use the URL stored in the database instead of calculating it
-        applications.append((app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size or 50, docker_build_duration, docker_start_duration or 30, docker_stop_duration or 10, docker_ps_duration))
+        applications.append((app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size or 50, docker_build_duration, docker_start_duration or 30, docker_stop_duration or 10, docker_ps_duration, swautomorph_url or 'Not yet deployed'))
     
     # Get SSO token for the user
     sso_token = session.get('sso_token', '')
