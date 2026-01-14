@@ -2108,9 +2108,9 @@ function updateUnifiedInputText() {
 }
 
 function checkApplicationStatusForActions(appName) {
-    // Only update actions if this app is currently selected
+    // Only update actions if this app is currently selected (unless called during init)
     const selectedApp = document.getElementById('unifiedAppSelect').value;
-    if (selectedApp !== appName) {
+    if (selectedApp && selectedApp !== appName) {
         return;
     }
     
@@ -2257,8 +2257,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const contentDiv = document.getElementById('persistentMessageContent');
     addAgentMessage('unified', 'system', '{{ get_text("virtual_agents_ready") }}');
     
-    // Initialize action dropdown as empty (no application selected by default)
-    updateActionDropdown([]);
+    // Initialize action dropdown based on selected app status
+    const selectedApp = document.getElementById('unifiedAppSelect').value;
+    if (selectedApp) {
+        checkApplicationStatusForActions(selectedApp);
+    } else {
+        updateActionDropdown(['MODIFY_CODE', 'START', 'STOP', 'LOGS', 'PS']);
+    }
     
     // Check for unpaid invoices when dashboard loads
     checkUnpaidInvoices();

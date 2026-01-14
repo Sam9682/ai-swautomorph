@@ -56,6 +56,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
 from ..db_health import check_database_health, get_database_stats
+from ..nginx_manager import insert_location_block, remove_location_block, sync_all_locations
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
     """Create user in Gitea server"""
@@ -426,6 +427,14 @@ def api_user_applications(user_id):
                     'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (%s, %s, %s, %s, %s, %s, %s)',
                     (user_id, app_id, url, HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2)
                 )
+                
+                # Update nginx configuration with dynamic location
+                try:
+                    insert_location_block(user_id, app_name, url)
+                    logger.info(f"Nginx location added for user {user_id} app {app_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to update nginx config: {e}")
+                
                 return jsonify({'message': 'Application assigned successfully'})
             except Exception as e:
                 if 'already exists' in str(e).lower() or 'unique' in str(e).lower():
@@ -439,10 +448,25 @@ def api_user_applications(user_id):
             if not app_id:
                 return jsonify({'error': 'Application ID required'}), 400
             
+            # Get app name before deletion
+            app_result = db_manager.execute_query(
+                'SELECT name FROM applications WHERE id = %s', 
+                (app_id,), fetch_one=True
+            )
+            
             db_manager.execute_query(
                 'DELETE FROM user_applications WHERE user_id = %s AND application_id = %s',
                 (user_id, app_id)
             )
+            
+            # Remove nginx location
+            if app_result:
+                try:
+                    remove_location_block(user_id, app_result[0])
+                    logger.info(f"Nginx location removed for user {user_id} app {app_result[0]}")
+                except Exception as e:
+                    logger.warning(f"Failed to remove nginx location: {e}")
+            
             return jsonify({'message': 'Application unassigned successfully'})
             
     except Exception as e:
@@ -825,6 +849,18 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
     if result.returncode == 0:
         status = 'cloned'
         
+        # Update nginx configuration after successful clone
+        try:
+            user_app = db_manager.execute_query(
+                'SELECT url FROM user_applications WHERE user_id = %s AND application_id = (SELECT id FROM applications WHERE name = %s)',
+                (user_id, app_name), fetch_one=True
+            )
+            if user_app and user_app[0]:
+                insert_location_block(user_id, app_name, user_app[0])
+                logger.info(f"Nginx location updated for user {user_id} app {app_name}")
+        except Exception as e:
+            logger.warning(f"Failed to update nginx after clone: {e}")
+        
         # Copy SSL certificates after successful clone
         ssl_env = os.environ.copy()
         ssl_env['USER'] = 'ubuntu'
@@ -1067,6 +1103,28 @@ def api_deployment_logs(deployment_id):
     except Exception as e:
         logger.error(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
+
+@api_bp.route('/nginx/sync', methods=['POST'])
+def api_nginx_sync():
+    """Sync all nginx locations from database"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        if sync_all_locations(db_manager):
+            return jsonify({'message': 'Nginx locations synced successfully'})
+        else:
+            return jsonify({'error': 'Failed to sync nginx locations'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/configuration', methods=['GET', 'POST'])
 def api_configuration():

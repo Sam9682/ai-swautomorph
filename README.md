@@ -23,6 +23,7 @@ AI-SwAutoMorph is a centralized application deployment and management platform d
 - 🤖 **Virtual AI Agents**: Q Chat Developer and Operations assistants
 - 📊 Database health monitoring and statistics
 - 🌐 Multi-server deployment support with capacity management
+- 🔀 **Dynamic Nginx Locations**: Automatic reverse proxy configuration per user/app
 - 📖 Comprehensive user guide and documentation
 - 🔧 **PostgreSQL connection pooling** with thread-safe operations
 - 🔄 **SQLite to PostgreSQL migration tools**
@@ -188,6 +189,21 @@ curl -X POST https://www.swautomorph.com/api/servers \
   -d '{"SERVER_IP":"192.168.1.100","SERVER_NAME":"worker-01","SERVER_CAPACITY_USER_MAX":20,"SERVER_CAPACITY_APPLI_MAX":100,"SERVER_STATUS":"STAND_BY","SERVER_TYPE":"worker"}'
 ```
 
+### Dynamic Nginx Locations
+```bash
+# Access user applications via dynamic URLs
+# Format: https://www.swautomorph.com/{USER_ID}/{APPLICATION_NAME}
+# Example: User 2's ai-staticwebsite running on port 6217
+curl https://www.swautomorph.com/2/ai-staticwebsite
+
+# Sync all nginx locations from database (admin required)
+curl -X POST https://www.swautomorph.com/api/nginx/sync \
+  -H "Cookie: session=your-session-cookie"
+
+# Or via CLI
+python3 ./scripts/sync_nginx_locations.py
+```
+
 ### Virtual AI Agents Integration
 ```bash
 # Q Chat Developer Agent (code modifications)
@@ -312,11 +328,13 @@ ai-swautomorph/
 │   ├── ControlPlanFlaskApp.py    # Main Flask application
 │   ├── database_postgres.py      # PostgreSQL database manager with connection pooling
 │   ├── database.py               # Legacy SQLite database manager (migration compatibility)
+│   ├── nginx_manager.py          # Dynamic nginx location management
 │   ├── config.py                 # Configuration & multi-language
 │   └── auth.py                   # Authentication utilities
 ├── scripts/               # CLI tools and utilities
 │   ├── cli_db.py                    # Command-line interface
 │   ├── mcp_server.py             # Model Context Protocol server
+│   ├── sync_nginx_locations.py   # Sync nginx locations from database
 │   └── postgresql_schema.sql          # PostgreSQL schema definition
 ├── templates/            # HTML templates with EN/FR support
 ├── static/               # CSS, JS, and static files
@@ -328,6 +346,7 @@ ai-swautomorph/
 │   ├── ARCHITECTURE_GUIDE.md     # System architecture
 │   ├── DEPLOYMENT_GUIDE.md       # Deployment procedures
 │   ├── DATABASE_IMPROVEMENTS.md  # Database enhancements
+│   ├── NGINX_DYNAMIC_LOCATIONS.md # Dynamic nginx locations guide
 │   └── VIRTUAL_AGENTS_API.md     # Virtual agents API reference
 ├── conf/                 # Configuration files
 └── deployControlPlan.sh  # Main deployment script
@@ -339,6 +358,7 @@ ai-swautomorph/
 - **Database**: **PostgreSQL with connection pooling** for enterprise-grade performance and thread-safe operations
 - **Authentication**: Session-based with SSO token support and comprehensive user management
 - **Deployment**: Multi-server support with capacity management, automatic allocation, and streaming APIs
+- **Nginx Proxy**: Dynamic location blocks for user applications with automatic configuration
 - **Security**: ModSecurity WAF with OWASP CRS rules and input validation
 - **Monitoring**: Health checks, database statistics, real-time streaming logs, and performance metrics
 - **Virtual AI Agents**: Q Chat Developer and Operations assistants with context-aware prompts
