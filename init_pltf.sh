@@ -2,7 +2,10 @@
 
 # Install Python and pip
 sudo apt update
-sudo apt install -y python3 python3-pip
+sudo apt --fix-broken install
+sudo apt install -y python3 python3-pip python3-venv
+
+source .venv/bin/activate
 
 # Install Python requirements
 pip3 install -r requirements.txt
@@ -21,3 +24,4 @@ newgrp docker
 sudo usermod -aG docker $USER
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
 
+mkdir logs
