@@ -10,7 +10,7 @@ from src.database_postgres import db_manager
 from src.nginx_manager import sync_all_locations
 
 def main():
-    print("Syncing nginx locations from database...")
+    print("Synchronizing nginx locations from database...")
     
     try:
         if sync_all_locations(db_manager):

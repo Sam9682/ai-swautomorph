@@ -60,6 +60,17 @@ USER_NAME=${4:-${DEFAULT_USER_NAME:-"admin"}}
 USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@swautomorph.com"}}
 DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 
+# Configuration (loaded from deploy.ini with fallback defaults)
+DOMAIN=${DOMAIN:-"www.swautomorph.com"}
+EMAIL=${EMAIL:-"admin@swautomorph.com"}
+ENV_FILE=${ENV_FILE:-".env.prod"}
+SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt"}
+SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key"}
+GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
+GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
+GITEA_ADMIN_PASSWORD=${GITEA_ADMIN_PASSWORD:-"password"}
+GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
+
 # Normalize LOCAL_MODE parameter (handle --locally and --docker)
 case "$LOCAL_MODE" in
     "--locally")
@@ -123,17 +134,6 @@ else:
     print("locally")
 EOF
 }
-
-# Configuration (loaded from deploy.ini with fallback defaults)
-DOMAIN=${DOMAIN:-"www.swautomorph.com"}
-EMAIL=${EMAIL:-"admin@swautomorph.com"}
-ENV_FILE=${ENV_FILE:-".env.prod"}
-SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/STAR_swautomorph_com.crt"}
-SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_STAR_swautomorph_com.key"}
-GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
-GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
-GITEA_ADMIN_PASSWORD=${GITEA_ADMIN_PASSWORD:-"password"}
-GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
 
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
 calculate_ports() {
@@ -325,7 +325,7 @@ backup_database() {
     ls -la "$BACKUP_DIR" | sed 's/^/      /'
     
     # Sync to S3
-    echo "  ☁️ Syncing to S3..."
+    echo "  ☁️ Synchronizing to S3..."
     aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH || echo "  ⚠️ S3 sync failed or not configured"
 }
 
@@ -334,7 +334,7 @@ backup_logs() {
     echo "📋 Creating logs backup..."
     
     if [ -d "logs" ] && [ "$(ls -A logs 2>/dev/null)" ]; then
-        echo "  📄 Syncing logs to S3..."
+        echo "  📄 Synchronizing logs to S3..."
         aws s3 sync ./logs s3://softfluid/logs --profile OVH-SWAUTOMORPH
         echo -e "  $OK Logs backup completed"
     else

@@ -1,9 +1,6 @@
 """Configuration settings for AI-SwAutoMorph"""
 import os
 
-# Database configuration
-DB_PATH = 'softfluid/db/ai_swautomorph.db'  # Keep for migration compatibility
-
 # PostgreSQL configuration
 def get_database_config():
     """Get PostgreSQL database configuration"""

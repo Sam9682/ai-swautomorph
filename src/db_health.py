@@ -1,7 +1,6 @@
 """Database health monitoring utilities"""
 # import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import time
-from .config import DB_PATH
 from .database_postgres import db_manager
 
 def check_database_health():

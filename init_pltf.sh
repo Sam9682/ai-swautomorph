@@ -3,7 +3,7 @@
 # Install Python and pip
 sudo apt update
 sudo apt --fix-broken install
-sudo apt install -y python3 python3-pip python3-venv
+sudo apt install -y python3 python3-pip python3-venv net-tools unzip
 
 source .venv/bin/activate
 
@@ -18,6 +18,12 @@ sudo dpkg -i amazon-q.deb
 curl -fsSL https://raw.githubusercontent.com/ovh/shai/main/install.sh | sh
 echo 'export PATH="/home/ubuntu/.local/bin:$PATH"' >> ~/.bashrc
 
+
+# Install AWS shai
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
 # Install Docker
 curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh
 newgrp docker
@@ -25,3 +31,30 @@ sudo usermod -aG docker $USER
 sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose
 
 mkdir logs
+chmod +x setup_modsecurity_config.sh
+
+# Create a config file in ~/.aws/config
+mkdir -p ~/.aws
+cat > ~/.aws/config <<EOF
+[profile OVH-SWAUTOMORPH]
+region = gra
+output = json
+EOF
+
+# Create a config file in ~/.aws/credentials
+mkdir -p ~/.aws
+cat > ~/.aws/credentials <<EOF
+[OVH-SWAUTOMORPH]
+aws_access_key_id = 87b1bf761103447e9d04fe60b0bdb192
+aws_secret_access_key = 653f83a437fc44a58448eee49eb8d2e7
+s3 =
+  endpoint_url = https://s3.gra.io.cloud.ovh.net/
+  signature_version = s3v4
+
+s3api =
+  endpoint_url = https://s3.gra.io.cloud.ovh.net/
+EOF
+
+export AWS_DEFAULT_PROFILE=OVH-SWAUTOMORPH
+export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
+

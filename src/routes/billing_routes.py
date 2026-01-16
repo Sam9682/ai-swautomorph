@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, session
 import logging
 import os
 from datetime import datetime, timedelta
-from ..config import DB_PATH, get_logs_dir
+from ..config import get_logs_dir, PLTF_NAME
 
 # Determine database type based on environment
 from ..database_postgres import db_manager
@@ -588,7 +588,7 @@ def generate_invoice_pdf(invoice_id):
     </head>
     <body>
         <div class="header">
-            <h1>AI-SwAutoMorph Invoice</h1>
+            <h1>{PLTF_NAME} Invoice</h1>
             <h2>Invoice #{invoice_id}</h2>
         </div>
         

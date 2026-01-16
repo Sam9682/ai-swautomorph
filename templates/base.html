@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AI-SwAutoMorph{% endblock %}</title>
+    <title>{% block title %}{{ PLTF_NAME }}{% endblock %}</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
@@ -50,7 +50,7 @@
 <body>
     <nav class="navbar">
         <div class="nav-container">
-            <a href="https://www.swautomorph.com" class="nav-title">AI-SwAutoMorph</a>
+            <a href="https://www.swautomorph.com" class="nav-title">{{ PLTF_NAME }}</a>
             <div class="nav-center">
                 <div class="nav-links">
                     {% if session.user_id %}

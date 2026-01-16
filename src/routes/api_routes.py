@@ -66,8 +66,6 @@ def get_text(key):
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
-
-
 from ..db_health import check_database_health, get_database_stats
 from ..nginx_manager import insert_location_block, remove_location_block, sync_all_locations
 

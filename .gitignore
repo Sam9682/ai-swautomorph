@@ -44,8 +44,7 @@ ssl/
 *.crt
 
 # Configuration and runtime files
-conf/
-*.pid
+conf/*.pid
 
 # Logs
 logs/

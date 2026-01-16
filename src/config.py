@@ -28,15 +28,28 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DB_PATH = 'softfluid/db/ai_swautomorph.db'
-
 # Name of print logs output file
 OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
 
 # Flask configuration
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
+
+# Platform name from deploy.ini
+def get_platform_name():
+    """Get platform name from deploy.ini"""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'conf', 'deploy.ini')
+        with open(config_path, 'r') as f:
+            for line in f:
+                if line.strip().startswith('PLTF_NAME'):
+                    return line.split('=', 1)[1].strip().strip("'\"")
+    except Exception as e:
+        logger.error(f'Failed to read PLTF_NAME from deploy.ini: {e}')
+    return 'AI-SwAutoMorph'
+
+PLTF_NAME = get_platform_name()
 
 # CORS configuration
 CORS_ORIGINS = [

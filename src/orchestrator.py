@@ -7,7 +7,6 @@ import subprocess
 import requests
 from contextlib import contextmanager
 from .database_postgres import db_manager
-from .config import DB_PATH
 
 class LightOrchestrator:
     """Simple orchestrator for managing multi-instance applications"""

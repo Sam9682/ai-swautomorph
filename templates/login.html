@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}{{ get_text('login') }} - AI-SwAutoMorph{% endblock %}
+{% block title %}{{ get_text('login') }} - {{ PLTF_NAME }}{% endblock %}
 
 {% block content %}
 <div class="auth-container">
     <div class="platform-header">
-        <h1>🚀 AI-SwAutoMorph</h1>
+        <h1>🚀 {{ PLTF_NAME }}</h1>
         <h3>🤖 {{ get_text('replace_it_team') }}</h3>
         <p class="mission-statement">
             {{ get_text('stop_waiting_message') }}
@@ -61,7 +61,7 @@
 <footer class="legal-footer">
     <div class="legal-content">
         <p class="copyright">
-            © 2024 AI-SwAutoMorph. {{ get_text('all_rights_reserved') }}
+            © 2024 {{ pltf_name }}. {{ get_text('all_rights_reserved') }}
         </p>
         <p class="team-credits">
             {{ get_text('developed_by') }}: <strong>Samuel LEPETRE</strong>, {{ get_text('with_help_of') }} <strong>Nizar</strong> {{ get_text('and') }} <strong>Tibo</strong>

@@ -4,7 +4,6 @@ import secrets
 import hashlib
 import os
 from datetime import datetime, timedelta
-from .config import DB_PATH
 
 # Determine database type based on environment - DEFAULT TO POSTGRESQL
 USE_POSTGRES = os.environ.get('USE_POSTGRES', 'true').lower() == 'true'

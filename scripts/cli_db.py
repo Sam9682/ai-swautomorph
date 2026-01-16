@@ -448,7 +448,7 @@ def sync_nginx_locations():
         from src.database_postgres import db_manager
         from src.nginx_manager import sync_all_locations
         
-        click.echo('Syncing nginx locations from database...')
+        click.echo('Synchronizing nginx locations from database...')
         
         if sync_all_locations(db_manager):
             click.echo('✓ Nginx locations synced successfully')
