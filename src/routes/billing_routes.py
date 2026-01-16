@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, session
 import logging
 import os
 from datetime import datetime, timedelta
-from ..config import get_logs_dir, PLTF_NAME
+from ..config_postgres import get_logs_dir, PLTF_NAME
 
 # Determine database type based on environment
 from ..database_postgres import db_manager

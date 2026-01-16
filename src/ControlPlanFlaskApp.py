@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-from .config import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, PLTF_NAME
+from .config_postgres import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, PLTF_NAME
 from .database_postgres import init_db
 from .routes.main_routes import main_bp
 from .routes.auth_routes import auth_bp

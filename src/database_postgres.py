@@ -7,7 +7,7 @@ import os
 import configparser
 from contextlib import contextmanager
 from werkzeug.security import generate_password_hash
-from .config import get_database_config, AI_ENGINE
+from .config_postgres import get_database_config, AI_ENGINE
 from .query_converter import convert_sqlite_to_postgres_query
 
 # Load deploy.ini configuration

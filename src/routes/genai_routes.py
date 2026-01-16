@@ -4,7 +4,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, AI_ENGINE
+from ..config_postgres import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, AI_ENGINE
 
 # Path configuration functions
 def get_logs_dir():
@@ -309,7 +309,7 @@ def api_qchat_developer():
 
             elif agentic_engine.lower() == 'shai':
                 # Find engine command
-                from ..config import get_shai_paths
+                from ..config_postgres import get_shai_paths
                 engine_cmd = get_shai_paths()
                 
                 if not engine_cmd:
@@ -321,7 +321,7 @@ def api_qchat_developer():
 
             else:
                 # Default to qchat
-                from ..config import get_qchat_paths
+                from ..config_postgres import get_qchat_paths
                 engine_cmd = get_qchat_paths()
                 
                 if not engine_cmd:
@@ -530,7 +530,7 @@ User Question: {message}. Provide a helpful and informative response."""
 
             elif agentic_engine.lower() == 'shai':
                 # Find engine command
-                from ..config import get_shai_paths
+                from ..config_postgres import get_shai_paths
                 engine_cmd = get_shai_paths()
                 
                 if not engine_cmd:
@@ -542,7 +542,7 @@ User Question: {message}. Provide a helpful and informative response."""
 
             else:
                 # Default to qchat
-                from ..config import get_qchat_paths
+                from ..config_postgres import get_qchat_paths
                 engine_cmd = get_qchat_paths()
                 
                 if not engine_cmd:
