@@ -1,5 +1,7 @@
 """Configuration settings for AI-SwAutoMorph"""
 import os
+import subprocess
+import logging
 
 # PostgreSQL configuration
 def get_database_config():
@@ -16,6 +18,24 @@ def get_database_config():
         'connect_timeout': int(os.environ.get('POSTGRES_TIMEOUT', 10))
     }
 
+# Path configuration functions
+def get_logs_dir():
+    """Get logs directory path"""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, 'logs')
+
+# Configure logging for genai activities
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(get_logs_dir(), os.path.basename(__file__).replace('.py', '.log'))),
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 # Name of print logs output file
 OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
 
@@ -23,9 +43,27 @@ OUTPUT_PRINT_LOGS_FILENAME = 'print_output_swautomorph.log'
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 FLASK_ENV = os.environ.get('FLASK_ENV', 'development')
 
+# Platform name from deploy.ini
+def get_platform_name():
+    """Get platform name from deploy.ini"""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'conf', 'deploy.ini')
+        with open(config_path, 'r') as f:
+            for line in f:
+                if line.strip().startswith('PLTF_NAME'):
+                    return line.split('=', 1)[1].strip().strip("'\"")
+    except Exception as e:
+        logger.error(f'Failed to read PLTF_NAME from deploy.ini: {e}')
+    return 'AI-SwAutoMorph'
+
+PLTF_NAME = get_platform_name()
+DOMAIN = 'www.swautomorph.com'
+
 # CORS configuration
 CORS_ORIGINS = [
     'https://wwww.swautomorph.com', 
+    'https://wwww.softfluid.fr', 
     'https://ai-haccp.swautomorph.com'
 ]
 
@@ -35,6 +73,7 @@ TIMEOUT_SUBPROCESS_RUN=600
 TIMEOUT_QCHAT_DEVELOPER_RUN=1800
 TIMEOUT_CLEAN_SHUTDOWN=60
 TIMEOUT_QCHAT_OPERATOR_RUN=1800
+AI_ENGINE='kiro-cli'
 
 # Path configuration functions
 def get_logs_dir():
@@ -45,12 +84,54 @@ def get_logs_dir():
 def get_qchat_paths():
     """Get qchat command paths to search"""
     home_dir = os.path.expanduser('~')
-    return [
+    qchat_cmd = None
+    qchat_paths = [
         os.path.join(home_dir, '.local', 'bin', 'qchat'),
         '/usr/local/bin/qchat',
         '/usr/bin/qchat',
-        'qchat'
+        'qchat',
+        os.path.join(home_dir, '.local', 'bin', 'kiro-cli'),
+        '/usr/local/bin/kiro-cli',
+        '/usr/bin/kiro-cli',
+        'kiro-cli'
     ]
+    for path in qchat_paths:
+        try:
+            result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            if result.returncode == 0:
+                qchat_cmd = path
+                break
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+            logger.error(f'AI Chat Developer - Failed to check kiro-cli at {path}: {str(e)}')
+            continue
+        except Exception as e:
+            logger.error(f'AI Chat Developer - Unexpected error checking kiro-cli at {path}: {str(e)}')
+            continue
+    return qchat_cmd
+
+def get_shai_paths():
+    """Get shai command path"""
+    home_dir = os.path.expanduser('~')
+    qchat_paths = [
+        os.path.join(home_dir, '.local', 'bin', 'shai'),
+        '/home/ubuntu/.local/bin/shai',
+        '/usr/local/bin/shai',
+        '/usr/bin/shai',
+        'shai'
+    ]
+    for path in qchat_paths:
+        try:
+            result = subprocess.run([path, '--version'], capture_output=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            if result.returncode == 0:
+                qchat_cmd = path
+                break
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, OSError, FileNotFoundError) as e:
+            logger.error(f'AI Chat Developer - Failed to check SHAI at {path}: {str(e)}')
+            continue
+        except Exception as e:
+            logger.error(f'AI Chat Developer - Unexpected error checking SHAI at {path}: {str(e)}')
+            continue
+    return qchat_cmd
 
 # Language translations
 TRANSLATIONS = {
@@ -175,6 +256,8 @@ TRANSLATIONS = {
         'today': 'Today',
         'this_week': 'This Week',
         'this_month': 'This Month',
+        'overview': 'Overview',
+        'invoices': 'Invoices',
         'manage_costs': 'Manage Costs',
         'application_costs': 'Application Costs',
         'usage_summary': 'Usage Summary',
@@ -253,7 +336,7 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Handle multiple projects simultaneously',
         'always_learning': 'Always Learning',
         'always_learning_desc': 'AI agents improve with every interaction',
-        'disruption_warning': 'The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don\\'t get left behind.',
+        'disruption_warning': 'The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don\'t get left behind.',
         'configuration': 'Configuration',
         'user_management': 'User Management',
         'server_management': 'Server Management',
@@ -323,13 +406,13 @@ TRANSLATIONS = {
         'users': 'Utilisateurs',
         'applications': 'Applications',
         'qchat_ready': 'Votre assistant développeur virtuel vous attend ! Demandez-lui une modification pour le logiciel sélectionné, par exemple : ajoute la possibilité de pointer plusieurs fois par jour dans le logiciel ai-haccp.',
-        'platform_subtitle': 'L\\'Avenir du Développement Logiciel est Arrivé',
-        'mission_statement': 'Bienvenue dans la prochaine évolution de l\\'impact de l\\'IA générative. Après avoir remplacé les développeurs IT, <strong>l\\'IA agentique va maintenant remplacer des entreprises IT entières</strong> qui développent des logiciels.',
+        'platform_subtitle': 'L\'Avenir du Développement Logiciel est Arrivé',
+        'mission_statement': 'Bienvenue dans la prochaine évolution de l\'impact de l\'IA générative. Après avoir remplacé les développeurs IT, <strong>l\'IA agentique va maintenant remplacer des entreprises IT entières</strong> qui développent des logiciels.',
         'target_title': 'Conçu pour les Entreprises Visionnaires',
         'restaurants_title': 'Restaurants et Hôtellerie',
-        'restaurants_desc': 'Gérez votre écosystème numérique avec des développeurs virtuels alimentés par l\\'IA',
+        'restaurants_desc': 'Gérez votre écosystème numérique avec des développeurs virtuels alimentés par l\'IA',
         'small_business_title': 'Petites Entreprises',
-        'small_business_desc': 'Obtenez un développement logiciel de niveau entreprise sans les coûts d\\'entreprise',
+        'small_business_desc': 'Obtenez un développement logiciel de niveau entreprise sans les coûts d\'entreprise',
         'entrepreneurs_title': 'Entrepreneurs',
         'entrepreneurs_desc': 'Transformez vos idées en applications fonctionnelles grâce au langage naturel',
         'features_title': 'Ce que Vous Obtenez',
@@ -341,7 +424,7 @@ TRANSLATIONS = {
         'auto_deploy_desc': 'Du code à la production en minutes, pas en mois',
         'multi_app_title': 'Gestion Multi-Applications',
         'multi_app_desc': 'Contrôlez plusieurs applications depuis un tableau de bord collaboratif',
-        'revolution_message': 'Une industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\\'IA agentique est là.',
+        'revolution_message': 'Une industrie du développement logiciel telle que nous la connaissons va changer à jamais. Préparez-vous à être mouillés - la vague de l\'IA agentique est là.',
         'all_rights_reserved': 'Tous droits réservés.',
         'developed_by': 'Développé par',
         'with_help_of': 'testé par',
@@ -452,7 +535,7 @@ TRANSLATIONS = {
         'step_by_step_interaction': 'Cochez ceci pour une interaction étape par étape avec votre agent IA',
         'start_automorph': 'Démarrer Automorph',
         'replace_it_team': 'Remplacez Votre Équipe IT par des Agents IA',
-        'stop_waiting_message': 'Arrêtez d\\'attendre les développeurs et le support IT. Nos agents IA gèrent tout - du codage de nouvelles fonctionnalités au déploiement et à la gestion de vos applications. Fini les tickets, les retards et les contrats IT coûteux.',
+        'stop_waiting_message': 'Arrêtez d\'attendre les développeurs et le support IT. Nos agents IA gèrent tout - du codage de nouvelles fonctionnalités au déploiement et à la gestion de vos applications. Fini les tickets, les retards et les contrats IT coûteux.',
         'what_ai_agents_do': 'Ce que les Agents IA Font Pour Vous',
         'ai_developer_desc': 'Modifie le code de votre application instantanément selon vos demandes en français simple',
         'ai_operations_desc': 'Déploie, démarre, arrête et surveille vos applications 24h/24 et 7j/7',
@@ -471,7 +554,7 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Gérer plusieurs projets simultanément',
         'always_learning': 'Apprentissage Continu',
         'always_learning_desc': 'Les agents IA en auto amélioration à chaque interaction',
-        'disruption_warning': 'Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d\\'équipes IT humaines. Ne vous laissez pas distancer.',
+        'disruption_warning': 'Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d\'équipes IT humaines. Ne vous laissez pas distancer.',
         'configuration': 'Configuration',
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
@@ -484,10 +567,11 @@ TRANSLATIONS = {
         'display_ps_option': "🔍 VERIFIER l'état de l'appli. (Ops)",
         'account_activation_message_title': '⚠️ Activation du compte nécessaire',
         'account_activation_message_body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',
-        'dev_modify_code_request1': 'J'ai besoin d'un spécialiste développeur pour modifier le code de l'application',
+        'dev_modify_code_request1': 'J\'ai besoin d\'un spécialiste développeur pour modifier le code de l\'application',
         'dev_modify_code_request2': 'Veuillez trouver ci-dessous la spécification de la demande :',
-        'ops_exec_request1': 'J'ai besoin d'un spécialiste des opérations pour exécuter',
-        'ops_exec_request2': 'l'action sur l'application',
-        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d'effectuer une action'
+        'ops_exec_request1': 'J\'ai besoin d\'un spécialiste des opérations pour exécuter',
+        'ops_exec_request2': 'l\'action sur l\'application',
+        'select_app_tooltip': 'Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d\'effectuer une action',
+        'unified_input_tooltip': 'Tapez en français ce que vous voulez demander à votre informaticien virtuel concernant les modifications à réaliser concernant l\'application. Soyez précis, par exemple: modifie le numéro de téléphone qui s\'affiche sur la page principale du site web 06 19 89 90 50 et remplace par 01 46 43 23 56'
     }
 }

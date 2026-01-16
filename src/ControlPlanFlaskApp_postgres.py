@@ -13,7 +13,7 @@ if USE_POSTGRES:
 else:
     # Use SQLite (legacy)
     from src.database_postgres import db_manager, init_db
-    from src.config import *
+    from src.config_postgres import *
     print("Using SQLite database")
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify

@@ -325,7 +325,7 @@ def api_qchat_developer():
                 engine_cmd = get_qchat_paths()
                 
                 if not engine_cmd:
-                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/KIRO '})}\n\n"
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/Kiro-cli '})}\n\n"
                     return
 
                 cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]
@@ -546,7 +546,7 @@ User Question: {message}. Provide a helpful and informative response."""
                 engine_cmd = get_qchat_paths()
                 
                 if not engine_cmd:
-                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/KIRO '})}\n\n"
+                    yield f"data: {json.dumps({'error': f'{agentic_engine} not found for Q/Kiro-cli '})}\n\n"
                     return
 
                 cmd_args = [engine_cmd, 'chat', '--trust-all-tools', l_prompt]

@@ -10,6 +10,7 @@ import shutil
 import socket
 import logging
 from datetime import datetime
+from ..config_postgres import DOMAIN, PLTF_NAME
 
 # Determine database type based on environment - DEFAULT TO POSTGRESQL
 USE_POSTGRES = os.environ.get('USE_POSTGRES', 'true').lower() == 'true'
@@ -24,7 +25,7 @@ except Exception as e:
     print(f"Failed to initialize PostgreSQL: {e}")
     raise RuntimeError("PostgreSQL database is required but failed to initialize")
 
-from src.config import *
+from src.config_postgres import *
 
 # Configure logging for API activities
 logger = logging.getLogger(__name__)
@@ -432,7 +433,7 @@ def api_user_applications(user_id):
                     return jsonify({'error': 'Application not found'}), 404
                 
                 app_name = app_result[0]
-                url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                url = f'https://${DOMAIN}:{HTTPS_PORT}'
                 
                 db_manager.execute_query(
                     'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (%s, %s, %s, %s, %s, %s, %s)',
