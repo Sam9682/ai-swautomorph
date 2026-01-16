@@ -10,7 +10,7 @@ backlog = 2048
 workers = multiprocessing.cpu_count() * 2 + 1
 worker_class = "sync"
 worker_connections = 1000
-timeout = 1800  # 30 minutes for Q Chat operations
+timeout = 1800  # 30 minutes for AI Chat operations
 keepalive = 2
 
 # Restart workers after this many requests, to help prevent memory leaks

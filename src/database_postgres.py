@@ -7,7 +7,7 @@ import os
 import configparser
 from contextlib import contextmanager
 from werkzeug.security import generate_password_hash
-from .config import get_database_config
+from .config import get_database_config, AI_ENGINE
 from .query_converter import convert_sqlite_to_postgres_query
 
 # Load deploy.ini configuration
@@ -300,7 +300,7 @@ def init_db():
             cursor.execute('SELECT COUNT(*) FROM configuration')
             if cursor.fetchone()[0] == 0:
                 default_config = [
-                    (None, 'agentic_engine', 'q chat'),
+                    (None, 'agentic_engine', AI_ENGINE),
                     (None, 'agentic_command', '')
                 ]
                 cursor.executemany('INSERT INTO configuration (parent, key, value) VALUES (%s, %s, %s)', default_config)

@@ -9,8 +9,8 @@
 ### 📋 Table of Contents
 - [🌟 Overview](#overview)
 - [🤖 Virtual AI Agents](#virtual-ai-agents)
-- [🔧 Q Chat Developer Agent](#q-chat-developer-agent)
-- [🚀 Q Chat Operations Agent](#q-chat-operations-agent)
+- [🔧 AI Chat Developer Agent](#q-chat-developer-agent)
+- [🚀 AI Chat Operations Agent](#q-chat-operations-agent)
 - [⚡ Agent Workflows](#agent-workflows)
 - [🎯 Platform Features](#platform-features)
 - [💰 Billing System](#billing-system)
@@ -30,7 +30,7 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 
 The platform provides **two specialized virtual AI agents** with context-aware prompts and streaming responses:
 
-#### 🔧 Q Chat Developer Agent
+#### 🔧 AI Chat Developer Agent
 **🎯 Purpose:** Code modification, feature development, and application enhancement
 
 - 💻 Modifies source code based on natural language requests
@@ -41,7 +41,7 @@ The platform provides **two specialized virtual AI agents** with context-aware p
 - ⏱️ 30-minute timeout with graceful cleanup
 - 📡 Real-time streaming responses with Server-Sent Events
 
-#### 🚀 Q Chat Operations Agent
+#### 🚀 AI Chat Operations Agent
 **🎯 Purpose:** Deployment operations, infrastructure management, and application lifecycle
 
 - ⚡ Handles deployment commands (START, STOP, RESTART, PS, LOGS)
@@ -54,7 +54,7 @@ The platform provides **two specialized virtual AI agents** with context-aware p
 
 ![Virtual Operations](https://www.swautomorph.com/static/VirtualOperations.png)
 
-### 🔧 Q Chat Developer Agent
+### 🔧 AI Chat Developer Agent
 
 #### 🛠️ Agent Capabilities
 - **🔍 Code Analysis:** Understands existing codebase structure
@@ -82,7 +82,7 @@ POST /api/qchat_developer
 }
 ```
 
-### 🚀 Q Chat Operations Agent
+### 🚀 AI Chat Operations Agent
 
 #### 🛠️ Agent Capabilities
 - **🚀 Deployment Management:** Handles START, STOP, RESTART operations
@@ -200,7 +200,7 @@ POST /api/qchat_operations
 - 📁 Verify application folder path exists and is accessible
 - 🔒 Check if application has proper file permissions
 - 🌿 Ensure Git repository is accessible and credentials are valid
-- 🖥️ Confirm Q Chat is installed and accessible in PATH
+- 🖥️ Confirm AI Chat is installed and accessible in PATH
 - ⏱️ Check for timeout issues (30-minute limit)
 - 📝 Verify context files exist in shared/ directory
 
@@ -267,8 +267,8 @@ curl -X POST /api/qchat_operations \
 ### 📋 Table des Matières
 - [🌟 Aperçu pour les Agents IA](#aperçu-pour-les-agents-ia)
 - [🤖 Types d'Agents IA](#types-dagents-ia)
-- [🔧 Agent Développeur Q Chat](#agent-développeur-q-chat)
-- [🚀 Agent Opérations Q Chat](#agent-opérations-q-chat)
+- [🔧 Agent Développeur AI Chat](#agent-développeur-q-chat)
+- [🚀 Agent Opérations AI Chat](#agent-opérations-q-chat)
 - [⚡ Flux de Travail des Agents](#flux-de-travail-des-agents)
 - [🎯 Fonctionnalités de la Plateforme](#fonctionnalités-de-la-plateforme)
 - [🔧 Dépannage](#dépannage)
@@ -285,7 +285,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 
 ### 🤖 Types d'Agents IA
 
-#### 🔧 Agent Développeur Q Chat
+#### 🔧 Agent Développeur AI Chat
 **🎯 Objectif:** Modification de code, développement de fonctionnalités et amélioration d'applications
 
 - 💻 Modifie le code source basé sur des demandes en langage naturel
@@ -294,7 +294,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 - 🐛 Gère les corrections de bugs et améliorations de code
 - 🌿 Crée des branches Git horodatées pour le suivi des modifications
 
-#### 🚀 Agent Opérations Q Chat
+#### 🚀 Agent Opérations AI Chat
 **🎯 Objectif:** Opérations de déploiement, gestion d'infrastructure et cycle de vie des applications
 
 - ⚡ Gère les commandes de déploiement (START, STOP, RESTART)
@@ -305,7 +305,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 
 ![Virtual Operations](https://www.swautomorph.com/static/VirtualOperations.png)
 
-### 🔧 Agent Développeur Q Chat
+### 🔧 Agent Développeur AI Chat
 
 #### 🛠️ Capacités de l'Agent
 - **🔍 Analyse de Code:** Comprend la structure de la base de code existante
@@ -333,7 +333,7 @@ POST /api/qchat_developer
 }
 ```
 
-### 🚀 Agent Opérations Q Chat
+### 🚀 Agent Opérations AI Chat
 
 #### 🛠️ Capacités de l'Agent
 - **🚀 Gestion de Déploiement:** Gère les opérations START, STOP, RESTART

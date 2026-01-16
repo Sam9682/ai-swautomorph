@@ -2,7 +2,7 @@
 
 ## Overview
 
-Successfully modified the Virtual Advisor to handle application management actions (STOP/START/RESTART/PS/LOGS) with Q Chat integration and context prompts from `./shared/` folder.
+Successfully modified the Virtual Advisor to handle application management actions (STOP/START/RESTART/PS/LOGS) with AI Chat integration and context prompts from `./shared/` folder.
 
 ## Files Modified
 
@@ -56,7 +56,7 @@ User Selects Action → Types Message → Frontend Sends [ACTION] message
                                               ↓
                                     Replaces {USER_ID}, {USER_NAME}, etc.
                                               ↓
-                                    Sends to Q Chat with --trust-all-tools
+                                    Sends to AI Chat with --trust-all-tools
                                               ↓
                                     Returns Response to User
 ```
@@ -75,7 +75,7 @@ User Selects Action → Types Message → Frontend Sends [ACTION] message
 2. Detects: START action
 3. Loads: `./shared/START_context.md`
 4. Replaces: `{USER_ID}` → "5", `{USER_NAME}` → "John Doe"
-5. Executes: Q Chat with full context
+5. Executes: AI Chat with full context
 6. Returns: Deployment results
 
 ## Key Features
@@ -122,7 +122,7 @@ If user doesn't use dropdown, backend still detects from keywords:
 
 1. **Verify Prerequisites**:
    ```bash
-   which qchat  # Ensure Q Chat is installed
+   which qchat  # Ensure AI Chat is installed
    ls -la /home/ubuntu/ai-swautomorph/shared/*.md  # Verify context files
    ```
 
@@ -185,13 +185,13 @@ ls -la /home/ubuntu/ai-swautomorph/shared/
 - ✅ Context files are read-only templates
 - ✅ Command execution only for authenticated users
 - ⚠️ Consider adding action logging for audit trail
-- ⚠️ Consider rate limiting for Q Chat requests
+- ⚠️ Consider rate limiting for AI Chat requests
 
 ## Performance
 
 - Context files are small (<10KB each)
 - File reads are fast (local filesystem)
-- Q Chat execution time: 5-60 seconds depending on action
+- AI Chat execution time: 5-60 seconds depending on action
 - No database queries for context loading
 - Minimal overhead from action detection
 
@@ -235,7 +235,7 @@ For issues or questions:
 1. Check logs: `/var/log/ai-swautomorph.log`
 2. Review documentation in this folder
 3. Test with simple PS action first
-4. Verify Q Chat is working: `qchat chat "hello"`
+4. Verify AI Chat is working: `qchat chat "hello"`
 
 ## Conclusion
 

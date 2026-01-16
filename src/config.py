@@ -9,6 +9,7 @@ TIMEOUT_SUBPROCESS_RUN=600
 TIMEOUT_QCHAT_DEVELOPER_RUN=1800
 TIMEOUT_CLEAN_SHUTDOWN=60
 TIMEOUT_QCHAT_OPERATOR_RUN=1800
+AI_ENGINE=kiro-cli
 
 # Path configuration functions
 def get_logs_dir():
@@ -174,10 +175,10 @@ TRANSLATIONS = {
         'clear_logs': 'Clear Logs',
         'hide': 'Hide',
         'select_application': 'Select Application',
-        'qchat_title': 'Q Chat - GenAI Assistant to modify the code of the selected Application',
+        'qchat_title': 'AI Chat - GenAI Assistant to modify the code of the selected Application',
         'auto_approve': 'Auto-approve updates/writes',
         'send': 'Send',
-        'qchat_placeholder': 'Type your message to Q Chat...',
+        'qchat_placeholder': 'Type your message to AI Chat...',
         'cancel': 'Cancel',
         'edit': 'Edit',
         'delete': 'Delete',
@@ -395,10 +396,10 @@ TRANSLATIONS = {
         'clear_logs': 'Effacer les journaux',
         'hide': 'Masquer',
         'select_application': 'Sélectionner une application',
-        'qchat_title': 'Q Chat - Assistant GenAI pour modifier le code du logiciel sélectionnée',
+        'qchat_title': 'AI Chat - Assistant GenAI pour modifier le code du logiciel sélectionnée',
         'auto_approve': 'Approuver automatiquement les mises à jour/écritures',
         'send': 'Envoyer',
-        'qchat_placeholder': 'Tapez votre message à Q Chat...',
+        'qchat_placeholder': 'Tapez votre message à AI Chat...',
         'cancel': 'Annuler',
         'edit': 'Modifier',
         'delete': 'Supprimer',

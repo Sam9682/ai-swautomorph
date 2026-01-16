@@ -20,7 +20,7 @@ AI-SwAutoMorph is a centralized application deployment and management platform d
 - 🛡️ ModSecurity WAF protection with OWASP CRS rules
 - 🔄 Automated database backups with PostgreSQL pg_dump
 - 💰 Billing and cost tracking system with activity logging
-- 🤖 **Virtual AI Agents**: Q Chat Developer and Operations assistants
+- 🤖 **Virtual AI Agents**: AI Chat Developer and Operations assistants
 - 📊 Database health monitoring and statistics
 - 🌐 Multi-server deployment support with capacity management
 - 🔀 **Dynamic Nginx Locations**: Automatic reverse proxy configuration per user/app
@@ -206,13 +206,13 @@ python3 ./scripts/sync_nginx_locations.py
 
 ### Virtual AI Agents Integration
 ```bash
-# Q Chat Developer Agent (code modifications)
+# AI Chat Developer Agent (code modifications)
 curl -X POST https://www.swautomorph.com/api/qchat_developer \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"Add a new API endpoint for user management","application_name":"MyApp","application_folder":"/path/to/app","action_operation":"MODIFY_CODE"}'
 
-# Q Chat Operations Agent (deployment operations)
+# AI Chat Operations Agent (deployment operations)
 curl -X POST https://www.swautomorph.com/api/qchat_operations \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
@@ -310,7 +310,7 @@ python3 ./scripts/cli_db.py db-health
 - **SSL Certificates**: ssl/ directory
 - **Logs**: logs/ directory with daily rotation and Gunicorn logging
 - **Backups**: softfluid/db/backup/ with S3 sync and hourly automated backups
-- **Virtual Agents**: Q Chat Developer and Operations with context-aware prompts
+- **Virtual Agents**: AI Chat Developer and Operations with context-aware prompts
 
 ## Architecture
 
@@ -361,7 +361,7 @@ ai-swautomorph/
 - **Nginx Proxy**: Dynamic location blocks for user applications with automatic configuration
 - **Security**: ModSecurity WAF with OWASP CRS rules and input validation
 - **Monitoring**: Health checks, database statistics, real-time streaming logs, and performance metrics
-- **Virtual AI Agents**: Q Chat Developer and Operations assistants with context-aware prompts
+- **Virtual AI Agents**: AI Chat Developer and Operations assistants with context-aware prompts
 - **Billing System**: Comprehensive cost tracking with activity logging, usage monitoring, and automated invoicing
 - **Multi-language**: English/French support with session-based language switching and bilingual documentation
 - **Backup System**: Automated hourly backups with S3 sync and interactive recovery tools

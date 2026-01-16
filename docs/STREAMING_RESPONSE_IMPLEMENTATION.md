@@ -1,12 +1,12 @@
 # Streaming Response Implementation for Virtual DevOps Team
 
 ## Problem
-Currently, the Virtual DevOps Team shows the response only after Q Chat completes execution. This can take several minutes, making users think the process is stuck.
+Currently, the Virtual DevOps Team shows the response only after AI Chat completes execution. This can take several minutes, making users think the process is stuck.
 
 ## Solution Options
 
 ### Option 1: Server-Sent Events (SSE) - RECOMMENDED
-Stream responses in real-time as Q Chat generates output.
+Stream responses in real-time as AI Chat generates output.
 
 **Pros**:
 - Real-time streaming
@@ -16,7 +16,7 @@ Stream responses in real-time as Q Chat generates output.
 
 **Cons**:
 - Requires backend changes
-- Need to modify Q Chat execution
+- Need to modify AI Chat execution
 
 ### Option 2: Polling with Partial Results
 Store partial results in database/cache and poll for updates.
@@ -85,7 +85,7 @@ def api_qchat_devops_stream():
         from ..automorph_application import process_qchat_devops_stream
         
         try:
-            # Stream chunks from Q Chat
+            # Stream chunks from AI Chat
             for chunk in process_qchat_devops_stream(
                 message,
                 user_id=str(session['user_id']),
@@ -194,10 +194,10 @@ Execute all required steps and provide a clear summary of the results.
             continue
     
     if not qchat_cmd:
-        yield {'error': 'Q Chat command not found', 'done': True}
+        yield {'error': 'AI Chat command not found', 'done': True}
         return
     
-    # Execute Q Chat with streaming
+    # Execute AI Chat with streaming
     cmd_args = [qchat_cmd, 'chat']
     if detected_action:
         cmd_args.append('--trust-all-tools')
@@ -438,7 +438,7 @@ function removeVirtualAdvisorMessage(messageDiv) {
 
 **Upgrade to SSE later** if needed:
 1. True real-time streaming
-2. Shows actual Q Chat output as it happens
+2. Shows actual AI Chat output as it happens
 3. Better user experience
 4. More complex implementation
 

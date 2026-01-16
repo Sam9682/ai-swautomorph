@@ -13,7 +13,7 @@ The AI-SwAutoMorph platform supports deploying applications across multiple serv
 - **Multi-Server Deployment**: Automatic server allocation based on capacity with intelligent load balancing
 - **Start/Stop Applications**: Control application lifecycle using deployApp.sh scripts with user context
 - **Real-time Monitoring**: Live status updates and streaming logs via Server-Sent Events
-- **GenAI Code Evolution**: Modify applications using natural language through unified Q Chat agents
+- **GenAI Code Evolution**: Modify applications using natural language through unified AI Chat agents
 - **Isolated Deployments**: Each user gets their own deployment directory with port allocation
 - **Comprehensive Billing Tracking**: Automatic cost tracking with precise time measurement and activity logging
 - **Multi-Language Support**: Full English/French interface with navbar language switching and session persistence
@@ -193,7 +193,7 @@ GET /api/deployments/{deployment_id}/logs
 
 ##### Enhanced GenAI Integration with Unified Interface
 ```bash
-# Q Chat Developer for code modification with context-aware prompts and streaming
+# AI Chat Developer for code modification with context-aware prompts and streaming
 POST /api/qchat_developer
 Content-Type: application/json
 {
@@ -203,7 +203,7 @@ Content-Type: application/json
   "action_operation": "MODIFY_CODE"
 }
 
-# Q Chat Operations for deployment operations with streaming and billing integration
+# AI Chat Operations for deployment operations with streaming and billing integration
 POST /api/qchat_operations
 Content-Type: application/json
 {
@@ -327,7 +327,7 @@ Applications must include a `deployApp.sh` script that supports:
    - Check invoice generation and PDF export functionality
 
 6. **Virtual Agents Issues**:
-   - Verify Q Chat installation and PATH configuration
+   - Verify AI Chat installation and PATH configuration
    - Check context files in shared/ directory for proper formatting
    - Validate prompt generation and logging functionality
    - Review timeout settings and process management
@@ -363,7 +363,7 @@ La plateforme AI-SwAutoMorph prend en charge le déploiement d'applications sur 
 - **Déploiement Multi-Serveurs**: Allocation automatique de serveur basée sur la capacité avec équilibrage de charge intelligent
 - **Démarrer/Arrêter Applications**: Contrôler le cycle de vie des applications avec les scripts deployApp.sh et contexte utilisateur
 - **Surveillance Temps Réel**: Mises à jour de statut en direct et journaux en streaming via Server-Sent Events
-- **Évolution de Code GenAI**: Modifier les applications en langage naturel via les agents Q Chat unifiés
+- **Évolution de Code GenAI**: Modifier les applications en langage naturel via les agents AI Chat unifiés
 - **Déploiements Isolés**: Chaque utilisateur obtient son propre répertoire de déploiement avec allocation de ports
 - **Suivi de Facturation Complet**: Suivi automatique des coûts avec mesure de temps précise et journalisation d'activité
 - **Support Multi-Langues**: Interface complète Anglais/Français avec changement de langue navbar et persistance de session
@@ -483,7 +483,7 @@ La plateforme sélectionne automatiquement le serveur optimal basé sur :
    - Vérifier la génération de factures et fonctionnalité d'export PDF
 
 6. **Problèmes d'Agents Virtuels**:
-   - Vérifier l'installation Q Chat et configuration PATH
+   - Vérifier l'installation AI Chat et configuration PATH
    - Vérifier les fichiers de contexte dans le répertoire shared/ pour formatage approprié
    - Valider la génération de prompts et fonctionnalité de journalisation
    - Examiner les paramètres de timeout et gestion de processus

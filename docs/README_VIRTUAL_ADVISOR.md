@@ -78,7 +78,7 @@ Response: [Container logs displayed]
 
 ## Technical Details
 
-- **Backend**: Q Chat with context from `./shared/` folder
+- **Backend**: AI Chat with context from `./shared/` folder
 - **Actions**: Mapped to `*_context.md` files
 - **Execution**: Automatic with `--trust-all-tools`
 - **User Context**: Auto-injected (ID, name, email)

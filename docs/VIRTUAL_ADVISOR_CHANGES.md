@@ -2,7 +2,7 @@
 
 ## Summary of Changes
 
-The Virtual Advisor has been enhanced to handle application management actions (STOP/START/RESTART/PS/LOGS) by integrating with Q Chat and using context prompts from the `./shared/` folder.
+The Virtual Advisor has been enhanced to handle application management actions (STOP/START/RESTART/PS/LOGS) by integrating with AI Chat and using context prompts from the `./shared/` folder.
 
 ## Modified Files
 
@@ -50,7 +50,7 @@ Located in `./shared/` folder:
 ## How It Works
 
 ```
-User Message → Keyword Detection → Load Context → Replace Params → Q Chat Execution → Response
+User Message → Keyword Detection → Load Context → Replace Params → AI Chat Execution → Response
 ```
 
 ### Example Flow:
@@ -62,7 +62,7 @@ User Message → Keyword Detection → Load Context → Replace Params → Q Cha
    - `{USER_ID}` → "5"
    - `{USER_NAME}` → "John Doe"
    - `{USER_EMAIL}` → "john@example.com"
-5. **Execute**: Q Chat runs with `--trust-all-tools` flag
+5. **Execute**: AI Chat runs with `--trust-all-tools` flag
 6. **Response**: Returns JSON with deployment status
 
 ## Benefits

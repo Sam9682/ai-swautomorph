@@ -55,7 +55,7 @@ The Virtual Advisor now handles application management actions (STOP/START/RESTA
    - `{USER_NAME}` - User's full name
    - `{USER_EMAIL}` - User's email
    - `{DESCRIPTION}` - Optional description
-5. **Q Chat execution** with `--trust-all-tools` flag for command execution
+5. **AI Chat execution** with `--trust-all-tools` flag for command execution
 6. **Response** returned to user with execution results
 
 ## Testing

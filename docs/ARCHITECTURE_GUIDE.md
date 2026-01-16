@@ -59,7 +59,7 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 
 The platform provides **two specialized AI agents** with advanced features:
 
-**🔧 Q Chat Developer Agent** (`/api/qchat_developer`):
+**🔧 AI Chat Developer Agent** (`/api/qchat_developer`):
 - 💻 Code modification and feature development
 - 🗣️ Natural language to code translation
 - 🌿 Git branch management with format `{user_id}-automorph-{app_name}-{timestamp}`
@@ -70,7 +70,7 @@ The platform provides **two specialized AI agents** with advanced features:
 - 📝 Prompt logging to dev_prompt_generated.txt
 - 🔒 Security: Path traversal protection and input validation
 
-**🚀 Q Chat Operations Agent** (`/api/qchat_operations`):
+**🚀 AI Chat Operations Agent** (`/api/qchat_operations`):
 - ⚡ Deployment operations (START, STOP, RESTART, PS, LOGS)
 - 🏗️ Infrastructure management with multi-server support
 - 📊 Application monitoring and troubleshooting
@@ -220,7 +220,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 
 La plateforme fournit **deux agents IA spécialisés** avec fonctionnalités avancées :
 
-**🔧 Agent Développeur Q Chat** (`/api/qchat_developer`):
+**🔧 Agent Développeur AI Chat** (`/api/qchat_developer`):
 - 💻 Modification de code et développement de fonctionnalités
 - 🗣️ Traduction langage naturel vers code
 - 🌿 Gestion des branches Git avec format `{user_id}-automorph-{app_name}-{timestamp}`
@@ -231,7 +231,7 @@ La plateforme fournit **deux agents IA spécialisés** avec fonctionnalités ava
 - 📝 Journalisation des prompts vers dev_prompt_generated.txt
 - 🔒 Sécurité: Protection contre la traversée de chemin et validation d'entrée
 
-**🚀 Agent Opérations Q Chat** (`/api/qchat_operations`):
+**🚀 Agent Opérations AI Chat** (`/api/qchat_operations`):
 - ⚡ Opérations de déploiement (START, STOP, RESTART, PS, LOGS)
 - 🏗️ Gestion d'infrastructure avec support multi-serveurs
 - 📊 Surveillance et dépannage d'applications

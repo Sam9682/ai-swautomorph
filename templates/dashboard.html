@@ -1973,7 +1973,7 @@ function sendUnifiedMessageWithText(message) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
             
-            contentDiv.textContent = 'Q Chat connected, processing request...\n';
+            contentDiv.textContent = 'AI Chat connected, processing request...\n';
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();

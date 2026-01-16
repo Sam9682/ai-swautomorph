@@ -4,7 +4,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN
+from ..config import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, AI_ENGINE
 
 # Path configuration functions
 def get_logs_dir():
@@ -242,7 +242,7 @@ def api_qchat_developer():
             'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
             ('agentic_engine',), fetch_one=True
         )
-        agentic_engine = config_result[0] if config_result else 'q chat'
+        agentic_engine = config_result[0] if config_result else AI_ENGINE
     
     agentic_command = data.get('agentic_command')
     if not agentic_command:
@@ -439,7 +439,7 @@ def api_qchat_operations():
             'SELECT value FROM configuration WHERE key = %s AND (parent IS NULL)',
             ('agentic_engine',), fetch_one=True
         )
-        agentic_engine = config_result[0] if config_result else 'q chat'
+        agentic_engine = config_result[0] if config_result else AI_ENGINE
     
     agentic_command = data.get('agentic_command')
     if not agentic_command:

@@ -10,8 +10,9 @@ source .venv/bin/activate
 # Install Python requirements
 pip3 install -r requirements.txt
 
-# Install Amazon Q Chat
-wget https://desktop-release.q.us-east-1.amazonaws.com/latest/amazon-q.deb
+# Install Amazon Kiro CLI Chat
+# wget https://desktop-release.q.us-east-1.amazonaws.com/latest/amazon-q.deb
+curl -fsSL https://cli.kiro.dev/install | bash
 sudo dpkg -i amazon-q.deb
 
 # Install OVH shai
@@ -58,3 +59,8 @@ EOF
 export AWS_DEFAULT_PROFILE=OVH-SWAUTOMORPH
 export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
 
+# Clone AiSwAutoMorph PLTF including submodule shared
+git clone git@github.com:Sam9682/ai-swautomorph.git
+git submodule update --init --recursive
+
+echo "Modify the name of the PLTF in ./conf/deploy.ini !"

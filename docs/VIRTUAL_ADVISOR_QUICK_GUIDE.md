@@ -54,7 +54,7 @@ When you ask about app management:
 1. ✅ Virtual Advisor detects the action keyword
 2. 📄 Loads detailed instructions from `./shared/` folder
 3. 🔄 Replaces your user info (ID, name, email)
-4. 🤖 Sends to Q Chat with execution permissions
+4. 🤖 Sends to AI Chat with execution permissions
 5. 📊 Returns results with status and logs
 
 ## 💡 Tips

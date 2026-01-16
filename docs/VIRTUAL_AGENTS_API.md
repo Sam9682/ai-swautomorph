@@ -8,8 +8,8 @@
 
 ### 📋 Table of Contents
 - [🌟 Overview](#overview)
-- [🔧 Q Chat Developer Agent](#q-chat-developer-agent)
-- [🚀 Q Chat Operations Agent](#q-chat-operations-agent)
+- [🔧 AI Chat Developer Agent](#q-chat-developer-agent)
+- [🚀 AI Chat Operations Agent](#q-chat-operations-agent)
 - [📡 Enhanced Streaming API](#enhanced-streaming-api)
 - [🎯 Context-Aware Prompts](#context-aware-prompts)
 - [💰 Billing Integration](#billing-integration)
@@ -20,8 +20,8 @@
 
 AI-SwAutoMorph provides two specialized virtual AI agents designed for autonomous application management with enhanced features:
 
-- **🔧 Q Chat Developer Agent**: Code modification, feature development, and application enhancement
-- **🚀 Q Chat Operations Agent**: Deployment operations, infrastructure management, and application lifecycle
+- **🔧 AI Chat Developer Agent**: Code modification, feature development, and application enhancement
+- **🚀 AI Chat Operations Agent**: Deployment operations, infrastructure management, and application lifecycle
 
 Both agents support:
 - ⚡ **Enhanced Streaming responses** with Server-Sent Events and real-time progress tracking
@@ -32,7 +32,7 @@ Both agents support:
 - 🔒 **Enhanced security** with input validation, path traversal protection, and comprehensive logging
 - 📝 **Detailed logging** with prompt generation tracking and error diagnostics
 
-### 🔧 Q Chat Developer Agent
+### 🔧 AI Chat Developer Agent
 
 **Endpoint**: `POST /api/qchat_developer`
 
@@ -129,7 +129,7 @@ eventSource.onerror = function(event) {
 - **Resource Cleanup**: Memory and file handle cleanup on timeout
 - **User Notification**: Real-time timeout warnings via streaming
 
-### 🚀 Q Chat Operations Agent
+### 🚀 AI Chat Operations Agent
 
 **Endpoint**: `POST /api/qchat_operations`
 
@@ -194,13 +194,13 @@ Both agents support advanced real-time streaming responses using Server-Sent Eve
 
 #### 🔌 Enhanced Response Format
 ```
-data: {"chunk": "Starting Q Chat Developer session with enhanced logging..."}
+data: {"chunk": "Starting AI Chat Developer session with enhanced logging..."}
 
-data: {"chunk": "Found Q Chat at: /home/ubuntu/.local/bin/qchat", "timestamp": "2024-01-15T10:30:00Z"}
+data: {"chunk": "Found AI Chat at: /home/ubuntu/.local/bin/qchat", "timestamp": "2024-01-15T10:30:00Z"}
 
 data: {"chunk": "Loading context from MODIFY_CODE_context.md", "context_size": 2048}
 
-data: {"chunk": "Executing Q Chat command with timeout management...", "timeout": 1800}
+data: {"chunk": "Executing AI Chat command with timeout management...", "timeout": 1800}
 
 data: {"chunk": "Code modification completed successfully", "files_modified": 3}
 
@@ -314,7 +314,7 @@ CREATE TABLE billing_activities (
 2. **Permission Denied**: User lacks required permissions with specific permission requirements
 3. **Application Not Found**: Invalid application name or path with suggestions
 4. **Timeout Exceeded**: Operation exceeds 30-minute limit with partial results
-5. **Process Failure**: Q Chat execution fails with diagnostic information
+5. **Process Failure**: AI Chat execution fails with diagnostic information
 6. **Context Loading Error**: Missing or invalid context files with fallback options
 7. **Network Issues**: Server connectivity problems with retry mechanisms
 8. **Resource Constraints**: Insufficient system resources with recommendations
@@ -356,8 +356,8 @@ CREATE TABLE billing_activities (
 
 ### 📋 Table des Matières
 - [🌟 Aperçu](#aperçu)
-- [🔧 Agent Développeur Q Chat](#agent-développeur-q-chat)
-- [🚀 Agent Opérations Q Chat](#agent-opérations-q-chat)
+- [🔧 Agent Développeur AI Chat](#agent-développeur-q-chat)
+- [🚀 Agent Opérations AI Chat](#agent-opérations-q-chat)
 - [📡 API de Streaming Améliorée](#api-de-streaming-améliorée)
 - [🎯 Prompts Contextuels](#prompts-contextuels)
 - [💰 Intégration Facturation](#intégration-facturation)
@@ -368,8 +368,8 @@ CREATE TABLE billing_activities (
 
 AI-SwAutoMorph fournit deux agents IA virtuels spécialisés conçus pour la gestion autonome d'applications avec fonctionnalités améliorées :
 
-- **🔧 Agent Développeur Q Chat** : Modification de code, développement de fonctionnalités et amélioration d'applications
-- **🚀 Agent Opérations Q Chat** : Opérations de déploiement, gestion d'infrastructure et cycle de vie des applications
+- **🔧 Agent Développeur AI Chat** : Modification de code, développement de fonctionnalités et amélioration d'applications
+- **🚀 Agent Opérations AI Chat** : Opérations de déploiement, gestion d'infrastructure et cycle de vie des applications
 
 Les deux agents supportent :
 - ⚡ **Réponses en streaming améliorées** avec Server-Sent Events et suivi de progression temps réel
@@ -380,7 +380,7 @@ Les deux agents supportent :
 - 🔒 **Sécurité renforcée** avec validation d'entrée, protection contre traversée de chemin et journalisation complète
 - 📝 **Journalisation détaillée** avec suivi de génération de prompts et diagnostics d'erreur
 
-### 🔧 Agent Développeur Q Chat
+### 🔧 Agent Développeur AI Chat
 
 **Point de terminaison** : `POST /api/qchat_developer`
 
@@ -396,7 +396,7 @@ Les deux agents supportent :
 - 📝 **Journalisation de Prompts** : Sauvegarde les prompts générés vers `dev_prompt_generated.txt` pour débogage
 - 🔒 **Validation de Sécurité** : Protection contre traversée de chemin et sanitisation d'entrée
 
-### 🚀 Agent Opérations Q Chat
+### 🚀 Agent Opérations AI Chat
 
 **Point de terminaison** : `POST /api/qchat_operations`
 
@@ -429,7 +429,7 @@ Les deux agents supportent :
 2. **Permission Refusée** : L'utilisateur manque des permissions requises avec exigences de permission spécifiques
 3. **Application Non Trouvée** : Nom d'application ou chemin invalide avec suggestions
 4. **Timeout Dépassé** : L'opération dépasse la limite de 30 minutes avec résultats partiels
-5. **Échec de Processus** : L'exécution Q Chat échoue avec informations de diagnostic
+5. **Échec de Processus** : L'exécution AI Chat échoue avec informations de diagnostic
 6. **Erreur de Chargement de Contexte** : Fichiers de contexte manquants ou invalides avec options de fallback
 7. **Problèmes Réseau** : Problèmes de connectivité serveur avec mécanismes de retry
 8. **Contraintes de Ressources** : Ressources système insuffisantes avec recommandations

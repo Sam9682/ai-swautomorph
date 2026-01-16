@@ -38,7 +38,7 @@ Modified `sendVirtualAdvisorMessage()` to:
 
 #### Enhanced `process_qchat_devops()`
 - Extracts application folder from description
-- Includes folder path in prompt for Q Chat
+- Includes folder path in prompt for AI Chat
 - Ensures commands execute in correct application directory
 
 ## User Flow
@@ -98,7 +98,7 @@ process_qchat_devops(
 )
 ```
 
-### Q Chat Prompt
+### AI Chat Prompt
 ```
 You are an autonomous DevOps agent...
 
