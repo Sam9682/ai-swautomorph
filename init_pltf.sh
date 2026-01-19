@@ -8,7 +8,7 @@ sudo apt install -y python3 python3-pip python3-venv net-tools unzip
 # Install Amazon Kiro CLI Chat
 # wget https://desktop-release.q.us-east-1.amazonaws.com/latest/amazon-q.deb
 curl -fsSL https://cli.kiro.dev/install | bash
-sudo dpkg -i amazon-q.deb
+#sudo dpkg -i amazon-q.deb
 
 # Install OVH shai
 curl -fsSL https://raw.githubusercontent.com/ovh/shai/main/install.sh | sh
