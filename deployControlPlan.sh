@@ -64,7 +64,7 @@ DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 DOMAIN=${DOMAIN:-"www.swautomorph.com"}
 EMAIL=${EMAIL:-"admin@swautomorph.com"}
 ENV_FILE=${ENV_FILE:-".env.prod"}
-SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/certifcate_domain.crt"}
+SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt"}
 SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key"}
 GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
 GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
@@ -1228,7 +1228,7 @@ server {
     listen 443 ssl;
     server_name localhost www.swautomorph.com;
     
-    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/certifcate_domain.crt};
+    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt};
     ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
