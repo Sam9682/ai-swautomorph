@@ -78,7 +78,7 @@ POST /api/servers
 ### Platform Status
 
 ```bash
-python3 ./scripts/platform_cli.py status
+python3 ./scripts/cli_db.py platform-status
 ```
 
 Output:
@@ -95,7 +95,7 @@ All Servers:
 ### Server Discovery
 
 ```bash
-python3 ./scripts/platform_cli.py discover 192.168.1.101
+python3 ./scripts/cli_db.py discover-server 192.168.1.101
 ```
 
 Output:
