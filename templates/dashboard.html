@@ -352,7 +352,11 @@
                     <option value="STAND_BY">STAND_BY</option>
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
-                <input type="text" id="newServerType" placeholder="{{ get_text('server_type') }}" required>
+                <select id="newServerType" placeholder="{{ get_text('server_type') }}" required>
+                    <option value="PRIMARY">PRIMARY</option>
+                    <option value="SECONDARY">SECONDARY</option>
+                </select>
+                <div id="discoveryStatus" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
                 <button type="submit" class="btn btn-secondary">{{ get_text('create_server') }}</button>
                 <button type="button" class="btn btn-secondary" onclick="hideAddServerForm()">{{ get_text('cancel') }}</button>
             </form>
@@ -3021,6 +3025,13 @@ if (newServerForm) {
             SERVER_TYPE: document.getElementById('newServerType').value
         };
         
+        // Show discovery status
+        const statusDiv = document.getElementById('discoveryStatus');
+        statusDiv.style.display = 'block';
+        statusDiv.style.background = '#e3f2fd';
+        statusDiv.style.color = '#1976d2';
+        statusDiv.textContent = '🔍 Checking for SwAutoMorph on ' + formData.SERVER_IP + '...';
+        
         fetch('/api/servers', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -3029,11 +3040,29 @@ if (newServerForm) {
         .then(response => response.json())
         .then(data => {
             if (data.error) {
-                alert(data.error);
+                statusDiv.style.background = '#ffebee';
+                statusDiv.style.color = '#c62828';
+                statusDiv.textContent = '❌ Error: ' + data.error;
             } else {
-                hideAddServerForm();
-                loadServers();
+                if (data.discovered) {
+                    statusDiv.style.background = '#e8f5e9';
+                    statusDiv.style.color = '#2e7d32';
+                    statusDiv.textContent = '✅ SwAutoMorph discovered! Server added as ' + data.server_type;
+                } else {
+                    statusDiv.style.background = '#fff3e0';
+                    statusDiv.style.color = '#e65100';
+                    statusDiv.textContent = '⚠️ No SwAutoMorph detected. Server added as ' + data.server_type;
+                }
+                setTimeout(() => {
+                    hideAddServerForm();
+                    loadServers();
+                }, 2000);
             }
+        })
+        .catch(error => {
+            statusDiv.style.background = '#ffebee';
+            statusDiv.style.color = '#c62828';
+            statusDiv.textContent = '❌ Error: ' + error.message;
         });
     });
 }

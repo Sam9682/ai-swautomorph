@@ -243,7 +243,7 @@ def init_db():
                 cursor.execute('''
                     INSERT INTO servers (server_ip, server_name, server_capacity_user_max, server_capacity_appli_max, server_status, server_type)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                ''', (current_ip, 'main-server', 10, 50, 'STAND_BY', 'primary'))
+                ''', (current_ip, 'main-server', 10, 50, 'STAND_BY', 'PRIMARY'))
             
             # Create default admin user if none exists
             cursor.execute('SELECT COUNT(*) FROM users WHERE username = %s', ('admin',))

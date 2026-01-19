@@ -69,6 +69,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 from ..db_health import check_database_health, get_database_stats
 from ..nginx_manager import insert_location_block, remove_location_block, sync_all_locations
+from ..platform_discovery import get_current_server_ip, check_remote_platform, determine_role, update_server_role
 
 def create_gitea_user(username, email, password, first_name='', last_name=''):
     """Create user in Gitea server"""
@@ -562,9 +563,43 @@ def api_database_table(table_name):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/platform/status')
+def platform_status():
+    """Platform status endpoint for server discovery"""
+    try:
+        current_ip = get_current_server_ip()
+        server = db_manager.execute_query(
+            'SELECT server_type, server_name FROM servers WHERE server_ip = %s',
+            (current_ip,), fetch_one=True
+        )
+        
+        if server:
+            role = server[0].upper()
+            name = server[1]
+        else:
+            role = 'PRIMARY'
+            name = 'unknown'
+        
+        # Get all servers
+        servers = db_manager.execute_query(
+            'SELECT server_ip, server_name, server_type FROM servers ORDER BY id',
+            fetch_all=True
+        )
+        
+        return jsonify({
+            'platform': 'SwAutoMorph',
+            'version': '1.0',
+            'role': role,
+            'server_ip': current_ip,
+            'server_name': name,
+            'servers': [{'ip': s[0], 'name': s[1], 'type': s[2]} for s in servers]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/servers', methods=['GET', 'POST'])
 def api_servers():
-    """Server management endpoint"""
+    """Server management endpoint with discovery"""
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
@@ -604,20 +639,47 @@ def api_servers():
             return jsonify({'error': 'Invalid JSON data'}), 400
         
         required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
-                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS']
         
         if not all(field in data for field in required_fields):
             return jsonify({'error': 'Missing required fields'}), 400
         
         try:
+            remote_ip = data['SERVER_IP']
+            current_ip = get_current_server_ip()
+            
+            # Discovery: Check if remote IP is running SwAutoMorph
+            remote_status = check_remote_platform(remote_ip)
+            
+            if remote_status and remote_status.get('platform') == 'SwAutoMorph':
+                # Remote is SwAutoMorph - determine roles
+                our_role = determine_role(current_ip, remote_ip, remote_status, db_manager)
+                
+                # Update current server role
+                update_server_role(current_ip, our_role, db_manager)
+                
+                # Set remote server type based on their role
+                server_type = remote_status.get('role', 'PRIMARY')
+                
+                logger.info(f"[DISCOVERY] Remote SwAutoMorph detected at {remote_ip} (role: {server_type}), setting local role to {our_role}")
+            else:
+                # Not SwAutoMorph or no response - use provided type or default
+                server_type = data.get('SERVER_TYPE', 'SECONDARY')
+                logger.info(f"[DISCOVERY] No SwAutoMorph detected at {remote_ip}, adding as {server_type}")
+            
+            # Insert new server
             db_manager.execute_query('''
                 INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                    server_capacity_appli_max, server_status, server_type)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
-                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
+            ''', (remote_ip, data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+                  data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], server_type))
             
-            return jsonify({'message': 'Server created successfully'}), 201
+            return jsonify({
+                'message': 'Server created successfully',
+                'discovered': remote_status is not None,
+                'server_type': server_type
+            }), 201
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
