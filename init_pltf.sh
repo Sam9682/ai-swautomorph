@@ -48,12 +48,8 @@ cat > ~/.aws/credentials <<EOF
 [OVH-SWAUTOMORPH]
 aws_access_key_id = 87b1bf761103447e9d04fe60b0bdb192
 aws_secret_access_key = 653f83a437fc44a58448eee49eb8d2e7
-s3 =
-  endpoint_url = https://s3.gra.io.cloud.ovh.net/
-  signature_version = s3v4
-
-s3api =
-  endpoint_url = https://s3.gra.io.cloud.ovh.net/
+endpoint_url = https://s3.gra.io.cloud.ovh.net/
+signature_version = s3v4
 EOF
 
 export AWS_DEFAULT_PROFILE=OVH-SWAUTOMORPH
