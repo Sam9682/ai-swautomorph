@@ -5,11 +5,6 @@ sudo apt update
 sudo apt --fix-broken install
 sudo apt install -y python3 python3-pip python3-venv net-tools unzip
 
-source .venv/bin/activate
-
-# Install Python requirements
-pip3 install -r requirements.txt
-
 # Install Amazon Kiro CLI Chat
 # wget https://desktop-release.q.us-east-1.amazonaws.com/latest/amazon-q.deb
 curl -fsSL https://cli.kiro.dev/install | bash
@@ -60,8 +55,11 @@ git clone git@github.com:Sam9682/ai-swautomorph.git
 cd ai-swautomorph
 git submodule update --init --recursive
 
-python -m venv .venv
+# Create virtual environment
+python3 -m venv .venv
 source .venv/bin/activate
+
+# Install Python requirements
 pip install -r requirements.txt
 
 echo "Modify the name of the PLTF in ./conf/deploy.ini !"
