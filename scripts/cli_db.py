@@ -459,5 +459,68 @@ def sync_nginx_locations():
         click.echo(f'✗ Error: {str(e)}')
         sys.exit(1)
 
+@cli.command()
+def platform_status():
+    """Show platform status and server roles"""
+    try:
+        from src.platform_discovery import get_current_server_ip
+        from src.database_postgres import db_manager
+        
+        current_ip = get_current_server_ip()
+        server = db_manager.execute_query(
+            'SELECT server_type, server_name FROM servers WHERE server_ip = %s',
+            (current_ip,), fetch_one=True
+        )
+        
+        if server:
+            click.echo(f"Platform Role: {server[0]}")
+            click.echo(f"Server Name: {server[1]}")
+            click.echo(f"Server IP: {current_ip}")
+        else:
+            click.echo("Server not registered in database")
+        
+        servers = db_manager.execute_query(
+            'SELECT server_ip, server_name, server_type, server_status FROM servers ORDER BY id',
+            fetch_all=True
+        )
+        
+        click.echo("\nAll Servers:")
+        for s in servers:
+            click.echo(f"  - {s[1]} ({s[0]}): {s[2]} [{s[3]}]")
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
+@cli.command()
+@click.argument('remote_ip')
+def discover_server(remote_ip):
+    """Discover remote SwAutoMorph server"""
+    try:
+        from src.platform_discovery import get_current_server_ip, check_remote_platform, determine_role, update_server_role
+        from src.database_postgres import db_manager
+        
+        click.echo(f"Checking {remote_ip} for SwAutoMorph...")
+        
+        remote_status = check_remote_platform(remote_ip)
+        
+        if remote_status:
+            click.echo(f"✓ SwAutoMorph found!")
+            click.echo(f"  Role: {remote_status.get('role')}")
+            click.echo(f"  Version: {remote_status.get('version')}")
+            click.echo(f"  Server: {remote_status.get('server_name')}")
+            
+            current_ip = get_current_server_ip()
+            our_role = determine_role(current_ip, remote_ip, remote_status, db_manager)
+            
+            click.echo(f"\nRole determination:")
+            click.echo(f"  Current server will be: {our_role}")
+            click.echo(f"  Remote server is: {remote_status.get('role')}")
+            
+            update_server_role(current_ip, our_role, db_manager)
+            click.echo(f"\n✓ Local server role updated to {our_role}")
+        else:
+            click.echo("✗ No SwAutoMorph detected at this IP")
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
 if __name__ == '__main__':
     cli()
