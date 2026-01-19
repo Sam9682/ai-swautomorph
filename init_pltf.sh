@@ -57,6 +57,11 @@ export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
 
 # Clone AiSwAutoMorph PLTF including submodule shared
 git clone git@github.com:Sam9682/ai-swautomorph.git
+cd ai-swautomorph
 git submodule update --init --recursive
+
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 
 echo "Modify the name of the PLTF in ./conf/deploy.ini !"
