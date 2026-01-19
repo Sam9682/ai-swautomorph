@@ -1470,7 +1470,7 @@ create_directories() {
 }
 
 setup_ssl_certificates() {
-    if [ ! -f ssl/cert.pem ] || [ ! -f ssl/key.pem ]; then
+    if [ ! -f ssl/certificate_domain.crt ] || [ ! -f ssl/privateKey_domain.key ]; then
         echo "🔐 Generating SSL certificates..."
         ./scripts/generate_ssl.sh
     else

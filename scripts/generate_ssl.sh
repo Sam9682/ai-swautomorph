@@ -5,7 +5,7 @@
 set -e
 
 SSL_DIR="./ssl"
-DOMAIN="www.swautomorph.com"
+DOMAIN=${DOMAIN:-"www.softfluid.com"}
 
 echo "🔐 Generating SSL certificates for $DOMAIN..."
 
@@ -13,7 +13,7 @@ echo "🔐 Generating SSL certificates for $DOMAIN..."
 mkdir -p "$SSL_DIR"
 
 # Check if certificates already exist
-if [ -f "$SSL_DIR/cert.pem" ] && [ -f "$SSL_DIR/key.pem" ]; then
+if [ -f "$SSL_DIR/certificate_domain.crt" ] && [ -f "$SSL_DIR/privateKey_domain.key" ]; then
     echo "⚠️  SSL certificates already exist. Use --force to regenerate."
     if [ "$1" != "--force" ]; then
         exit 0
@@ -23,27 +23,27 @@ fi
 
 # Generate private key
 echo "🔑 Generating private key..."
-openssl genrsa -out "$SSL_DIR/key.pem" 2048
+openssl genrsa -out "$SSL_DIR/privateKey_domain.pem" 2048
 
 # Generate certificate signing request
 echo "📝 Generating certificate signing request..."
-openssl req -new -key "$SSL_DIR/key.pem" -out "$SSL_DIR/csr.pem" -subj "/C=US/ST=State/L=City/O=SwAutoMorph/CN=$DOMAIN"
+openssl req -new -key "$SSL_DIR/privateKey_domain.pem" -out "$SSL_DIR/csr.pem" -subj "/C=US/ST=State/L=City/O=softfluid/CN=$DOMAIN"
 
 # Generate self-signed certificate (valid for 365 days)
 echo "📜 Generating self-signed certificate..."
-openssl x509 -req -in "$SSL_DIR/csr.pem" -signkey "$SSL_DIR/key.pem" -out "$SSL_DIR/cert.pem" -days 365
+openssl x509 -req -in "$SSL_DIR/csr.pem" -signkey "$SSL_DIR/privateKey_domain.crt" -out "$SSL_DIR/certificate_domain.key" -days 365
 
 # Set proper permissions
-chmod 600 "$SSL_DIR/key.pem"
-chmod 644 "$SSL_DIR/cert.pem"
+chmod 600 "$SSL_DIR/privateKey_domain.key"
+chmod 644 "$SSL_DIR/certificate_domain.crt"
 
 # Clean up CSR file
 rm "$SSL_DIR/csr.pem"
 
 echo "✅ SSL certificates generated successfully!"
 echo "📁 Certificate files:"
-echo "   Certificate: $SSL_DIR/cert.pem"
-echo "   Private Key: $SSL_DIR/key.pem"
+echo "   Certificate: $SSL_DIR/certificate_domain.cert"
+echo "   Private Key: $SSL_DIR/privateKey_domain.key"
 echo ""
 echo "⚠️  Note: This is a self-signed certificate for development/testing."
 echo "   For production, replace with certificates from a trusted CA."
