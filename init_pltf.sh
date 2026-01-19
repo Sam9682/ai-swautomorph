@@ -9,46 +9,46 @@ NC='\033[0m' # No Color
 
 # Helper function
 print_step() {
-    echo -e "${BLUE}▶${NC} ${GREEN}$1${NC}"
+    echo -e "${BLUE}>${NC} ${GREEN}$1${NC}"
 }
 
 print_success() {
-    echo -e "${GREEN}✓${NC} $1"
+    echo -e "${GREEN}[OK]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}✗${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║${NC}  🚀 AI-SwAutoMorph Platform Setup  ${BLUE}║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+echo -e "${BLUE}+========================================+${NC}"
+echo -e "${BLUE}|${NC}   AI-SwAutoMorph Platform Setup    ${BLUE}|${NC}"
+echo -e "${BLUE}+========================================+${NC}"
 echo ""
 
 # Install Python and pip
-print_step "📦 Installing system dependencies..."
+print_step "Installing system dependencies..."
 sudo apt update > /dev/null 2>&1
 sudo apt --fix-broken install -y > /dev/null 2>&1
 sudo apt install -y python3 python3-pip python3-venv net-tools unzip > /dev/null 2>&1
 print_success "System dependencies installed"
 
 # Install Amazon Kiro CLI Chat
-print_step "🤖 Installing Amazon Kiro CLI..."
+print_step "Installing Amazon Kiro CLI..."
 curl -fsSL https://cli.kiro.dev/install | bash > /dev/null 2>&1
 print_success "Amazon Kiro CLI installed"
 
 # Install OVH shai
-print_step "☁️  Installing OVH CLI..."
+print_step "Installing OVH CLI..."
 curl -fsSL https://raw.githubusercontent.com/ovh/shai/main/install.sh | sh > /dev/null 2>&1
 echo 'export PATH="/home/ubuntu/.local/bin:$PATH"' >> ~/.bashrc
 print_success "OVH CLI installed"
 
 # Install AWS CLI
-print_step "☁️  Installing AWS CLI..."
+print_step "Installing AWS CLI..."
 curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip -q awscliv2.zip
 sudo ./aws/install > /dev/null 2>&1
@@ -56,7 +56,7 @@ rm -rf aws awscliv2.zip
 print_success "AWS CLI installed"
 
 # Install Docker
-print_step "🐳 Installing Docker..."
+print_step "Installing Docker..."
 curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh > /dev/null 2>&1
 sudo usermod -aG docker $USER
 sudo curl -sL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
@@ -65,7 +65,7 @@ rm -f get-docker.sh
 print_success "Docker installed"
 
 # Configure AWS
-print_step "🔧 Configuring AWS credentials..."
+print_step "Configuring AWS credentials..."
 mkdir -p ~/.aws
 cat > ~/.aws/config <<EOF
 [profile OVH-SWAUTOMORPH]
@@ -86,27 +86,26 @@ export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
 print_success "AWS credentials configured"
 
 # Clone repository
-print_step "📥 Cloning AI-SwAutoMorph repository..."
+print_step "Cloning AI-SwAutoMorph repository..."
 git clone git@github.com:Sam9682/ai-swautomorph.git > /dev/null 2>&1
 cd ai-swautomorph
 git submodule update --init --recursive > /dev/null 2>&1
 print_success "Repository cloned"
 
 # Setup Python environment
-print_step "🐍 Setting up Python virtual environment..."
+print_step "Setting up Python virtual environment..."
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -q -r requirements.txt
 print_success "Python environment ready"
 
 # Final setup
-print_step "🔨 Final configuration..."
+print_step "Final configuration..."
 mkdir -p logs
 chmod +x setup_modsecurity_config.sh
 print_success "Configuration complete"
 
 echo ""
-echo -e "${GREEN}✓ Installation completed successfully!${NC}"
+echo -e "${GREEN}[OK] Installation completed successfully!${NC}"
 echo ""
 print_warning "Don't forget to modify ./conf/deploy.ini with your platform settings"
-echo ""
