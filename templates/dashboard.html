@@ -334,7 +334,7 @@
     <div id="serversSection" class="tab-content" style="display: none;">
         <div class="section-header">
             <h2>{{ get_text('server_management') }}</h2>
-            <button class="btn btn-primary" onclick="showAddServerForm()">{{ get_text('add_server') }}</button>
+            <button class="btn btn-primary" onclick="showAddServerForm()">{{ get_text('invite_server') }}</button>
         </div>
         
         <div id="serversGrid" class="servers-grid">
@@ -356,6 +356,7 @@
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
                 <select id="newServerType" placeholder="{{ get_text('server_type') }}" required>
+                    <option value="STAND_ALONE">STAND_ALONE</option>
                     <option value="SECONDARY">SECONDARY</option>
                     <option value="PRIMARY">PRIMARY</option>
                 </select>
@@ -378,6 +379,7 @@
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
                 <select type="text" id="editServerType" placeholder="{{ get_text('server_type') }}" required>
+                    <option value="STAND_ALONE">STAND_ALONE</option>
                     <option value="PRIMARY">PRIMARY</option>
                     <option value="SECONDARY">SECONDARY</option>
                 </select>
@@ -2945,6 +2947,7 @@ function loadServers() {
                 const statusClass = server.SERVER_STATUS === 'ACTIVE' ? 'status-active' : 'status-standby';
                 const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
+                const showPromote = server.SERVER_TYPE === 'STAND_ALONE';
                 html += `<tr class="${rowClass}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
@@ -2956,6 +2959,7 @@ function loadServers() {
                     <td>${new Date(server.created_at).toLocaleDateString()}</td>
                     <td class="actions">
                         <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
+                        ${showPromote ? `<button onclick="promoteServer(${server.id})" class="btn-small btn-primary">Promote PRIMARY</button>` : ''}
                         <button onclick="deleteServer(${server.id})" class="btn-small btn-danger" ${deleteDisabled}>Delete</button>
                     </td>
                 </tr>`;
@@ -3090,6 +3094,27 @@ function deleteServer(serverId) {
             } else {
                 loadServers();
             }
+        });
+    }
+}
+
+function promoteServer(serverId) {
+    if (confirm('Promote this server to PRIMARY? This can only be done if no PRIMARY server exists.')) {
+        fetch(`/api/servers/${serverId}/promote`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                loadServers();
+            }
+        })
+        .catch(error => {
+            alert('Error promoting server');
         });
     }
 }

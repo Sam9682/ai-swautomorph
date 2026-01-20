@@ -891,6 +891,40 @@ def api_server_actions(server_id):
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/servers/<int:server_id>/promote', methods=['POST'])
+def api_server_promote(server_id):
+    """Promote server to PRIMARY if no PRIMARY exists"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        # Check if PRIMARY already exists
+        primary = db_manager.execute_query(
+            'SELECT id FROM servers WHERE server_type = %s',
+            ('PRIMARY',), fetch_one=True
+        )
+        
+        if primary:
+            return jsonify({'error': 'PRIMARY server already exists'}), 400
+        
+        # Promote to PRIMARY
+        db_manager.execute_query(
+            'UPDATE servers SET server_type = %s WHERE id = %s',
+            ('PRIMARY', server_id)
+        )
+        
+        return jsonify({'message': 'Server promoted to PRIMARY successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/server/allocate', methods=['POST'])
 def api_server_allocate():
     """Allocate server for deployment based on capacity constraints"""
