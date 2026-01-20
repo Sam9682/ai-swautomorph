@@ -442,7 +442,7 @@ def select_table(table_name, limit):
         click.echo(f'Error: {str(e)}')
 
 @cli.command()
-def sync_nginx_locations():
+def update_nginx_locations():
     """Sync nginx locations from database"""
     try:
         from src.database_postgres import db_manager
@@ -519,6 +519,152 @@ def discover_server(remote_ip):
             click.echo(f"\n✓ Local server role updated to {our_role}")
         else:
             click.echo("✗ No SwAutoMorph detected at this IP")
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
+@cli.command()
+def replication_sync_status():
+    """Check replication sync status across servers"""
+    try:
+        from src.database_postgres import db_manager
+        from src.replication_manager import REPLICATED_TABLES
+        
+        click.echo('\n' + '='*60)
+        click.echo('REPLICATION STATUS')
+        click.echo('='*60)
+        
+        servers = db_manager.execute_query(
+            "SELECT server_ip, server_name, server_type, server_status FROM servers",
+            fetch_all=True
+        )
+        
+        click.echo(f"\nPeer Servers: {len(servers)}")
+        for server in servers:
+            click.echo(f"  - {server[1]} ({server[0]}) [{server[2]}] - {server[3]}")
+        
+        click.echo(f"\nReplicated Tables: {', '.join(REPLICATED_TABLES)}")
+        
+        click.echo('\n' + '='*60)
+        click.echo('RECORD COUNTS')
+        click.echo('='*60)
+        for table in REPLICATED_TABLES:
+            try:
+                result = db_manager.execute_query(f"SELECT COUNT(*) FROM {table}", fetch_one=True)
+                click.echo(f"  {table:<25} {result[0]:>10,} records")
+            except Exception as e:
+                click.echo(f"  {table:<25} Error: {e}")
+        click.echo('='*60)
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
+@cli.command()
+@click.argument('table')
+@click.argument('server_ip')
+def replication_sync_table(table, server_ip):
+    """Manually sync table to remote server"""
+    try:
+        from src.database_postgres import db_manager
+        from src.replication_manager import REPLICATED_TABLES
+        import requests
+        import urllib3
+        import time
+        from datetime import datetime
+        
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        if table not in REPLICATED_TABLES:
+            click.echo(f"Error: Table '{table}' is not configured for replication")
+            click.echo(f"Available tables: {', '.join(REPLICATED_TABLES)}")
+            return
+        
+        click.echo(f"\nManual Sync: {table} -> {server_ip}\n")
+        
+        records = db_manager.execute_query(f"SELECT * FROM {table}", fetch_all=True)
+        click.echo(f"Found {len(records)} records to sync")
+        
+        columns = db_manager.execute_query(
+            f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table}' ORDER BY ordinal_position",
+            fetch_all=True
+        )
+        col_names = [c[0] for c in columns]
+        
+        sync_secret = os.environ.get('SYNC_SECRET', 'default-sync-secret-change-me')
+        success_count = 0
+        
+        # Detect protocol
+        protocol = 'https'
+        try:
+            requests.get(f"https://{server_ip}/api/sync/health", timeout=2, verify=False)
+        except:
+            protocol = 'http'
+        
+        with click.progressbar(records, label='Syncing') as bar:
+            for record in bar:
+                data = dict(zip(col_names, record))
+                event = {
+                    'event_id': f"manual-{table}-{time.time()}",
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'table': table,
+                    'operation': 'INSERT',
+                    'data': data,
+                    'primary_key': {'id': data.get('id')},
+                    'version': int(time.time() * 1000)
+                }
+                
+                try:
+                    response = requests.post(
+                        f"{protocol}://{server_ip}/api/sync/replicate",
+                        json=event,
+                        headers={'X-Sync-Token': sync_secret},
+                        timeout=5,
+                        verify=False
+                    )
+                    if response.status_code == 200:
+                        success_count += 1
+                except:
+                    pass
+        
+        click.echo(f"\nSync complete: {success_count}/{len(records)} records synced successfully")
+    except Exception as e:
+        click.echo(f'Error: {str(e)}')
+
+@cli.command()
+@click.argument('server_ip')
+def replication_test_sync(server_ip):
+    """Test connectivity to peer server"""
+    try:
+        import requests
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        
+        click.echo(f"\nTesting Connectivity: {server_ip}\n")
+        
+        for protocol in ['https', 'http']:
+            try:
+                url = f"{protocol}://{server_ip}/api/sync/health"
+                click.echo(f"Trying {protocol.upper()}...")
+                
+                response = requests.get(url, timeout=5, verify=False)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    click.echo(f"✓ Server is reachable via {protocol.upper()}")
+                    click.echo(f"  Status: {data.get('status')}")
+                    click.echo(f"  Queue Size: {data.get('queue_size')}")
+                    click.echo(f"  Timestamp: {data.get('timestamp')}")
+                    return
+                else:
+                    click.echo(f"  Server returned status {response.status_code}")
+            except requests.exceptions.ConnectionError:
+                click.echo(f"  Connection refused on {protocol.upper()}")
+            except Exception as e:
+                click.echo(f"  Error: {e}")
+        
+        click.echo(f"\n✗ Could not connect to {server_ip} on HTTPS or HTTP")
+        click.echo(f"  Possible issues:")
+        click.echo(f"  - Server is not running")
+        click.echo(f"  - Firewall blocking ports 80/443")
+        click.echo(f"  - Wrong IP address")
     except Exception as e:
         click.echo(f'Error: {str(e)}')
 
