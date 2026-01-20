@@ -2947,7 +2947,7 @@ function loadServers() {
                 const statusClass = server.SERVER_STATUS === 'ACTIVE' ? 'status-active' : 'status-standby';
                 const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
-                const showPromote = server.SERVER_TYPE === 'STAND_ALONE';
+                const promoteDisabled = server.SERVER_TYPE !== 'STAND_ALONE' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 html += `<tr class="${rowClass}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
@@ -2959,7 +2959,7 @@ function loadServers() {
                     <td>${new Date(server.created_at).toLocaleDateString()}</td>
                     <td class="actions">
                         <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
-                        ${showPromote ? `<button onclick="promoteServer(${server.id})" class="btn-small btn-primary">Promote PRIMARY</button>` : ''}
+                        <button onclick="promoteServer(${server.id})" class="btn-small btn-primary" ${promoteDisabled}>Promote PRIMARY</button>
                         <button onclick="deleteServer(${server.id})" class="btn-small btn-danger" ${deleteDisabled}>Delete</button>
                     </td>
                 </tr>`;
@@ -3099,6 +3099,9 @@ function deleteServer(serverId) {
 }
 
 function promoteServer(serverId) {
+    const button = event.target;
+    if (button.disabled) return;
+    
     if (confirm('Promote this server to PRIMARY? This can only be done if no PRIMARY server exists.')) {
         fetch(`/api/servers/${serverId}/promote`, {
             method: 'POST',

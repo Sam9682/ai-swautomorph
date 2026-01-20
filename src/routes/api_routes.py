@@ -613,27 +613,34 @@ def platform_status():
 def platform_servers_add():
     """Public endpoint to add server record (no authentication required for cross-platform sync)"""
     try:
+        logger.info("[PLATFORM_SERVERS_ADD] Received request")
         data = request.get_json()
+        logger.info(f"[PLATFORM_SERVERS_ADD] Request data: {data}")
         
         if not data or not isinstance(data, dict):
+            logger.error("[PLATFORM_SERVERS_ADD] Invalid JSON data")
             return jsonify({'error': 'Invalid JSON data'}), 400
         
         required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
                           'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
         
         if not all(field in data for field in required_fields):
+            logger.error(f"[PLATFORM_SERVERS_ADD] Missing required fields. Received: {list(data.keys())}")
             return jsonify({'error': 'Missing required fields'}), 400
         
         # Check if server already exists
+        logger.info(f"[PLATFORM_SERVERS_ADD] Checking if server {data['SERVER_IP']} exists")
         existing = db_manager.execute_query(
             'SELECT id FROM servers WHERE server_ip = %s',
             (data['SERVER_IP'],), fetch_one=True
         )
         
         if existing:
+            logger.info(f"[PLATFORM_SERVERS_ADD] Server {data['SERVER_IP']} already exists with id {existing[0]}")
             return jsonify({'message': 'Server already exists', 'server_id': existing[0]}), 200
         
         # Insert new server
+        logger.info(f"[PLATFORM_SERVERS_ADD] Inserting new server: {data['SERVER_NAME']} ({data['SERVER_IP']})")
         db_manager.execute_query('''
             INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                server_capacity_appli_max, server_status, server_type)
@@ -641,10 +648,11 @@ def platform_servers_add():
         ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
               data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
         
+        logger.info(f"[PLATFORM_SERVERS_ADD] Server {data['SERVER_IP']} added successfully")
         return jsonify({'message': 'Server added successfully'}), 201
         
     except Exception as e:
-        logger.error(f"Error adding server via platform endpoint: {str(e)}")
+        logger.error(f"[PLATFORM_SERVERS_ADD] Error adding server: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/servers/discover', methods=['POST'])
