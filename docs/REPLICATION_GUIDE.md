@@ -141,7 +141,7 @@ Peer Servers: 2
   - server-1 (192.168.1.10) [PRIMARY] - ACTIVE
   - server-2 (192.168.1.11) [SECONDARY] - ACTIVE
 
-Replicated Tables: users, applications, user_applications, billing_activities, sso_tokens
+Replicated Tables: users, applications, user_applications, billing_activities, auth_tokens
 
 === Record Counts ===
   users: 15 records

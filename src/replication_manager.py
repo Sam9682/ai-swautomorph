@@ -7,16 +7,19 @@ import queue
 import time
 import uuid
 import requests
+import urllib3
 import logging
 from datetime import datetime
 from functools import wraps
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
 # Tables to replicate (business-critical only)
 REPLICATED_TABLES = {
-    'users', 'applications', 'user_applications', 
-    'billing_activities', 'sso_tokens'
+    'users', 'applications', 'user_applications', 'deployments', 'application_costs', 'payment_modes',
+    'billing_activities', 'auth_tokens'
 }
 
 # Global sync queue
@@ -28,7 +31,7 @@ SYNC_SECRET = None
 class ReplicationManager:
     def __init__(self, db_manager, sync_secret=None):
         self.db_manager = db_manager
-        self.sync_secret = sync_secret or 'default-sync-secret-change-me'
+        self.sync_secret = sync_secret or 'secret-softfluid'
         self.worker_thread = None
         self.running = False
         global SYNC_SECRET
@@ -84,23 +87,32 @@ class ReplicationManager:
         success = True
         
         for peer_ip in peers:
-            try:
-                response = requests.post(
-                    f"https://{peer_ip}/api/sync/replicate",
-                    json=event,
-                    headers={'X-Sync-Token': self.sync_secret},
-                    timeout=5,
-                    verify=False
-                )
-                
-                if response.status_code == 200:
-                    logger.info(f"[REPLICATION] Synced {event['table']}.{event['operation']} to {peer_ip}")
-                else:
-                    logger.warning(f"[REPLICATION] Failed to sync to {peer_ip}: {response.status_code}")
-                    success = False
-            except Exception as e:
-                logger.error(f"[REPLICATION] Error syncing to {peer_ip}: {e}")
-                success = False
+            # Try HTTPS first, fallback to HTTP
+            for protocol in ['https', 'http']:
+                try:
+                    response = requests.post(
+                        f"{protocol}://{peer_ip}/api/sync/replicate",
+                        json=event,
+                        headers={'X-Sync-Token': self.sync_secret},
+                        timeout=5,
+                        verify=False
+                    )
+                    
+                    if response.status_code == 200:
+                        logger.info(f"[REPLICATION] Synced {event['table']}.{event['operation']} to {peer_ip} via {protocol.upper()}")
+                        break
+                    else:
+                        logger.warning(f"[REPLICATION] Failed to sync to {peer_ip} via {protocol.upper()}: {response.status_code}")
+                        if protocol == 'http':
+                            success = False
+                except requests.exceptions.ConnectionError:
+                    if protocol == 'http':
+                        logger.error(f"[REPLICATION] Cannot connect to {peer_ip} on HTTPS or HTTP")
+                        success = False
+                except Exception as e:
+                    if protocol == 'http':
+                        logger.error(f"[REPLICATION] Error syncing to {peer_ip}: {e}")
+                        success = False
         
         return success
     

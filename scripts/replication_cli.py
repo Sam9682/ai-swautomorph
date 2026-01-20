@@ -58,11 +58,20 @@ def manual_sync(table, server_ip):
         
         # Send each record
         import requests
+        import urllib3
         import time
         from datetime import datetime
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
         sync_secret = os.getenv('SYNC_SECRET', 'default-sync-secret-change-me')
         success_count = 0
+        
+        # Detect protocol
+        protocol = 'https'
+        try:
+            requests.get(f"https://{server_ip}/api/sync/health", timeout=2, verify=False)
+        except:
+            protocol = 'http'
         
         for record in records:
             data = dict(zip(col_names, record))
@@ -78,7 +87,7 @@ def manual_sync(table, server_ip):
             
             try:
                 response = requests.post(
-                    f"https://{server_ip}/api/sync/replicate",
+                    f"{protocol}://{server_ip}/api/sync/replicate",
                     json=event,
                     headers={'X-Sync-Token': sync_secret},
                     timeout=5,
@@ -97,26 +106,42 @@ def manual_sync(table, server_ip):
 def test_connectivity(server_ip):
     """Test connectivity to a peer server"""
     import requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     print(f"\n=== Testing Connectivity: {server_ip} ===\n")
     
-    try:
-        response = requests.get(
-            f"https://{server_ip}/api/sync/health",
-            timeout=5,
-            verify=False
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            print(f"✓ Server is reachable")
-            print(f"  Status: {data.get('status')}")
-            print(f"  Queue Size: {data.get('queue_size')}")
-            print(f"  Timestamp: {data.get('timestamp')}")
-        else:
-            print(f"✗ Server returned status {response.status_code}")
-    except Exception as e:
-        print(f"✗ Connection failed: {e}")
+    # Try HTTPS first, then HTTP
+    for protocol in ['https', 'http']:
+        try:
+            url = f"{protocol}://{server_ip}/api/sync/health"
+            print(f"Trying {protocol.upper()}...")
+            
+            response = requests.get(
+                url,
+                timeout=5,
+                verify=False
+            )
+            
+            if response.status_code == 200:
+                data = response.json()
+                print(f"✓ Server is reachable via {protocol.upper()}")
+                print(f"  Status: {data.get('status')}")
+                print(f"  Queue Size: {data.get('queue_size')}")
+                print(f"  Timestamp: {data.get('timestamp')}")
+                return
+            else:
+                print(f"  Server returned status {response.status_code}")
+        except requests.exceptions.ConnectionError:
+            print(f"  Connection refused on {protocol.upper()}")
+        except Exception as e:
+            print(f"  Error: {e}")
+    
+    print(f"\n✗ Could not connect to {server_ip} on HTTPS or HTTP")
+    print(f"  Possible issues:")
+    print(f"  - Server is not running")
+    print(f"  - Firewall blocking ports 80/443")
+    print(f"  - Wrong IP address")
 
 def main():
     parser = argparse.ArgumentParser(description='Database Replication Management')
