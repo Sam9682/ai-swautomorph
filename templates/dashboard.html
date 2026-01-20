@@ -377,7 +377,10 @@
                     <option value="STAND_BY">STAND_BY</option>
                     <option value="ACTIVE">ACTIVE</option>
                 </select>
-                <input type="text" id="editServerType" placeholder="{{ get_text('server_type') }}" required>
+                <select type="text" id="editServerType" placeholder="{{ get_text('server_type') }}" required>
+                    <option value="PRIMARY">PRIMARY</option>
+                    <option value="SECONDARY">SECONDARY</option>
+                </select>
                 <button type="submit" class="btn btn-secondary">{{ get_text('update_server') }}</button>
                 <button type="button" class="btn btn-secondary" onclick="hideEditServerForm()">{{ get_text('cancel') }}</button>
             </form>

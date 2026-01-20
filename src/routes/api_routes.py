@@ -676,16 +676,16 @@ def api_servers_add_remote():
         
         # Prepare data to send to remote server
         remote_data = {
-            'server_ip': current_ip,
-            'server_name': server_name,
-            'server_capacity_user_max': capacity_user,
-            'server_capacity_appli_max': capacity_appli,
-            'server_status': 'STAND_BY',
-            'server_type': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
+            'SERVER_IP': current_ip,
+            'SERVER_NAME': server_name,
+            'SERVER_CAPACITY_USER_MAX': capacity_user,
+            'SERVER_CAPACITY_APPLI_MAX': capacity_appli,
+            'SERVER_STATUS': 'STAND_BY',
+            'SERVER_TYPE': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
         }
         
-        # Call remote server's /api/database/tables/servers endpoint (server-side)
-        remote_url = f"https://{remote_ip}/api/database/tables/servers"
+        # Call remote server's /api/servers POST endpoint (symmetric call)
+        remote_url = f"https://{remote_ip}/api/servers"
         
         response = requests.post(
             remote_url,
