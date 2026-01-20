@@ -173,7 +173,19 @@ check_status() {
 }
 
 check_flask_status() {
-    if [ -f "${PID_FILE:-./conf/app.pid}" ]; then
+    # Check for Gunicorn PID file first (primary)
+    if [ -f "conf/gunicorn.pid" ]; then
+        PID=$(cat "conf/gunicorn.pid")
+        if kill -0 "$PID" 2>/dev/null; then
+            PROCESS_OWNER=$(ps -o user= -p "$PID" 2>/dev/null || echo "unknown")
+            PROCESS_CMD=$(ps -o cmd= -p "$PID" 2>/dev/null | head -c 50)
+            echo -e "  $OK Flask application: Running (PID: $PID, Owner: $PROCESS_OWNER)"
+            echo -e "      Command: $PROCESS_CMD..."
+        else
+            echo -e "  $ERROR Flask application: Not running (stale PID: $PID)"
+        fi
+    # Fallback to legacy app.pid
+    elif [ -f "${PID_FILE:-./conf/app.pid}" ]; then
         PID=$(cat "${PID_FILE:-./conf/app.pid}")
         if kill -0 "$PID" 2>/dev/null; then
             PROCESS_OWNER=$(ps -o user= -p "$PID" 2>/dev/null || echo "unknown")
@@ -583,8 +595,33 @@ remove_gitea() {
 stop_flask_service() {
     local success=true
     
-    # First try to stop using PID file
-    if [ -f "./conf/app.pid" ]; then
+    # Try to stop using Gunicorn PID file first
+    if [ -f "./conf/gunicorn.pid" ]; then
+        PID=$(cat ./conf/gunicorn.pid)
+        if kill -0 "$PID" 2>/dev/null; then
+            if kill "$PID" 2>/dev/null; then
+                sleep 2
+                # Force kill if still running
+                if kill -0 "$PID" 2>/dev/null; then
+                    if kill -9 "$PID" 2>/dev/null; then
+                        echo "  ✅ Application force stopped (PID: $PID)"
+                    else
+                        echo "  ⚠️ Could not force stop process (PID: $PID) - permission denied"
+                        success=false
+                    fi
+                else
+                    echo "  ✅ Application stopped (PID: $PID)"
+                fi
+            else
+                echo "  ⚠️ Could not stop process (PID: $PID) - permission denied"
+                success=false
+            fi
+        else
+            echo "  ⚠️ Process not running (stale PID: $PID)"
+        fi
+        rm -f ./conf/gunicorn.pid
+    # Fallback to legacy app.pid
+    elif [ -f "./conf/app.pid" ]; then
         PID=$(cat ./conf/app.pid)
         if kill -0 "$PID" 2>/dev/null; then
             if kill "$PID" 2>/dev/null; then
@@ -609,7 +646,7 @@ stop_flask_service() {
         fi
         rm -f ./conf/app.pid
     else
-        echo "  ⚠️ No ./conf/app.pid file found"
+        echo "  ⚠️ No PID file found (./conf/gunicorn.pid or ./conf/app.pid)"
     fi
     
     # Force kill any remaining Gunicorn processes
@@ -760,22 +797,40 @@ restart_flask_service() {
     # Create required directories
     mkdir -p logs conf
     
-    # Start Gunicorn with production configuration
-    if nohup gunicorn --config gunicorn.conf.py wsgi:application > /dev/null 2>&1 & then
-        NEW_PID=$!
-        echo $NEW_PID > ./conf/app.pid
-        
-        # Wait a moment and check if the process started successfully
+    # Activate virtual environment if available
+    if [ -d ".venv" ]; then
+        source .venv/bin/activate
+    fi
+    
+    # Find gunicorn executable
+    GUNICORN_CMD=""
+    if [ -d ".venv" ] && [ -f ".venv/bin/gunicorn" ]; then
+        GUNICORN_CMD=".venv/bin/gunicorn"
+    elif command -v gunicorn >/dev/null 2>&1; then
+        GUNICORN_CMD="gunicorn"
+    else
+        echo "  ❌ Gunicorn not found"
+        return 1
+    fi
+    
+    # Start Gunicorn (daemon mode is configured in gunicorn.conf.py)
+    if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application; then
+        # Wait for daemon to start and get PID from pidfile
         sleep 2
-        if kill -0 "$NEW_PID" 2>/dev/null; then
-            echo "  ✅ Flask application restarted with Gunicorn (PID: $NEW_PID)"
+        if [ -f "conf/gunicorn.pid" ]; then
+            NEW_PID=$(cat conf/gunicorn.pid)
+            if kill -0 "$NEW_PID" 2>/dev/null; then
+                echo "  ✅ Flask application restarted with Gunicorn (PID: $NEW_PID)"
+            else
+                echo "  ❌ Gunicorn failed to restart (check logs: logs/gunicorn_error.log)"
+                return 1
+            fi
         else
-            echo "  ❌ Gunicorn failed to restart (check logs: logs/gunicorn_error.log)"
-            rm -f ./conf/app.pid
+            echo "  ❌ Gunicorn PID file not created (check logs: logs/gunicorn_error.log)"
             return 1
         fi
     else
-        echo "  ❌ Failed to restart Gunicorn"
+        echo "  ❌ Failed to restart Gunicorn (check logs: logs/gunicorn_error.log)"
         return 1
     fi
 }
@@ -1162,17 +1217,21 @@ start_flask_application() {
     fi
     
     # Start Gunicorn in daemon mode
-    if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application --daemon; then
-        # Wait for daemon to start and get PID
+    if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application; then
+        # Wait for daemon to start and get PID from pidfile
         sleep 2
-        GUNICORN_PID=$(pgrep -f "gunicorn.*wsgi:application" | head -1)
-        if [ -n "$GUNICORN_PID" ]; then
-            echo $GUNICORN_PID > ./conf/app.pid
-            echo "  ✅ Flask application started with Gunicorn (PID: $GUNICORN_PID)"
-            echo "  🌐 Application available at: http://localhost:5000"
-            echo "  👥 Workers: $(python3 -c 'import multiprocessing; print(multiprocessing.cpu_count() * 2 + 1)')"
+        if [ -f "./conf/gunicorn.pid" ]; then
+            GUNICORN_PID=$(cat ./conf/gunicorn.pid)
+            if kill -0 "$GUNICORN_PID" 2>/dev/null; then
+                echo "  ✅ Flask application started with Gunicorn (PID: $GUNICORN_PID)"
+                echo "  🌐 Application available at: http://localhost:5000"
+                echo "  👥 Workers: $(python3 -c 'import multiprocessing; print(multiprocessing.cpu_count() * 2 + 1)')"
+            else
+                echo "  ❌ Gunicorn failed to start (check logs: logs/gunicorn_error.log)"
+                return 1
+            fi
         else
-            echo "  ❌ Gunicorn failed to start (check logs: logs/gunicorn_error.log)"
+            echo "  ❌ Gunicorn PID file not created (check logs: logs/gunicorn_error.log)"
             return 1
         fi
     else
