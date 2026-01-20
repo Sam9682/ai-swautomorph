@@ -139,6 +139,7 @@ class PostgreSQLManager:
         converted_query = convert_sqlite_to_postgres_query(query)
         
         for attempt in range(max_retries):
+            conn = None
             try:
                 with self.get_db_connection() as conn:
                     with conn.cursor() as cursor:
@@ -147,15 +148,29 @@ class PostgreSQLManager:
                         else:
                             cursor.execute(converted_query)
                         
+                        # Only fetch if query returns results
                         if fetch_one:
-                            result = cursor.fetchone()
+                            if cursor.description:
+                                result = cursor.fetchone()
+                            else:
+                                result = None
                         elif fetch_all:
-                            result = cursor.fetchall()
+                            if cursor.description:
+                                result = cursor.fetchall()
+                            else:
+                                result = []
                         else:
                             result = cursor.rowcount
                         
                         conn.commit()
                         return result
+            except psycopg2.ProgrammingError as e:
+                # Handle "no results to fetch" error gracefully
+                if "no results to fetch" in str(e) or "PGRES_TUPLES_OK" in str(e):
+                    if conn:
+                        conn.commit()
+                    return None if (fetch_one or fetch_all) else 0
+                raise
             except (psycopg2.OperationalError, psycopg2.InterfaceError) as e:
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
