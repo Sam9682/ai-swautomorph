@@ -205,6 +205,12 @@ def api_applications():
             (name, description, git_url, git_repo_size)
         )
         
+        # Queue replication event
+        from src.replication_manager import queue_replication_event
+        queue_replication_event('applications', 'INSERT', {
+            'name': name, 'description': description, 'git_url': git_url, 'git_repo_size': git_repo_size
+        })
+        
         # Assign new application to all existing users with URLs
         from ..database_postgres import assign_app_to_all_users
         assign_app_to_all_users(app_id, name)

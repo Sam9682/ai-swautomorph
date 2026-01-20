@@ -30,6 +30,13 @@ def register():
                 VALUES (%s, %s, %s, %s, %s, %s)
             ''', (username, email, password_hash, first_name, last_name, True))
             
+            # Queue replication event
+            from src.replication_manager import queue_replication_event
+            queue_replication_event('users', 'INSERT', {
+                'username': username, 'email': email, 'password_hash': password_hash,
+                'first_name': first_name, 'last_name': last_name, 'suspended': True
+            })
+            
             if request.is_json:
                 return jsonify({'message': 'User registered successfully'}), 201
             return redirect(url_for('main.index'))

@@ -17,6 +17,7 @@ from .routes.api_routes import api_bp
 from .routes.genai_routes import genai_bp
 from .routes.billing_routes import billing_bp
 from .routes.orchestrator_routes import orchestrator_bp
+from .routes.replication_routes import replication_bp, init_replication_routes
 
 # Redirect all print() statements to log files
 class PrintLogger:
@@ -58,6 +59,18 @@ def create_app():
         except Exception as e:
             print(f"[ERROR] Orchestrator initialization failed: {e}")
             # Continue without orchestrator if it fails
+        
+        # Initialize replication manager
+        try:
+            from .replication_manager import ReplicationManager
+            from .database_postgres import db_manager
+            sync_secret = os.getenv('SYNC_SECRET', 'default-sync-secret-change-me')
+            replication_manager = ReplicationManager(db_manager, sync_secret)
+            replication_manager.start_worker()
+            init_replication_routes(db_manager, sync_secret)
+            print("[REPLICATION] Manager initialized and worker started")
+        except Exception as e:
+            print(f"[ERROR] Replication initialization failed: {e}")
     
     # Language support
     def get_language():
@@ -85,5 +98,6 @@ def create_app():
     app.register_blueprint(genai_bp)
     app.register_blueprint(billing_bp)
     app.register_blueprint(orchestrator_bp)
+    app.register_blueprint(replication_bp)
     
     return app
