@@ -637,7 +637,7 @@ def api_servers_discover():
 
 @api_bp.route('/servers/add-remote', methods=['POST'])
 def api_servers_add_remote():
-    """Add reciprocal server record on remote SwAutoMorph instance"""
+    """Add reciprocal server record on remote SwAutoMorph instance (server-side proxy)"""
     if 'user_id' not in session:
         return jsonify({'error': 'Authentication required'}), 401
     
@@ -664,7 +664,6 @@ def api_servers_add_remote():
         )
         
         if not current_server:
-            # Use defaults if current server not in database
             server_name = 'primary-server'
             server_type = 'PRIMARY'
             capacity_user = 20
@@ -677,29 +676,28 @@ def api_servers_add_remote():
         
         # Prepare data to send to remote server
         remote_data = {
-            'SERVER_IP': current_ip,
-            'SERVER_NAME': server_name,
-            'SERVER_CAPACITY_USER_MAX': capacity_user,
-            'SERVER_CAPACITY_APPLI_MAX': capacity_appli,
-            'SERVER_STATUS': 'STAND_BY',
-            'SERVER_TYPE': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
+            'server_ip': current_ip,
+            'server_name': server_name,
+            'server_capacity_user_max': capacity_user,
+            'server_capacity_appli_max': capacity_appli,
+            'server_status': 'STAND_BY',
+            'server_type': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
         }
         
-        # Call remote server's /api/database/tables/servers endpoint
-        protocol = 'https' if request.is_secure else 'http'
-        remote_url = f"{protocol}://{remote_ip}/api/database/tables/servers"
+        # Call remote server's /api/database/tables/servers endpoint (server-side)
+        remote_url = f"https://{remote_ip}/api/database/tables/servers"
         
         response = requests.post(
             remote_url,
             json=remote_data,
             timeout=10,
-            verify=False  # Skip SSL verification for internal network
+            verify=False
         )
         
         if response.status_code in [200, 201]:
             return jsonify({'message': 'Reciprocal server record added successfully'})
         else:
-            return jsonify({'error': f'Remote server returned {response.status_code}'}), 500
+            return jsonify({'error': f'Remote server returned {response.status_code}: {response.text}'}), 500
             
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'Failed to connect to remote server: {str(e)}'}), 500
