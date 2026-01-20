@@ -198,7 +198,7 @@ def mount_s3fs(bucket_name, mount_point, passwd_file):
 
 @cli.command()
 @click.option('--show-env', is_flag=True, help='Show current environment settings')
-def status(show_env):
+def db_status(show_env):
     """Show application status and configuration"""
     click.echo('Database Type: PostgreSQL')
     

@@ -3174,26 +3174,29 @@ if (newServerForm) {
                         } else {
                             statusDiv.textContent = '✅ Server added on both sides!';
                         }
+                        console.log(statusDiv.textContent);
                         setTimeout(() => {
                             hideAddServerForm();
                             loadServers();
-                        }, 2000);
+                        }, 10000);
                     })
                     .catch(error => {
                         statusDiv.textContent = '✅ Server added locally. ⚠️ Remote record failed: ' + error.message;
+                        console.log(statusDiv.textContent);
                         setTimeout(() => {
                             hideAddServerForm();
                             loadServers();
-                        }, 2000);
+                        }, 10000);
                     });
                 } else {
                     statusDiv.style.background = '#fff3e0';
                     statusDiv.style.color = '#e65100';
                     statusDiv.textContent = '⚠️ No SwAutoMorph detected. Server added locally only.';
+                    console.log(statusDiv.textContent);
                     setTimeout(() => {
                         hideAddServerForm();
                         loadServers();
-                    }, 2000);
+                    }, 10000);
                 }
             }
         })
