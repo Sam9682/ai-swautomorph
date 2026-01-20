@@ -344,7 +344,10 @@
         <div id="addServerForm" class="server-form" style="display: none;">
             <h3>{{ get_text('add_new_server') }}</h3>
             <form id="newServerForm">
-                <input type="text" id="newServerIP" placeholder="{{ get_text('server_ip') }}" required>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="newServerIP" placeholder="{{ get_text('server_ip') }}" required style="flex: 1;">
+                    <button type="button" class="btn btn-primary" onclick="discoverServer()" style="white-space: nowrap;">🔍 DISCOVER</button>
+                </div>
                 <input type="text" id="newServerName" placeholder="{{ get_text('server_name') }}" required>
                 <input type="number" id="newServerUserMax" placeholder="{{ get_text('max_users') }}" required>
                 <input type="number" id="newServerAppliMax" placeholder="{{ get_text('max_applications') }}" required>
@@ -2969,6 +2972,82 @@ function showAddServerForm() {
 function hideAddServerForm() {
     document.getElementById('addServerForm').style.display = 'none';
     document.getElementById('newServerForm').reset();
+    document.getElementById('discoveryStatus').style.display = 'none';
+}
+
+function discoverServer() {
+    const ipInput = document.getElementById('newServerIP');
+    const remoteIP = ipInput.value.trim();
+    
+    if (!remoteIP) {
+        alert('Please enter a remote IP address first');
+        return;
+    }
+    
+    const statusDiv = document.getElementById('discoveryStatus');
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#e3f2fd';
+    statusDiv.style.color = '#1976d2';
+    statusDiv.textContent = '🔍 Discovering server at ' + remoteIP + '...';
+    
+    // Disable form inputs during discovery
+    const formInputs = document.querySelectorAll('#newServerForm input, #newServerForm select, #newServerForm button');
+    formInputs.forEach(input => input.disabled = true);
+    
+    // Use local API as proxy to avoid CORS issues
+    fetch('/api/servers/discover', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({remote_ip: remoteIP})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        
+        // Success - auto-fill form with discovered data
+        statusDiv.style.background = '#e8f5e9';
+        statusDiv.style.color = '#2e7d32';
+        statusDiv.textContent = '✅ SwAutoMorph discovered! Auto-filling information...';
+        
+        // Auto-fill form fields
+        document.getElementById('newServerName').value = data.server_name || 'unknown';
+        document.getElementById('newServerType').value = data.role || 'SECONDARY';
+        
+        // Set reasonable defaults if not provided
+        if (!document.getElementById('newServerUserMax').value) {
+            document.getElementById('newServerUserMax').value = 20;
+        }
+        if (!document.getElementById('newServerAppliMax').value) {
+            document.getElementById('newServerAppliMax').value = 100;
+        }
+        
+        // Re-enable form inputs
+        formInputs.forEach(input => input.disabled = false);
+    })
+    .catch(error => {
+        // Error or no response - offer manual entry
+        statusDiv.style.background = '#fff3e0';
+        statusDiv.style.color = '#e65100';
+        statusDiv.innerHTML = `⚠️ No SwAutoMorph detected at ${remoteIP}<br>
+            <small>Error: ${error.message}</small><br>
+            <small>Please enter server information manually</small>`;
+        
+        // Re-enable form inputs for manual entry
+        formInputs.forEach(input => input.disabled = false);
+        
+        // Set default values if fields are empty
+        if (!document.getElementById('newServerName').value) {
+            document.getElementById('newServerName').value = 'server-' + remoteIP.replace(/\./g, '-');
+        }
+        if (!document.getElementById('newServerUserMax').value) {
+            document.getElementById('newServerUserMax').value = 20;
+        }
+        if (!document.getElementById('newServerAppliMax').value) {
+            document.getElementById('newServerAppliMax').value = 100;
+        }
+    });
 }
 
 function showEditServerForm() {
@@ -3030,8 +3109,9 @@ if (newServerForm) {
         statusDiv.style.display = 'block';
         statusDiv.style.background = '#e3f2fd';
         statusDiv.style.color = '#1976d2';
-        statusDiv.textContent = '🔍 Checking for SwAutoMorph on ' + formData.SERVER_IP + '...';
+        statusDiv.textContent = '🔍 Adding server ' + formData.SERVER_IP + '...';
         
+        // Add server to local database
         fetch('/api/servers', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -3044,19 +3124,46 @@ if (newServerForm) {
                 statusDiv.style.color = '#c62828';
                 statusDiv.textContent = '❌ Error: ' + data.error;
             } else {
+                // Success - now try to add reciprocal record on remote server
                 if (data.discovered) {
                     statusDiv.style.background = '#e8f5e9';
                     statusDiv.style.color = '#2e7d32';
-                    statusDiv.textContent = '✅ SwAutoMorph discovered! Server added as ' + data.server_type;
+                    statusDiv.textContent = '✅ Server added locally. Adding reciprocal record on remote...';
+                    
+                    // Call remote server API to add this server
+                    fetch('/api/servers/add-remote', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({remote_ip: formData.SERVER_IP})
+                    })
+                    .then(response => response.json())
+                    .then(remoteData => {
+                        if (remoteData.error) {
+                            statusDiv.textContent = '✅ Server added locally. ⚠️ Remote record failed: ' + remoteData.error;
+                        } else {
+                            statusDiv.textContent = '✅ Server added on both sides!';
+                        }
+                        setTimeout(() => {
+                            hideAddServerForm();
+                            loadServers();
+                        }, 2000);
+                    })
+                    .catch(error => {
+                        statusDiv.textContent = '✅ Server added locally. ⚠️ Remote record failed: ' + error.message;
+                        setTimeout(() => {
+                            hideAddServerForm();
+                            loadServers();
+                        }, 2000);
+                    });
                 } else {
                     statusDiv.style.background = '#fff3e0';
                     statusDiv.style.color = '#e65100';
-                    statusDiv.textContent = '⚠️ No SwAutoMorph detected. Server added as ' + data.server_type;
+                    statusDiv.textContent = '⚠️ No SwAutoMorph detected. Server added locally only.';
+                    setTimeout(() => {
+                        hideAddServerForm();
+                        loadServers();
+                    }, 2000);
                 }
-                setTimeout(() => {
-                    hideAddServerForm();
-                    loadServers();
-                }, 2000);
             }
         })
         .catch(error => {

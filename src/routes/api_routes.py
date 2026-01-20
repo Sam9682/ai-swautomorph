@@ -586,7 +586,7 @@ def platform_status():
             fetch_all=True
         )
         
-        return jsonify({
+        response = jsonify({
             'platform': 'SwAutoMorph',
             'version': '1.0',
             'role': role,
@@ -594,6 +594,115 @@ def platform_status():
             'server_name': name,
             'servers': [{'ip': s[0], 'name': s[1], 'type': s[2]} for s in servers]
         })
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept'
+        return response
+    except Exception as e:
+        response = jsonify({'error': str(e)})
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        return response, 500
+
+@api_bp.route('/servers/discover', methods=['POST'])
+def api_servers_discover():
+    """Proxy endpoint to discover remote servers (avoids CORS issues)"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        data = request.get_json()
+        remote_ip = data.get('remote_ip')
+        
+        if not remote_ip:
+            return jsonify({'error': 'Remote IP required'}), 400
+        
+        # Use check_remote_platform which handles SSL verification
+        remote_status = check_remote_platform(remote_ip)
+        
+        if remote_status and remote_status.get('platform') == 'SwAutoMorph':
+            return jsonify(remote_status)
+        else:
+            return jsonify({'error': 'No SwAutoMorph platform detected'}), 404
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/servers/add-remote', methods=['POST'])
+def api_servers_add_remote():
+    """Add reciprocal server record on remote SwAutoMorph instance"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        data = request.get_json()
+        remote_ip = data.get('remote_ip')
+        
+        if not remote_ip:
+            return jsonify({'error': 'Remote IP required'}), 400
+        
+        # Get current server info
+        current_ip = get_current_server_ip()
+        current_server = db_manager.execute_query(
+            'SELECT server_name, server_type, server_capacity_user_max, server_capacity_appli_max FROM servers WHERE server_ip = %s',
+            (current_ip,), fetch_one=True
+        )
+        
+        if not current_server:
+            # Use defaults if current server not in database
+            server_name = 'primary-server'
+            server_type = 'PRIMARY'
+            capacity_user = 20
+            capacity_appli = 100
+        else:
+            server_name = current_server[0]
+            server_type = current_server[1]
+            capacity_user = current_server[2]
+            capacity_appli = current_server[3]
+        
+        # Prepare data to send to remote server
+        remote_data = {
+            'SERVER_IP': current_ip,
+            'SERVER_NAME': server_name,
+            'SERVER_CAPACITY_USER_MAX': capacity_user,
+            'SERVER_CAPACITY_APPLI_MAX': capacity_appli,
+            'SERVER_STATUS': 'STAND_BY',
+            'SERVER_TYPE': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
+        }
+        
+        # Call remote server's /api/database/tables/servers endpoint
+        protocol = 'https' if request.is_secure else 'http'
+        remote_url = f"{protocol}://{remote_ip}/api/database/tables/servers"
+        
+        response = requests.post(
+            remote_url,
+            json=remote_data,
+            timeout=10,
+            verify=False  # Skip SSL verification for internal network
+        )
+        
+        if response.status_code in [200, 201]:
+            return jsonify({'message': 'Reciprocal server record added successfully'})
+        else:
+            return jsonify({'error': f'Remote server returned {response.status_code}'}), 500
+            
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'Failed to connect to remote server: {str(e)}'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
