@@ -609,6 +609,44 @@ def platform_status():
         response.headers['Access-Control-Allow-Origin'] = '*'
         return response, 500
 
+@api_bp.route('/platform/servers/add', methods=['POST'])
+def platform_servers_add():
+    """Public endpoint to add server record (no authentication required for cross-platform sync)"""
+    try:
+        data = request.get_json()
+        
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Invalid JSON data'}), 400
+        
+        required_fields = ['SERVER_IP', 'SERVER_NAME', 'SERVER_CAPACITY_USER_MAX', 
+                          'SERVER_CAPACITY_APPLI_MAX', 'SERVER_STATUS', 'SERVER_TYPE']
+        
+        if not all(field in data for field in required_fields):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        # Check if server already exists
+        existing = db_manager.execute_query(
+            'SELECT id FROM servers WHERE server_ip = %s',
+            (data['SERVER_IP'],), fetch_one=True
+        )
+        
+        if existing:
+            return jsonify({'message': 'Server already exists', 'server_id': existing[0]}), 200
+        
+        # Insert new server
+        db_manager.execute_query('''
+            INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
+                               server_capacity_appli_max, server_status, server_type)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
+              data['SERVER_CAPACITY_APPLI_MAX'], data['SERVER_STATUS'], data['SERVER_TYPE']))
+        
+        return jsonify({'message': 'Server added successfully'}), 201
+        
+    except Exception as e:
+        logger.error(f"Error adding server via platform endpoint: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/servers/discover', methods=['POST'])
 def api_servers_discover():
     """Proxy endpoint to discover remote servers (avoids CORS issues)"""
@@ -662,36 +700,36 @@ def api_servers_add_remote():
         if not remote_ip:
             return jsonify({'error': 'Remote IP required'}), 400
         
-        # Get current server info
+        # Get current PRIMARY server details from local database
         current_ip = get_current_server_ip()
-        current_server = db_manager.execute_query(
-            'SELECT server_name, server_type, server_capacity_user_max, server_capacity_appli_max FROM servers WHERE server_ip = %s',
-            (current_ip,), fetch_one=True
+        primary_server = db_manager.execute_query(
+            'SELECT server_ip, server_name, server_type, server_capacity_user_max, server_capacity_appli_max, server_status FROM servers WHERE server_type = %s LIMIT 1',
+            ('PRIMARY',), fetch_one=True
         )
         
-        if not current_server:
-            server_name = 'primary-server'
-            server_type = 'PRIMARY'
-            capacity_user = 20
-            capacity_appli = 100
-        else:
-            server_name = current_server[0]
-            server_type = current_server[1]
-            capacity_user = current_server[2]
-            capacity_appli = current_server[3]
+        if not primary_server:
+            return jsonify({'error': 'No PRIMARY server found in local database'}), 400
         
-        # Prepare data to send to remote server
+        # Use PRIMARY server details
+        server_ip = primary_server[0]
+        server_name = primary_server[1]
+        server_type = primary_server[2]
+        capacity_user = primary_server[3]
+        capacity_appli = primary_server[4]
+        server_status = primary_server[5]
+        
+        # Prepare data to send to remote server (send PRIMARY server info)
         remote_data = {
-            'SERVER_IP': current_ip,
+            'SERVER_IP': server_ip,
             'SERVER_NAME': server_name,
             'SERVER_CAPACITY_USER_MAX': capacity_user,
             'SERVER_CAPACITY_APPLI_MAX': capacity_appli,
-            'SERVER_STATUS': 'STAND_BY',
-            'SERVER_TYPE': 'SECONDARY' if server_type == 'PRIMARY' else 'PRIMARY'
+            'SERVER_STATUS': server_status,
+            'SERVER_TYPE': server_type
         }
         
-        # Call remote server's /api/servers POST endpoint (symmetric call)
-        remote_url = f"https://{remote_ip}/api/servers"
+        # Call remote server's /api/platform/servers/add endpoint (public endpoint)
+        remote_url = f"https://{remote_ip}/api/platform/servers/add"
         
         response = requests.post(
             remote_url,
