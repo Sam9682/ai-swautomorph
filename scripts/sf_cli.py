@@ -601,9 +601,14 @@ def replication_sync_table(table, server_ip):
         with click.progressbar(records, label='Syncing') as bar:
             for record in bar:
                 data = dict(zip(col_names, record))
+                # Convert datetime objects to ISO format strings
+                for key, value in data.items():
+                    if isinstance(value, datetime):
+                        data[key] = value.isoformat()
+                
                 event = {
                     'event_id': f"manual-{table}-{time.time()}",
-                    'timestamp': datetime.utcnow().isoformat(),
+                    'timestamp': datetime.now().isoformat(),
                     'table': table,
                     'operation': 'INSERT',
                     'data': data,
@@ -620,13 +625,100 @@ def replication_sync_table(table, server_ip):
                         verify=False
                     )
                     if response.status_code == 200:
-                        success_count += 1
-                except:
-                    pass
+                        result = response.json()
+                        if result.get('status') in ['applied', 'skipped']:
+                            success_count += 1
+                except Exception as e:
+                    click.echo(f"\nError syncing record {data.get('id')}: {e}")
         
         click.echo(f"\nSync complete: {success_count}/{len(records)} records synced successfully")
     except Exception as e:
         click.echo(f'Error: {str(e)}')
+
+@cli.command()
+@click.argument('server_ip')
+def replication_sync_all_tables(server_ip):
+    """Sync all replicated tables to remote server"""
+    tables = ['users', 'application_costs', 'payment_modes', 'applications', 
+              'auth_tokens', 'user_applications', 'billing_activities']
+    
+    click.echo(f"\nSyncing all tables to {server_ip}\n")
+    
+    for table in tables:
+        click.echo(f"\n{'='*60}")
+        click.echo(f"Syncing table: {table}")
+        click.echo('='*60)
+        
+        try:
+            from src.database_postgres import db_manager
+            import requests
+            import urllib3
+            import time
+            from datetime import datetime
+            
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            records = db_manager.execute_query(f"SELECT * FROM {table}", fetch_all=True)
+            click.echo(f"Found {len(records)} records")
+            
+            if not records:
+                click.echo("No records to sync")
+                continue
+            
+            columns = db_manager.execute_query(
+                f"SELECT column_name FROM information_schema.columns WHERE table_name = '{table}' ORDER BY ordinal_position",
+                fetch_all=True
+            )
+            col_names = [c[0] for c in columns]
+            
+            sync_secret = os.environ.get('SYNC_SECRET', 'default-sync-secret-change-me')
+            success_count = 0
+            
+            protocol = 'https'
+            try:
+                requests.get(f"https://{server_ip}/api/sync/health", timeout=2, verify=False)
+            except:
+                protocol = 'http'
+            
+            with click.progressbar(records, label='Syncing') as bar:
+                for record in bar:
+                    data = dict(zip(col_names, record))
+                    for key, value in data.items():
+                        if isinstance(value, datetime):
+                            data[key] = value.isoformat()
+                    
+                    event = {
+                        'event_id': f"manual-{table}-{time.time()}",
+                        'timestamp': datetime.now().isoformat(),
+                        'table': table,
+                        'operation': 'INSERT',
+                        'data': data,
+                        'primary_key': {'id': data.get('id')},
+                        'version': int(time.time() * 1000)
+                    }
+                    
+                    try:
+                        response = requests.post(
+                            f"{protocol}://{server_ip}/api/sync/replicate",
+                            json=event,
+                            headers={'X-Sync-Token': sync_secret},
+                            timeout=5,
+                            verify=False
+                        )
+                        if response.status_code == 200:
+                            result = response.json()
+                            if result.get('status') in ['applied', 'skipped']:
+                                success_count += 1
+                    except Exception as e:
+                        click.echo(f"\nError syncing record {data.get('id')}: {e}")
+            
+            click.echo(f"Completed: {success_count}/{len(records)} records synced")
+        except Exception as e:
+            click.echo(f"Error syncing {table}: {str(e)}")
+    
+    click.echo(f"\n{'='*60}")
+    click.echo("All tables sync completed")
+    click.echo('='*60)
 
 @cli.command()
 @click.argument('server_ip')

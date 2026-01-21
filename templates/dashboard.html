@@ -2948,6 +2948,7 @@ function loadServers() {
                 const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
                 const promoteDisabled = server.SERVER_TYPE !== 'STAND_ALONE' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+                const promoteSecondaryDisabled = (server.SERVER_TYPE === 'PRIMARY' || server.SERVER_TYPE === 'SECONDARY') ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 html += `<tr class="${rowClass}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
@@ -2960,6 +2961,7 @@ function loadServers() {
                     <td class="actions">
                         <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
                         <button onclick="promoteServer(${server.id})" class="btn-small btn-primary" ${promoteDisabled}>Promote PRIMARY</button>
+                        <button onclick="promoteSecondaryServer(${server.id})" class="btn-small btn-secondary" ${promoteSecondaryDisabled}>Promote SECONDARY</button>
                         <button onclick="deleteServer(${server.id})" class="btn-small btn-danger" ${deleteDisabled}>Delete</button>
                     </td>
                 </tr>`;
@@ -3118,6 +3120,30 @@ function promoteServer(serverId) {
         })
         .catch(error => {
             alert('Error promoting server');
+        });
+    }
+}
+
+function promoteSecondaryServer(serverId) {
+    const button = event.target;
+    if (button.disabled) return;
+    
+    if (confirm('Promote this server to SECONDARY?')) {
+        fetch(`/api/servers/${serverId}/promote-secondary`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message);
+                loadServers();
+            }
+        })
+        .catch(error => {
+            alert('Error promoting server to SECONDARY');
         });
     }
 }

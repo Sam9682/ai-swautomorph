@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # Tables to replicate (business-critical only)
 REPLICATED_TABLES = {
-    'users', 'applications', 'user_applications', 'deployments', 'application_costs', 'payment_modes',
+    'users', 'applications', 'user_applications', 'application_costs', 'payment_modes',
     'billing_activities', 'auth_tokens'
 }
 
@@ -217,7 +217,9 @@ def apply_replication_event(db_manager, event):
         if operation == 'INSERT':
             columns = ', '.join(data.keys())
             placeholders = ', '.join(['%s'] * len(data))
-            query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
+            # Use UPSERT to update existing records instead of skipping
+            update_clause = ', '.join([f"{k} = EXCLUDED.{k}" for k in data.keys() if k != 'id'])
+            query = f"INSERT INTO {table} ({columns}) VALUES ({placeholders}) ON CONFLICT (id) DO UPDATE SET {update_clause}"
             db_manager.execute_query(query, tuple(data.values()))
             
         elif operation == 'UPDATE':
