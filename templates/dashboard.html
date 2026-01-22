@@ -2940,22 +2940,28 @@ function deleteRecord(tableName, recordId) {
 function loadServers() {
     fetch('/api/servers')
         .then(response => response.json())
-        .then(servers => {
+        .then(data => {
+            const servers = data.servers || data;
+            const localIp = data.local_ip;
             const grid = document.getElementById('serversGrid');
             if (servers.length === 0) {
                 grid.innerHTML = '<p>No servers found.</p>';
                 return;
             }
             
+            const hasPrimary = servers.some(s => s.SERVER_TYPE === 'PRIMARY');
+            
             let html = '<table class="servers-table"><thead><tr><th>ID</th><th>IP</th><th>Name</th><th>Max Users</th><th>Max Apps</th><th>Status</th><th>Type</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
             servers.forEach(server => {
                 const statusClass = server.SERVER_STATUS === 'ACTIVE' ? 'status-active' : 'status-standby';
                 const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
+                const isLocalServer = localIp && server.SERVER_IP === localIp;
+                const localServerStyle = isLocalServer ? 'background-color: yellow;' : '';
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
                 const promoteDisabled = server.SERVER_TYPE !== 'STAND_ALONE' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
-                const promoteSecondaryDisabled = (server.SERVER_TYPE === 'PRIMARY' || server.SERVER_TYPE === 'SECONDARY') ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+                const promoteSecondaryDisabled = (server.SERVER_TYPE === 'PRIMARY' || server.SERVER_TYPE === 'SECONDARY' || !hasPrimary) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 const syncDisabled = server.SERVER_TYPE !== 'SECONDARY' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
-                html += `<tr class="${rowClass}">
+                html += `<tr class="${rowClass}" style="${localServerStyle}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
                     <td>${server.SERVER_NAME}</td>

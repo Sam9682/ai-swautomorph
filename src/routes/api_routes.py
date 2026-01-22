@@ -771,6 +771,8 @@ def api_servers():
             FROM servers ORDER BY id
         ''', fetch_all=True)
         
+        local_ip = get_current_server_ip()
+        
         servers_list = [{
             'id': row[0],
             'SERVER_IP': row[1],
@@ -782,7 +784,7 @@ def api_servers():
             'created_at': row[7]
         } for row in servers]
         
-        return jsonify(servers_list)
+        return jsonify({'servers': servers_list, 'local_ip': local_ip})
     
     elif request.method == 'POST':
         data = request.get_json()

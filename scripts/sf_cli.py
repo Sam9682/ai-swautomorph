@@ -5,7 +5,6 @@ import json
 import subprocess
 import os
 import sys
-from werkzeug.security import generate_password_hash
 
 # Add the parent directory to the path so we can import from src
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -759,6 +758,45 @@ def replication_test_sync(server_ip):
         click.echo(f"  - Wrong IP address")
     except Exception as e:
         click.echo(f'Error: {str(e)}')
+
+@cli.command()
+def install_as_systemctl_service():
+    """Install SWAutomorph as systemd service"""
+    import shutil
+    
+    service_file = os.path.join(os.path.dirname(__file__), 'swautomorph-controlplan.service')
+    systemd_path = '/etc/systemd/system/swautomorph-controlplan.service'
+    
+    if not os.path.exists(service_file):
+        click.echo(f'✗ Service file not found: {service_file}')
+        sys.exit(1)
+    
+    try:
+        click.echo('Installing systemd service...')
+        shutil.copy(service_file, systemd_path)
+        click.echo(f'✓ Copied service file to {systemd_path}')
+        
+        subprocess.run(['systemctl', 'daemon-reload'], check=True)
+        click.echo('✓ Reloaded systemd daemon')
+        
+        subprocess.run(['systemctl', 'enable', 'swautomorph-controlplan.service'], check=True)
+        click.echo('✓ Enabled swautomorph-controlplan service')
+        
+        click.echo('\n✅ Service installed successfully!')
+        click.echo('\nUsage:')
+        click.echo('  sudo systemctl start swautomorph-controlplan')
+        click.echo('  sudo systemctl stop swautomorph-controlplan')
+        click.echo('  sudo systemctl status swautomorph-controlplan')
+    except subprocess.CalledProcessError as e:
+        click.echo(f'✗ Error: {e}')
+        sys.exit(1)
+    except PermissionError:
+        click.echo('✗ Permission denied. Run with sudo:')
+        click.echo('  sudo python3 ./scripts/sf_cli.py install-as-systemctl-service')
+        sys.exit(1)
+    except Exception as e:
+        click.echo(f'✗ Error: {str(e)}')
+        sys.exit(1)
 
 if __name__ == '__main__':
     cli()

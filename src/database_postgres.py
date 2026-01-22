@@ -24,6 +24,7 @@ def load_deploy_config():
     RANGE_START_CONTROLPLAN = 80
     RANGE_RESERVED_CONTROLPLAN = 0
     RANGE_PORTS_PER_APPLICATION = 4
+    DOMAIN = "softfluid.fr"
     
     if os.path.exists(config_path):
         try:
@@ -52,13 +53,15 @@ def load_deploy_config():
                         RANGE_RESERVED_CONTROLPLAN = int(value)
                     elif key == 'RANGE_PORTS_PER_APPLICATION':
                         RANGE_PORTS_PER_APPLICATION = int(value)
+                    elif key =='DOMAIN':
+                        DOMAIN = value
         except Exception as e:
             print(f"Warning: Could not load deploy.ini: {e}")
     
-    return NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION
+    return NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION, DOMAIN
 
 # Load configuration values
-NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION = load_deploy_config()
+NAME_OF_APPLICATION, APPLICATION_IDENTITY_NUMBER, RANGE_START, RANGE_RESERVED, RANGE_START_CONTROLPLAN, RANGE_RESERVED_CONTROLPLAN, RANGE_PORTS_PER_APPLICATION, DOMAIN = load_deploy_config()
 
 def calculate_app_ports(user_id, app_id):
     """Calculate HTTP and HTTPS ports using the same logic as deployControlPlan.sh"""
@@ -307,7 +310,7 @@ def init_db():
                 cursor.execute('''
                     INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
                     VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
-                ''', ('admin', 'admin@swautomorph.com', admin_password_hash, 'System', 'Administrator', False))
+                ''', ('admin', f'admin@{DOMAIN}', admin_password_hash, 'System', 'Administrator', False))
                 
                 # Get admin user ID and assign all applications with URLs
                 admin_id = cursor.fetchone()[0]
@@ -318,7 +321,7 @@ def init_db():
                     # Calculate URL using the same logic as deployControlPlan.sh
                     HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(admin_id, app_id)
 
-                    url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                    url = f'https://www.{DOMAIN}:{HTTPS_PORT}'
                     cursor.execute('''
                         INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
                         VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -378,7 +381,7 @@ def assign_default_apps_to_user(user_id):
                 HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(user_id, app_id)
 
                 # Compose URL
-                url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                url = f'https://www.{DOMAIN}:{HTTPS_PORT}'
                 cursor.execute('''
                     INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
@@ -402,7 +405,7 @@ def assign_app_to_all_users(app_id, app_name):
                 # Calculate URL using the same logic as deployControlPlan.sh
                 HTTP_PORT, HTTPS_PORT, HTTP_PORT2, HTTPS_PORT2 = calculate_app_ports(uid, app_id)
 
-                url = f'https://www.swautomorph.com:{HTTPS_PORT}'
+                url = f'https://www.{DOMAIN}:{HTTPS_PORT}'
                 cursor.execute('''
                     INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) 
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
