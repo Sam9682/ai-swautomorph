@@ -161,6 +161,8 @@ def test_nginx_config() -> bool:
     """Test nginx configuration for syntax errors"""
     try:
         result = subprocess.run(['sudo', 'nginx', '-t'], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            logger.error(f"Nginx config test failed: {result.stderr}")
         return result.returncode == 0
     except Exception as e:
         logger.error(f"Failed to test nginx config: {e}")
@@ -169,8 +171,9 @@ def test_nginx_config() -> bool:
 def reload_nginx() -> bool:
     """Reload nginx configuration"""
     try:
-        if not test_nginx_config():
-            logger.error("Nginx configuration test failed")
+        result = subprocess.run(['sudo', 'nginx', '-t'], capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            logger.error(f"Nginx configuration test failed: {result.stderr}")
             return False
         
         result = subprocess.run(['sudo', 'systemctl', 'reload', 'nginx'], capture_output=True, text=True, timeout=10)

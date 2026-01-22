@@ -77,8 +77,8 @@ DOMAIN = get_domain_name()
 
 # CORS configuration
 CORS_ORIGINS = [
-    'https://wwww.{DOMAIN}', 
-    'https://*.{DOMAIN}',
+    f'https://wwww.{DOMAIN}', 
+    f'https://*.{DOMAIN}',
 ]
 
 # Timeouts
