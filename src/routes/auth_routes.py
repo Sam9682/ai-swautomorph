@@ -25,8 +25,7 @@ def register():
         
         try:
             password_hash = generate_password_hash(password)
-            db_manager.execute_query('''
-                INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
+            db_manager.execute_query('''INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
                 VALUES (%s, %s, %s, %s, %s, %s)
             ''', (username, email, password_hash, first_name, last_name, True))
             

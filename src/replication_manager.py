@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 # Tables to replicate (business-critical only)
 REPLICATED_TABLES = {
-    'users', 'applications', 'user_applications', 'application_costs', 'payment_modes',
-    'billing_activities', 'auth_tokens'
+    'USERS', 'SERVERS', 'APPLICATIONS', 'USER_APPLICATIONS', 'APPLICATION_COSTS', 'PAYMENT_MODES',
+    'BILLING_ACTIVITES', 'AUTH_TOKENS'
 }
 
 # Global sync queue
@@ -147,7 +147,7 @@ def replicate(table, operation='INSERT'):
             result = func(*args, **kwargs)
             
             # Only replicate if table is in whitelist
-            if table not in REPLICATED_TABLES:
+            if table.upper() not in REPLICATED_TABLES:
                 return result
             
             # Queue replication event
@@ -172,7 +172,7 @@ def replicate(table, operation='INSERT'):
 
 def queue_replication_event(table, operation, data, primary_key=None):
     """Manually queue a replication event"""
-    if table not in REPLICATED_TABLES:
+    if table.upper() not in REPLICATED_TABLES:
         return
     
     event = {

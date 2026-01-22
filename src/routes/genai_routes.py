@@ -182,8 +182,7 @@ def api_deployment_logs(deployment_id):
         logger.warning(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
-    deployment = db_manager.execute_query('''
-        SELECT deployment_path FROM deployments 
+    deployment = db_manager.execute_query('''SELECT deployment_path FROM deployments 
         WHERE id = %s AND user_id = %s
     ''', (deployment_id, session['user_id']), fetch_one=True)
     

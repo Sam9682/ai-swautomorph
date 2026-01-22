@@ -26,8 +26,7 @@ def dashboard():
     username = user[0] if user else ''
     
     # Get applications based on user role with swautomorph_url from deployments
-    applications_raw = db_manager.execute_query('''
-        SELECT a.id, a.name, ua.url, a.description, a.git_url, a.git_local_url, a.git_repo_size, 
+    applications_raw = db_manager.execute_query('''SELECT a.id, a.name, ua.url, a.description, a.git_url, a.git_local_url, a.git_repo_size, 
                a.docker_build_duration, a.docker_start_duration, a.docker_stop_duration, a.docker_ps_duration,
                d.swautomorph_url
         FROM applications a

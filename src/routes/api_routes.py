@@ -247,8 +247,7 @@ def api_application_actions(app_id):
             docker_stop_duration = data.get('docker_stop_duration')
             docker_ps_duration = data.get('docker_ps_duration')
             
-            db_manager.execute_query('''
-                UPDATE applications SET name = %s, description = %s, git_url = %s, git_repo_size = %s,
+            db_manager.execute_query('''UPDATE applications SET name = %s, description = %s, git_url = %s, git_repo_size = %s,
                        docker_build_duration = %s, docker_start_duration = %s, docker_stop_duration = %s, docker_ps_duration = %s
                 WHERE id = %s
             ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
@@ -308,8 +307,7 @@ def api_users():
             
             try:
                 password_hash = generate_password_hash(password)
-                user_id = db_manager.execute_query('''
-                    INSERT INTO users (username, email, password_hash, first_name, last_name)
+                user_id = db_manager.execute_query('''INSERT INTO users (username, email, password_hash, first_name, last_name)
                     VALUES (%s, %s, %s, %s, %s)
                 ''', (username, email, password_hash, first_name, last_name))
                 
@@ -367,8 +365,7 @@ def api_user_actions(user_id):
                     return jsonify({'error': 'Username and email required'}), 400
                 
                 try:
-                    db_manager.execute_query('''
-                        UPDATE users SET username = %s, email = %s, first_name = %s, last_name = %s
+                    db_manager.execute_query('''UPDATE users SET username = %s, email = %s, first_name = %s, last_name = %s
                         WHERE id = %s
                     ''', (username, email, first_name, last_name, user_id))
                 except Exception as e:
@@ -403,8 +400,7 @@ def api_user_applications(user_id):
     try:
         if request.method == 'GET':
             # Get assigned applications for user
-            assigned_data = db_manager.execute_query('''
-                SELECT a.id, a.name FROM applications a
+            assigned_data = db_manager.execute_query('''SELECT a.id, a.name FROM applications a
                 JOIN user_applications ua ON a.id = ua.application_id
                 WHERE ua.user_id = %s
             ''', (user_id,), fetch_all=True)
@@ -522,8 +518,7 @@ def api_database_table(table_name):
         try:
             if USE_POSTGRES:
                 # PostgreSQL: Get table structure from information_schema
-                columns_data = db_manager.execute_query('''
-                    SELECT column_name FROM information_schema.columns 
+                columns_data = db_manager.execute_query('''SELECT column_name FROM information_schema.columns 
                     WHERE table_name = %s AND table_schema = 'public'
                     ORDER BY ordinal_position
                 ''', (table_name,), fetch_all=True)
@@ -641,8 +636,7 @@ def platform_servers_add():
         
         # Insert new server
         logger.info(f"[PLATFORM_SERVERS_ADD] Inserting new server: {data['SERVER_NAME']} ({data['SERVER_IP']})")
-        db_manager.execute_query('''
-            INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
+        db_manager.execute_query('''INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                server_capacity_appli_max, server_status, server_type)
             VALUES (%s, %s, %s, %s, %s, %s)
         ''', (data['SERVER_IP'], data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
@@ -772,8 +766,7 @@ def api_servers():
         return jsonify({'error': 'Admin access required'}), 403
     
     if request.method == 'GET':
-        servers = db_manager.execute_query('''
-            SELECT id, server_ip, server_name, server_capacity_user_max, 
+        servers = db_manager.execute_query('''SELECT id, server_ip, server_name, server_capacity_user_max, 
                    server_capacity_appli_max, server_status, server_type, created_at
             FROM servers ORDER BY id
         ''', fetch_all=True)
@@ -827,8 +820,7 @@ def api_servers():
                 logger.info(f"[DISCOVERY] No SwAutoMorph detected at {remote_ip}, adding as {server_type}")
             
             # Insert new server
-            db_manager.execute_query('''
-                INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
+            db_manager.execute_query('''INSERT INTO servers (server_ip, server_name, server_capacity_user_max, 
                                    server_capacity_appli_max, server_status, server_type)
                 VALUES (%s, %s, %s, %s, %s, %s)
             ''', (remote_ip, data['SERVER_NAME'], data['SERVER_CAPACITY_USER_MAX'],
@@ -868,8 +860,7 @@ def api_server_actions(server_id):
             if not all(field in data for field in required_fields):
                 return jsonify({'error': 'Missing required fields'}), 400
             
-            db_manager.execute_query('''
-                UPDATE servers SET server_ip = %s, server_name = %s, 
+            db_manager.execute_query('''UPDATE servers SET server_ip = %s, server_name = %s, 
                                  server_capacity_user_max = %s, server_capacity_appli_max = %s,
                                  server_status = %s, server_type = %s
                 WHERE id = %s
@@ -933,6 +924,82 @@ def api_server_promote(server_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/servers/<int:server_id>/promote-secondary', methods=['POST'])
+def api_server_promote_secondary(server_id):
+    """Promote STAND_ALONE server to SECONDARY"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        db_manager.execute_query(
+            'UPDATE servers SET server_type = %s WHERE id = %s',
+            ('SECONDARY', server_id)
+        )
+        return jsonify({'message': 'Server promoted to SECONDARY successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/servers/<int:server_id>/sync', methods=['POST'])
+def api_server_sync(server_id):
+    """Synchronize SECONDARY server with PRIMARY server"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        # Get server details
+        server = db_manager.execute_query(
+            'SELECT server_type, server_ip, server_name FROM servers WHERE id = %s',
+            (server_id,), fetch_one=True
+        )
+        
+        if not server:
+            return jsonify({'error': 'Server not found'}), 404
+        
+        server_type, server_ip, server_name = server
+        
+        if server_type != 'SECONDARY':
+            return jsonify({'error': 'Only SECONDARY servers can be synchronized'}), 400
+        
+        # Get PRIMARY server
+        primary = db_manager.execute_query(
+            'SELECT server_ip FROM servers WHERE server_type = %s',
+            ('PRIMARY',), fetch_one=True
+        )
+        
+        if not primary:
+            return jsonify({'error': 'No PRIMARY server found'}), 404
+        
+        primary_ip = primary[0]
+        
+        # Trigger replication sync from PRIMARY to SECONDARY
+        try:
+            from src.replication_manager import trigger_full_sync
+            trigger_full_sync(primary_ip, server_ip)
+            logger.info(f"Synchronization triggered for server {server_name} ({server_ip}) from PRIMARY {primary_ip}")
+            return jsonify({'message': f'Synchronization completed for server {server_name}'})
+        except Exception as sync_error:
+            logger.error(f"Synchronization failed for server {server_name}: {str(sync_error)}")
+            return jsonify({'error': f'Synchronization failed: {str(sync_error)}'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/server/allocate', methods=['POST'])
 def api_server_allocate():
     """Allocate server for deployment based on capacity constraints"""
@@ -947,8 +1014,7 @@ def api_server_allocate():
             return jsonify({'error': 'Application name required'}), 400
         
         # Find available server based on capacity constraints with usage counts
-        servers = db_manager.execute_query('''
-            SELECT s.id, s.server_capacity_user_max, s.server_capacity_appli_max,
+        servers = db_manager.execute_query('''SELECT s.id, s.server_capacity_user_max, s.server_capacity_appli_max,
                    COALESCE(user_counts.user_count, 0) as current_users,
                    COALESCE(app_counts.app_count, 0) as current_apps
             FROM servers s
@@ -975,8 +1041,7 @@ def api_server_allocate():
             # Check if server has capacity
             if user_count < user_max and appli_count < appli_max:
                 # Update server status to ACTIVE only if currently STAND_BY
-                db_manager.execute_query('''
-                    UPDATE servers SET server_status = 'ACTIVE' 
+                db_manager.execute_query('''UPDATE servers SET server_status = 'ACTIVE' 
                     WHERE id = %s AND server_status = 'STAND_BY'
                 ''', (server_id,))
                 
@@ -1274,8 +1339,7 @@ def api_deployments():
     
     if request.method == 'GET':
         logger.info(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
-        deployments_data = db_manager.execute_query('''
-            SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
+        deployments_data = db_manager.execute_query('''SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
             FROM deployments WHERE user_id = %s ORDER BY updated_at DESC
         ''', (session['user_id'],), fetch_all=True)
         
@@ -1335,8 +1399,7 @@ def api_deployment_logs(deployment_id):
         logger.warning(f"[DEPLOYMENT LOGS] FAILED - Authentication required from {remote_ip}")
         return jsonify({'error': 'Authentication required'}), 401
     
-    deployment = db_manager.execute_query('''
-        SELECT deployment_path FROM deployments 
+    deployment = db_manager.execute_query('''SELECT deployment_path FROM deployments 
         WHERE id = %s AND user_id = %s
     ''', (deployment_id, session['user_id']), fetch_one=True)
     
@@ -1391,6 +1454,48 @@ def api_nginx_sync():
             return jsonify({'message': 'Nginx locations synced successfully'})
         else:
             return jsonify({'error': 'Failed to sync nginx locations'}), 500
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/replication/queue', methods=['GET'])
+def api_replication_queue():
+    """Get replication sync queue status"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from src.replication_manager import sync_queue
+        
+        # Get queue size
+        queue_size = sync_queue.qsize()
+        
+        # Get up to 10 events from queue (without removing them)
+        events = []
+        temp_items = []
+        try:
+            for _ in range(min(10, queue_size)):
+                item = sync_queue.get_nowait()
+                temp_items.append(item)
+                events.append(item)
+        except:
+            pass
+        finally:
+            # Put items back in queue
+            for item in temp_items:
+                sync_queue.put(item)
+        
+        return jsonify({
+            'queue_size': queue_size,
+            'events': events
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

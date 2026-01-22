@@ -341,6 +341,10 @@
             <div class="loading">{{ get_text('loading_servers') }}</div>
         </div>
         
+        <div id="syncQueueContent" style="margin-top: 20px;">
+            <div class="loading">Loading sync queue...</div>
+        </div>
+        
         <div id="addServerForm" class="server-form" style="display: none;">
             <h3>{{ get_text('add_new_server') }}</h3>
             <form id="newServerForm">
@@ -749,6 +753,7 @@ function showTab(tab) {
         if (serversSection) {
             serversSection.style.display = 'block';
             loadServers();
+            loadSyncQueue();
         }
     } else if (tab === 'orchestrator') {
         if (orchestratorSection) {
@@ -2949,6 +2954,7 @@ function loadServers() {
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
                 const promoteDisabled = server.SERVER_TYPE !== 'STAND_ALONE' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 const promoteSecondaryDisabled = (server.SERVER_TYPE === 'PRIMARY' || server.SERVER_TYPE === 'SECONDARY') ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+                const syncDisabled = server.SERVER_TYPE !== 'SECONDARY' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 html += `<tr class="${rowClass}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
@@ -2960,6 +2966,7 @@ function loadServers() {
                     <td>${new Date(server.created_at).toLocaleDateString()}</td>
                     <td class="actions">
                         <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
+                        <button onclick="syncServer(${server.id})" class="btn-small btn-info" ${syncDisabled}>Synchronization</button>
                         <button onclick="promoteServer(${server.id})" class="btn-small btn-primary" ${promoteDisabled}>Promote PRIMARY</button>
                         <button onclick="promoteSecondaryServer(${server.id})" class="btn-small btn-secondary" ${promoteSecondaryDisabled}>Promote SECONDARY</button>
                         <button onclick="deleteServer(${server.id})" class="btn-small btn-danger" ${deleteDisabled}>Delete</button>
@@ -2971,6 +2978,41 @@ function loadServers() {
         })
         .catch(error => {
             document.getElementById('serversGrid').innerHTML = '<p>Error loading servers.</p>';
+        });
+}
+
+function loadSyncQueue() {
+    fetch('/api/replication/queue')
+        .then(response => response.json())
+        .then(data => {
+            const queueDiv = document.getElementById('syncQueueContent');
+            if (!queueDiv) return;
+            
+            let html = `<h4 style="margin: 15px 0 10px 0;">Replication Sync Queue (${data.queue_size} events)</h4>`;
+            
+            if (data.queue_size === 0) {
+                html += '<p style="color: #27ae60;">✅ Queue is empty - all events synchronized</p>';
+            } else {
+                html += '<div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin-bottom: 10px;">';
+                html += `<p style="margin: 0; color: #856404;">⚠️ ${data.queue_size} events pending synchronization</p>`;
+                html += '</div>';
+                
+                if (data.events && data.events.length > 0) {
+                    html += '<table class="sync-queue-table" style="width: 100%; border-collapse: collapse; font-size: 12px;"><thead><tr style="background: #f8f9fa;"><th style="padding: 8px; border: 1px solid #dee2e6;">Event ID</th><th style="padding: 8px; border: 1px solid #dee2e6;">Table</th><th style="padding: 8px; border: 1px solid #dee2e6;">Operation</th><th style="padding: 8px; border: 1px solid #dee2e6;">Timestamp</th></tr></thead><tbody>';
+                    data.events.forEach(event => {
+                        html += `<tr><td style="padding: 8px; border: 1px solid #dee2e6; font-family: monospace;">${event.event_id.substring(0, 8)}...</td><td style="padding: 8px; border: 1px solid #dee2e6;">${event.table}</td><td style="padding: 8px; border: 1px solid #dee2e6;"><span style="background: ${event.operation === 'INSERT' ? '#d4edda' : '#fff3cd'}; padding: 2px 6px; border-radius: 3px;">${event.operation}</span></td><td style="padding: 8px; border: 1px solid #dee2e6;">${new Date(event.timestamp).toLocaleString()}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                }
+            }
+            
+            queueDiv.innerHTML = html;
+        })
+        .catch(error => {
+            const queueDiv = document.getElementById('syncQueueContent');
+            if (queueDiv) {
+                queueDiv.innerHTML = '<p style="color: #e74c3c;">Error loading sync queue</p>';
+            }
         });
 }
 
@@ -3144,6 +3186,30 @@ function promoteSecondaryServer(serverId) {
         })
         .catch(error => {
             alert('Error promoting server to SECONDARY');
+        });
+    }
+}
+
+function syncServer(serverId) {
+    const button = event.target;
+    if (button.disabled) return;
+    
+    if (confirm('Synchronize this SECONDARY server with PRIMARY?')) {
+        fetch(`/api/servers/${serverId}/sync`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.error);
+            } else {
+                alert(data.message || 'Synchronization completed successfully');
+                loadServers();
+            }
+        })
+        .catch(error => {
+            alert('Error synchronizing server');
         });
     }
 }

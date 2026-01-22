@@ -1,4 +1,8 @@
 """Main Flask application"""
+import debugpy
+debugpy.listen(("0.0.0.0", 5678))
+print("⏳ Debugger listening on port 5678")
+
 from flask import Flask, session
 from flask_cors import CORS
 import sys

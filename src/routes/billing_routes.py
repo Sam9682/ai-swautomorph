@@ -79,8 +79,7 @@ def get_billing_activities():
         # Admin sees activities based on filters
         if selected_user:
             if end_date:
-                activities = db_manager.execute_query('''
-                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                            ba.duration_seconds, ba.cost_amount, ba.created_at
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
@@ -89,8 +88,7 @@ def get_billing_activities():
                     ORDER BY ba.created_at DESC
                 ''', (selected_user, start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
-                activities = db_manager.execute_query('''
-                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                            ba.duration_seconds, ba.cost_amount, ba.created_at
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
@@ -100,8 +98,7 @@ def get_billing_activities():
                 ''', (selected_user, start_date.isoformat(), start_date.isoformat()), fetch_all=True)
         else:
             if end_date:
-                activities = db_manager.execute_query('''
-                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                            ba.duration_seconds, ba.cost_amount, ba.created_at
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
@@ -110,8 +107,7 @@ def get_billing_activities():
                     ORDER BY ba.created_at DESC
                 ''', (start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
-                activities = db_manager.execute_query('''
-                    SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+                activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                            ba.duration_seconds, ba.cost_amount, ba.created_at
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
@@ -122,8 +118,7 @@ def get_billing_activities():
     else:
         # Regular user sees only their activities for the period
         if end_date:
-            activities = db_manager.execute_query('''
-                SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+            activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                        ba.duration_seconds, ba.cost_amount, ba.created_at
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
@@ -132,8 +127,7 @@ def get_billing_activities():
                 ORDER BY ba.created_at DESC
             ''', (session['user_id'], start_date.isoformat(), end_date.isoformat(), start_date.isoformat(), end_date.isoformat()), fetch_all=True)
         else:
-            activities = db_manager.execute_query('''
-                SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
+            activities = db_manager.execute_query('''SELECT ba.id, u.username, a.name, ba.action, ba.started_at, ba.stopped_at, 
                        ba.duration_seconds, ba.cost_amount, ba.created_at
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
@@ -197,8 +191,7 @@ def get_billing_summary():
         # Admin sees summary based on filters
         if selected_user:
             if end_date:
-                summary = db_manager.execute_query('''
-                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
@@ -207,8 +200,7 @@ def get_billing_summary():
                     ORDER BY u.username, a.name
                 ''', (selected_user, start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
-                summary = db_manager.execute_query('''
-                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
@@ -218,8 +210,7 @@ def get_billing_summary():
                 ''', (selected_user, start_date.isoformat()), fetch_all=True)
         else:
             if end_date:
-                summary = db_manager.execute_query('''
-                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
@@ -228,8 +219,7 @@ def get_billing_summary():
                     ORDER BY u.username, a.name
                 ''', (start_date.isoformat(), end_date.isoformat()), fetch_all=True)
             else:
-                summary = db_manager.execute_query('''
-                    SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+                summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                     FROM billing_activities ba
                     JOIN users u ON ba.user_id = u.id
                     JOIN applications a ON ba.application_id = a.id
@@ -240,8 +230,7 @@ def get_billing_summary():
     else:
         # Regular user sees only their summary
         if end_date:
-            summary = db_manager.execute_query('''
-                SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+            summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
@@ -250,8 +239,7 @@ def get_billing_summary():
                 ORDER BY a.name
             ''', (session['user_id'], start_date.isoformat(), end_date.isoformat()), fetch_all=True)
         else:
-            summary = db_manager.execute_query('''
-                SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
+            summary = db_manager.execute_query('''SELECT u.username, a.name, SUM(ba.duration_seconds), SUM(ba.cost_amount)
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 JOIN applications a ON ba.application_id = a.id
@@ -281,8 +269,7 @@ def get_application_costs():
     if not user or user[0] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403
     
-    costs_data = db_manager.execute_query('''
-        SELECT a.id, a.name, ac.cost_per_day, ac.updated_at
+    costs_data = db_manager.execute_query('''SELECT a.id, a.name, ac.cost_per_day, ac.updated_at
         FROM applications a
         LEFT JOIN application_costs ac ON a.id = ac.application_id
         ORDER BY a.name
@@ -321,14 +308,12 @@ def update_application_cost(app_id):
     )
     
     if existing and existing[0] > 0:
-        db_manager.execute_query('''
-            UPDATE application_costs 
+        db_manager.execute_query('''UPDATE application_costs 
             SET cost_per_day = %s, updated_at = CURRENT_TIMESTAMP 
             WHERE application_id = %s
         ''', (cost_per_day, app_id))
     else:
-        db_manager.execute_query('''
-            INSERT INTO application_costs (application_id, cost_per_day) 
+        db_manager.execute_query('''INSERT INTO application_costs (application_id, cost_per_day) 
             VALUES (%s, %s)
         ''', (app_id, cost_per_day))
     
@@ -351,8 +336,7 @@ def get_invoices():
     
     if is_admin:
         # Admin sees all invoices
-        invoices = db_manager.execute_query('''
-            SELECT i.id, u.username, i.invoice_month, i.total_amount, i.status, 
+        invoices = db_manager.execute_query('''SELECT i.id, u.username, i.invoice_month, i.total_amount, i.status, 
                    i.payment_date, pm.payment_type, i.created_at
             FROM invoicing i
             JOIN users u ON i.user_id = u.id
@@ -361,8 +345,7 @@ def get_invoices():
         ''', fetch_all=True)
     else:
         # Regular user sees only their invoices
-        invoices = db_manager.execute_query('''
-            SELECT i.id, u.username, i.invoice_month, i.total_amount, i.status, 
+        invoices = db_manager.execute_query('''SELECT i.id, u.username, i.invoice_month, i.total_amount, i.status, 
                    i.payment_date, pm.payment_type, i.created_at
             FROM invoicing i
             JOIN users u ON i.user_id = u.id
@@ -397,8 +380,7 @@ def get_billing_users():
         return jsonify({'error': 'Admin access required'}), 403
     
     # Get all users who have billing activities
-    users = db_manager.execute_query('''
-        SELECT DISTINCT u.username
+    users = db_manager.execute_query('''SELECT DISTINCT u.username
         FROM users u
         JOIN billing_activities ba ON u.id = ba.user_id
         ORDER BY u.username
@@ -424,8 +406,7 @@ def get_available_months():
         
         if selected_user:
             # Get months with billing activities for specific user
-            activities = db_manager.execute_query('''
-                SELECT DISTINCT TO_CHAR(ba.created_at, 'YYYY-MM') as month
+            activities = db_manager.execute_query('''SELECT DISTINCT TO_CHAR(ba.created_at, 'YYYY-MM') as month
                 FROM billing_activities ba
                 JOIN users u ON ba.user_id = u.id
                 WHERE u.username = %s AND ba.cost_amount > 0
@@ -434,16 +415,14 @@ def get_available_months():
 
         else:
             # Get all months with billing activities
-            activities = db_manager.execute_query('''
-                SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
+            activities = db_manager.execute_query('''SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
                 FROM billing_activities
                 WHERE cost_amount > 0
                 ORDER BY month DESC
             ''', fetch_all=True)
     else:
         # Regular users see their own months
-        activities = db_manager.execute_query('''
-            SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
+        activities = db_manager.execute_query('''SELECT DISTINCT TO_CHAR(created_at, 'YYYY-MM') as month
             FROM billing_activities
             WHERE user_id = %s AND cost_amount > 0
             ORDER BY month DESC
@@ -497,8 +476,7 @@ def generate_invoice():
         return jsonify({'error': 'Invoice already exists for this month'}), 400
     
     # Debug: Check what activities exist for this user and month
-    debug_activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.cost_amount, ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
+    debug_activities = db_manager.execute_query('''SELECT ba.id, a.name, ba.cost_amount, ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
         FROM billing_activities ba
         JOIN applications a ON ba.application_id = a.id
         WHERE ba.user_id = %s AND TO_CHAR(ba.created_at, 'YYYY-MM') = %s
@@ -512,8 +490,7 @@ def generate_invoice():
         logger.info(f"Activity: {activity[1]}, cost: {activity[2]}, date: {activity[3]}, month: {activity[4]}")
     
     # Calculate total amount for the month
-    total = db_manager.execute_query('''
-        SELECT SUM(cost_amount) FROM billing_activities
+    total = db_manager.execute_query('''SELECT SUM(cost_amount) FROM billing_activities
         WHERE user_id = %s AND TO_CHAR(created_at, 'YYYY-MM') = %s AND cost_amount > 0
     ''', (target_user_id, month), fetch_one=True)
     
@@ -527,8 +504,7 @@ def generate_invoice():
         }), 400
     
     # Create invoice
-    invoice_id = db_manager.execute_query('''
-        INSERT INTO invoicing (user_id, invoice_month, total_amount, status)
+    invoice_id = db_manager.execute_query('''INSERT INTO invoicing (user_id, invoice_month, total_amount, status)
         VALUES (%s, %s, %s, 'unpaid')
     ''', (target_user_id, month, total_amount))
     
@@ -547,8 +523,7 @@ def generate_invoice_pdf(invoice_id):
     user_id = session['user_id']
     
     # Get invoice details
-    invoice = db_manager.execute_query('''
-        SELECT i.id, i.user_id, u.username, u.email, u.first_name, u.last_name,
+    invoice = db_manager.execute_query('''SELECT i.id, i.user_id, u.username, u.email, u.first_name, u.last_name,
                i.invoice_month, i.total_amount, i.status, i.payment_date,
                pm.payment_type, i.created_at
         FROM invoicing i
@@ -561,8 +536,7 @@ def generate_invoice_pdf(invoice_id):
         return jsonify({'error': 'Invoice not found'}), 404
     
     # Get billing activities for this month
-    activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.action, ba.started_at, ba.stopped_at,
+    activities = db_manager.execute_query('''SELECT ba.id, a.name, ba.action, ba.started_at, ba.stopped_at,
                 ba.duration_seconds, ba.cost_amount, ba.created_at
         FROM billing_activities ba
         JOIN applications a ON ba.application_id = a.id
@@ -667,8 +641,7 @@ def mark_invoice_paid(invoice_id):
         return jsonify({'error': 'Access denied'}), 403
     
     # Update invoice status
-    db_manager.execute_query('''
-        UPDATE invoicing 
+    db_manager.execute_query('''UPDATE invoicing 
         SET status = 'paid', payment_date = CURRENT_TIMESTAMP
         WHERE id = %s
     ''', (invoice_id,))
@@ -682,8 +655,7 @@ def debug_billing_data(month):
     user_id = session['user_id']
     
     # Get all activities for this user and month
-    activities = db_manager.execute_query('''
-        SELECT ba.id, a.name, ba.action, ba.cost_amount, ba.duration_seconds,
+    activities = db_manager.execute_query('''SELECT ba.id, a.name, ba.action, ba.cost_amount, ba.duration_seconds,
                 ba.created_at, TO_CHAR(ba.created_at, 'YYYY-MM') as month_str
         FROM billing_activities ba
         JOIN applications a ON ba.application_id = a.id
@@ -736,8 +708,7 @@ def record_billing_activity(user_id, application_name, action):
         
         if action.upper() == 'START':
             # Record start activity
-            result = db_manager.execute_query('''
-                INSERT INTO billing_activities (user_id, application_id, action, started_at)
+            result = db_manager.execute_query('''INSERT INTO billing_activities (user_id, application_id, action, started_at)
                 VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             ''', (user_id, application_id, action))
             
@@ -750,8 +721,7 @@ def record_billing_activity(user_id, application_name, action):
         
         elif action.upper()  == 'STOP':
             # Find the most recent start activity for this user and app
-            start_activity = db_manager.execute_query('''
-                SELECT id, started_at FROM billing_activities
+            start_activity = db_manager.execute_query('''SELECT id, started_at FROM billing_activities
                 WHERE user_id = %s AND application_id = %s AND (action = 'start' OR action = 'START') AND stopped_at IS NULL
                 ORDER BY created_at DESC LIMIT 1
             ''', (user_id, application_id), fetch_one=True)
@@ -787,8 +757,7 @@ def record_billing_activity(user_id, application_name, action):
                 logger.info(f"Calculated billing: duration={duration_seconds}s, cost=${cost_amount:.4f}")
                 
                 # Update the start activity with stop information
-                update_result = db_manager.execute_query('''
-                    UPDATE billing_activities 
+                update_result = db_manager.execute_query('''UPDATE billing_activities 
                     SET stopped_at = CURRENT_TIMESTAMP, duration_seconds = %s, cost_amount = %s
                     WHERE id = %s
                 ''', (duration_seconds, cost_amount, start_id))
@@ -799,8 +768,7 @@ def record_billing_activity(user_id, application_name, action):
                 logger.warning(f"record_billing_activity(): No matching START activity found for STOP action: {application_name}")
             
             # Also record the stop activity
-            result = db_manager.execute_query('''
-                INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
+            result = db_manager.execute_query('''INSERT INTO billing_activities (user_id, application_id, action, stopped_at)
                 VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
             ''', (user_id, application_id, action))
             

@@ -163,6 +163,10 @@ class PostgreSQLManager:
                             result = cursor.rowcount
                         
                         conn.commit()
+                        
+                        # Queue replication for INSERT/UPDATE on replicated tables
+                        self._queue_replication(converted_query, params)
+                        
                         return result
             except psycopg2.ProgrammingError as e:
                 # Handle "no results to fetch" error gracefully
@@ -176,6 +180,42 @@ class PostgreSQLManager:
                     time.sleep(retry_delay * (2 ** attempt))  # Exponential backoff
                     continue
                 raise
+    
+    def _queue_replication(self, query, params):
+        """Queue replication event for INSERT/UPDATE on replicated tables"""
+        try:
+            query_upper = query.upper().strip()
+            replicated_tables = {'USERS', 'SERVERS', 'APPLICATIONS', 'USER_APPLICATIONS', 'BILLING_ACTIVITIES', 'AUTH_TOKENS'}
+            
+            # Detect operation and table
+            operation = None
+            table = None
+            
+            if query_upper.startswith('INSERT INTO'):
+                operation = 'INSERT'
+                # Extract table name
+                parts = query_upper.split()
+                if len(parts) >= 3:
+                    table = parts[2].strip('(').split('(')[0]
+            elif query_upper.startswith('UPDATE'):
+                operation = 'UPDATE'
+                # Extract table name
+                parts = query_upper.split()
+                if len(parts) >= 2:
+                    table = parts[1].split()[0]
+            
+            if operation and table and table in replicated_tables:
+                from src.replication_manager import queue_replication_event
+                # Build data dict from params
+                data = {}
+                if params:
+                    if isinstance(params, (list, tuple)):
+                        data = {'params': params}
+                    elif isinstance(params, dict):
+                        data = params
+                queue_replication_event(table.lower(), operation, data)
+        except Exception:
+            pass  # Silently ignore replication errors
     
     def execute_many(self, query, params_list):
         """Execute multiple queries in a single transaction"""
