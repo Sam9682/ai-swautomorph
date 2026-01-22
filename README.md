@@ -95,7 +95,7 @@ pip install -r requirements.txt
 python3 ./scripts/sf_cli.py init-db
 
 # 3. Start application
-python3 src/ControlPlanFlaskApp.py
+python3 src/ControlPlanFlaskApp_postgres.py
 ```
 
 ## Configuration
@@ -325,7 +325,7 @@ ai-swautomorph/
 │   │   ├── api_routes.py         # REST API with streaming
 │   │   ├── genai_routes.py       # Virtual AI agents
 │   │   └── billing_routes.py     # Billing & cost tracking
-│   ├── ControlPlanFlaskApp.py    # Main Flask application
+│   ├── ControlPlanFlaskApp_postgres.py    # Main Flask application
 │   ├── database_postgres.py      # PostgreSQL database manager with connection pooling
 │   ├── database.py               # Legacy SQLite database manager (migration compatibility)
 │   ├── nginx_manager.py          # Dynamic nginx location management

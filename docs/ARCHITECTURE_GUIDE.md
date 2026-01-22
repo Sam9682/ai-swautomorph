@@ -23,7 +23,7 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 │   ├── 🗄️ database_postgres.py       # PostgreSQL database manager with connection pooling
 │   ├── 🗄️ database.py               # Legacy SQLite database manager (migration compatibility)
 │   ├── 🔐 auth.py                   # Authentication & SSO management
-│   ├── 🌐 ControlPlanFlaskApp.py    # Flask application factory
+│   ├── 🌐 ControlPlanFlaskApp_postgres.py    # Flask application factory
 │   └── 📁 routes/                   # Route handlers (blueprints)
 │       ├── 🏠 main_routes.py        # Dashboard & documentation viewer
 │       ├── 👤 auth_routes.py        # User authentication
@@ -185,7 +185,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 │   ├── 🗄️ database_postgres.py       # Gestionnaire de base de données PostgreSQL avec pooling
 │   ├── 🗄️ database.py               # Gestionnaire de base de données SQLite (compatibilité migration)
 │   ├── 🔐 auth.py                   # Authentification et gestion SSO
-│   ├── 🌐 ControlPlanFlaskApp.py    # Factory d'application Flask
+│   ├── 🌐 ControlPlanFlaskApp_postgres.py    # Factory d'application Flask
 │   └── 📁 routes/                   # Gestionnaires de routes (blueprints)
 │       ├── 🏠 main_routes.py        # Tableau de bord et visualiseur de documentation
 │       ├── 👤 auth_routes.py        # Authentification utilisateur

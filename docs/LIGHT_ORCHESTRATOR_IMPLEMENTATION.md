@@ -99,7 +99,7 @@ curl -X POST https://www.swautomorph.com/api/orchestrator/services/my-app/scale 
 
 ### Fichiers Modifiés
 - `src/database.py` - Ajout de l'initialisation des tables orchestrateur
-- `src/ControlPlanFlaskApp.py` - Intégration du blueprint et démarrage auto
+- `src/ControlPlanFlaskApp_postgres.py` - Intégration du blueprint et démarrage auto
 - `templates/dashboard.html` - Interface web orchestrateur
 - `templates/base.html` - Menu de navigation
 

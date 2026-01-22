@@ -139,7 +139,7 @@ If user doesn't use dropdown, backend still detects from keywords:
    sudo systemctl restart ai-swautomorph
    
    # Or if running directly
-   python3 ControlPlanFlaskApp.py
+   python3 ControlPlanFlaskApp_postgres.py
    ```
 
 4. **Test Virtual Advisor**:

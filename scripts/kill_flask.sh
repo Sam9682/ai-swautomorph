@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 echo -e "${YELLOW}🔍 Checking for Flask processes...${NC}"
 
 # Find all Flask processes
-FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
 
 if [ -z "$FLASK_PIDS" ]; then
     echo -e "${GREEN}✅ No Flask processes found${NC}"
@@ -85,7 +85,7 @@ else
     sleep 3
     
     # Check if any processes are still running
-    REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+    REMAINING_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
     if [ -n "$REMAINING_PIDS" ]; then
         echo -e "${YELLOW}⚠️ Some processes still running: $REMAINING_PIDS${NC}"
         echo -e "${YELLOW}💡 Run with 'force' argument to force kill: $0 force${NC}"
@@ -96,7 +96,7 @@ else
 fi
 
 # Final check
-FINAL_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+FINAL_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
 if [ -z "$FINAL_PIDS" ]; then
     echo -e "${GREEN}🎉 All Flask processes successfully terminated${NC}"
     

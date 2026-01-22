@@ -1,66 +1,98 @@
-"""Main Flask application for AI-SwAutoMorph with PostgreSQL support"""
-import os
-import sys
+"""Main Flask application with PostgreSQL database"""
+import debugpy
+debugpy.listen(("0.0.0.0", 5678))
+print("⏳ Debugger listening on port 5678")
 
-# Determine which database to use based on environment
-USE_POSTGRES = os.environ.get('USE_POSTGRES', 'false').lower() == 'true'
-
-if USE_POSTGRES:
-    # Use PostgreSQL
-    from src.database_postgres import db_manager, init_db
-    from src.config_postgres import *
-    print("Using PostgreSQL database")
-else:
-    # Use SQLite (legacy)
-    from src.database_postgres import db_manager, init_db
-    from src.config_postgres import *
-    print("Using SQLite database")
-
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from flask import Flask, session
 from flask_cors import CORS
-import logging
-from datetime import datetime
-import threading
+import sys
+import os
+from dotenv import load_dotenv
 
-# Import route blueprints
-from src.routes.main_routes import main_bp
-from src.routes.auth_routes import auth_bp
-from src.routes.sso_routes import sso_bp
-from src.routes.api_routes import api_bp
-from src.routes.genai_routes import genai_bp
-from src.routes.billing_routes import billing_bp
+# Load environment variables from .env file
+load_dotenv()
+
+from .config_postgres import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, PLTF_NAME
+from .database_postgres import init_db
+from .routes.main_routes import main_bp
+from .routes.auth_routes import auth_bp
+from .routes.sso_routes import sso_bp
+from .routes.api_routes import api_bp
+from .routes.genai_routes import genai_bp
+from .routes.billing_routes import billing_bp
+from .routes.orchestrator_routes import orchestrator_bp
+from .routes.replication_routes import replication_bp, init_replication_routes
+
+# Redirect all print() statements to log files
+class PrintLogger:
+    def __init__(self, log_file):
+        self.log_file = log_file
+        self.terminal = sys.stdout
+        
+    def write(self, message):
+        if message.strip():  # Only log non-empty messages
+            with open(self.log_file, 'a') as f:
+                f.write(f"{message}\n")
+                f.flush()
+        self.terminal.write(message)
+        
+    def flush(self):
+        self.terminal.flush()
+
+# Setup print logging
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+print_log_file = os.path.join(log_dir, OUTPUT_PRINT_LOGS_FILENAME)
+sys.stdout = PrintLogger(print_log_file)
 
 def create_app():
-    """Create and configure Flask application"""
-    app = Flask(__name__)
+    """Application factory"""
+    app = Flask(__name__, template_folder='../templates', static_folder='../static')
+    app.secret_key = SECRET_KEY
     
-    # Configuration
-    app.config['SECRET_KEY'] = SECRET_KEY
-    app.config['FLASK_ENV'] = FLASK_ENV
-    
-    # CORS configuration
+    # Configure CORS
     CORS(app, origins=CORS_ORIGINS, supports_credentials=True)
     
-    # Logging configuration
-    if not app.debug:
-        logs_dir = get_logs_dir()
-        os.makedirs(logs_dir, exist_ok=True)
+    # Initialize database and orchestrator
+    with app.app_context():
+        init_db()
+        try:
+            from .orchestrator import orchestrator
+            orchestrator.init_orchestrator_tables()
+            orchestrator.start_reconciliation_loop()
+        except Exception as e:
+            print(f"[ERROR] Orchestrator initialization failed: {e}")
+            # Continue without orchestrator if it fails
         
-        # Create file handler
-        log_file = os.path.join(logs_dir, f'app_logs_{datetime.now().strftime("%Y%m%d")}.log')
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.INFO)
-        
-        # Create formatter
-        formatter = logging.Formatter(
-            '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-        )
-        file_handler.setFormatter(formatter)
-        
-        # Add handler to app logger
-        app.logger.addHandler(file_handler)
-        app.logger.setLevel(logging.INFO)
-        app.logger.info('AI-SwAutoMorph startup')
+        # Initialize replication manager
+        try:
+            from .replication_manager import ReplicationManager
+            from .database_postgres import db_manager
+            sync_secret = os.getenv('SYNC_SECRET', 'default-sync-secret-change-me')
+            replication_manager = ReplicationManager(db_manager, sync_secret)
+            replication_manager.start_worker()
+            init_replication_routes(db_manager, sync_secret)
+            print("[REPLICATION] Manager initialized and worker started")
+        except Exception as e:
+            print(f"[ERROR] Replication initialization failed: {e}")
+    
+    # Language support
+    def get_language():
+        return session.get('language', 'fr')
+
+    def get_text(key):
+        lang = get_language()
+        return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+
+    @app.context_processor
+    def inject_language():
+        from datetime import datetime
+        return {
+            'get_text': get_text, 
+            'current_lang': get_language(),
+            'moment': lambda: datetime.now(),
+            'PLTF_NAME': PLTF_NAME
+        }
     
     # Register blueprints
     app.register_blueprint(main_bp)
@@ -69,66 +101,7 @@ def create_app():
     app.register_blueprint(api_bp)
     app.register_blueprint(genai_bp)
     app.register_blueprint(billing_bp)
-    
-    # Initialize database
-    with app.app_context():
-        try:
-            init_db()
-            app.logger.info('Database initialized successfully')
-        except Exception as e:
-            app.logger.error(f'Database initialization failed: {e}')
-            raise
-    
-    # Health check endpoint
-    @app.route('/health')
-    def health_check():
-        """Health check endpoint for load balancer"""
-        try:
-            # Test database connection
-            if USE_POSTGRES:
-                with db_manager.get_db_connection() as conn:
-                    with conn.cursor() as cursor:
-                        cursor.execute('SELECT 1')
-                        cursor.fetchone()
-            else:
-                with db_manager.get_db_connection() as conn:
-                    cursor = conn.cursor()
-                    cursor.execute('SELECT 1')
-                    cursor.fetchone()
-            
-            return jsonify({
-                'status': 'healthy',
-                'database': 'postgresql' if USE_POSTGRES else 'sqlite',
-                'instance_id': os.environ.get('INSTANCE_ID', '1'),
-                'timestamp': datetime.now().isoformat()
-            }), 200
-        except Exception as e:
-            return jsonify({
-                'status': 'unhealthy',
-                'error': str(e),
-                'database': 'postgresql' if USE_POSTGRES else 'sqlite',
-                'instance_id': os.environ.get('INSTANCE_ID', '1'),
-                'timestamp': datetime.now().isoformat()
-            }), 503
+    app.register_blueprint(orchestrator_bp)
+    app.register_blueprint(replication_bp)
     
     return app
-
-def main():
-    """Main entry point"""
-    app = create_app()
-    
-    # Get instance configuration
-    instance_id = os.environ.get('INSTANCE_ID', '1')
-    port = int(os.environ.get('PORT', 5000))
-    host = os.environ.get('HOST', '0.0.0.0')
-    debug = os.environ.get('FLASK_ENV', 'production') == 'development'
-    
-    print(f"Starting AI-SwAutoMorph Instance {instance_id}")
-    print(f"Database: {'PostgreSQL' if USE_POSTGRES else 'SQLite'}")
-    print(f"Listening on {host}:{port}")
-    
-    # Run the application
-    app.run(host=host, port=port, debug=debug, threaded=True)
-
-if __name__ == '__main__':
-    main()

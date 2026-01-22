@@ -25,6 +25,11 @@ REPLICATED_TABLES = {
 # Global sync queue
 sync_queue = queue.Queue()
 
+# Recent events log (for monitoring)
+recent_events = []
+recent_events_lock = threading.Lock()
+MAX_RECENT_EVENTS = 50
+
 # Shared secret for server authentication (should be in config)
 SYNC_SECRET = None
 
@@ -162,6 +167,13 @@ def replicate(table, operation='INSERT'):
                     'version': int(time.time() * 1000)  # Millisecond timestamp as version
                 }
                 sync_queue.put(event)
+                
+                # Add to recent events log
+                with recent_events_lock:
+                    recent_events.append(event)
+                    if len(recent_events) > MAX_RECENT_EVENTS:
+                        recent_events.pop(0)
+                
                 logger.debug(f"[REPLICATION] Queued {table}.{operation}")
             except Exception as e:
                 logger.error(f"[REPLICATION] Failed to queue event: {e}")
@@ -185,6 +197,13 @@ def queue_replication_event(table, operation, data, primary_key=None):
         'version': int(time.time() * 1000)
     }
     sync_queue.put(event)
+    
+    # Add to recent events log
+    with recent_events_lock:
+        recent_events.append(event)
+        if len(recent_events) > MAX_RECENT_EVENTS:
+            recent_events.pop(0)
+    
     logger.debug(f"[REPLICATION] Queued {table}.{operation}")
 
 def apply_replication_event(db_manager, event):

@@ -8,7 +8,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # Now we can import the Flask app which will handle the imports correctly
-from src.ControlPlanFlaskApp import create_app
+from src.ControlPlanFlaskApp_postgres import create_app
 
 def test_orchestrator():
     """Test orchestrator functionality"""

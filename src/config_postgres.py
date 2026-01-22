@@ -57,14 +57,28 @@ def get_platform_name():
         logger.error(f'Failed to read PLTF_NAME from deploy.ini: {e}')
     return 'AI-SwAutoMorph'
 
+# Domain name from deploy.ini
+def get_domain_name():
+    """Get domain name from deploy.ini"""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'conf', 'deploy.ini')
+        with open(config_path, 'r') as f:
+            for line in f:
+                if line.strip().startswith('DOMAIN'):
+                    return line.split('=', 1)[1].strip().strip("'\"")
+    except Exception as e:
+        logger.error(f'Failed to read DOMAIN from deploy.ini: {e}')
+    return 'softfluid.fr'
+
+
 PLTF_NAME = get_platform_name()
-DOMAIN = 'www.swautomorph.com'
+DOMAIN = get_domain_name()
 
 # CORS configuration
 CORS_ORIGINS = [
-    'https://wwww.swautomorph.com', 
-    'https://wwww.softfluid.fr', 
-    'https://ai-haccp.swautomorph.com'
+    'https://wwww.{DOMAIN}', 
+    'https://*.{DOMAIN}',
 ]
 
 # Timeouts
@@ -565,7 +579,7 @@ TRANSLATIONS = {
         'modify_code_option': "👨💻 MODIFIER mon application (Dév)",
         'start_app_option': "▶️ DÉMARRER mon application. (Ops)",
         'stop_app_option': "⏹️ ARRÊTER mon application. (Ops)",
-        'display_logs_option': "📋 AFFICHER les logs de l'appli. (Ops)",
+        'display_logs_option': "📋 AFFICHER les logs de mon appli. (Ops)",
         'display_ps_option': "🔍 VERIFIER mon appli. (Ops)",
         'account_activation_message_title': '⚠️ Activation du compte nécessaire',
         'account_activation_message_body': 'Votre compte ne sera pas activé par défaut. Il sera activé par AUTOMORPH, puisque son utilisation génère des coûts.',

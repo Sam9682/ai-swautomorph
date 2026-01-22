@@ -1198,9 +1198,9 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         ssl_env['USER'] = 'ubuntu'
         
         if is_local_server:
-            ssl_command = f"mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/certificate_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_domain.key ]; then cp {PROJECT_ROOT}/ssl/STAR_swautomorph_com.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi"
+            ssl_command = f"mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/certificate_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_domain.key ]; then cp {PROJECT_ROOT}/ssl/certificate_domain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo certbot certonly --standalone -d www.{DOMAIN} --email admin@{DOMAIN} --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi"
         else:
-            ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/certificate_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]; then cp {PROJECT_ROOT}/ssl/certificate_domain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.swautomorph.com --email admin@swautomorph.com --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.swautomorph.com/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.swautomorph.com/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi'"
+            ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/certificate_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_STAR_swautomorph_com.key ]; then cp {PROJECT_ROOT}/ssl/certificate_domain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem; elif command -v certbot > /dev/null 2>&1; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.{DOMAIN} --email admin@{DOMAIN} --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/; fi'"
 
         ssl_result = subprocess.run(ssl_command, shell=True, capture_output=True, text=True, env=ssl_env)
         logger.info(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
@@ -1248,8 +1248,8 @@ def _handle_app_action(user_id, app_name, action, data):
     )
     
     if not deployment:
-        logger.error(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}' for user {user_id}")
-        return jsonify({'error': 'Application not deployed. Clone first.'}), 202
+        #logger.error(f"[DEPLOYMENT API] {action.upper()} - FAILED - No deployment found for app '{app_name}' for user {user_id}")
+        return jsonify({'error': 'Application not deployed. Clone it first.'}), 202
     
     deploy_path = str(deployment[0]) if isinstance(deployment, (list, tuple)) else str(deployment)
     deploy_script = os.path.join(deploy_path, 'deployApp.sh')
@@ -1472,25 +1472,14 @@ def api_replication_queue():
         return jsonify({'error': 'Admin access required'}), 403
     
     try:
-        from src.replication_manager import sync_queue
+        from src.replication_manager import sync_queue, recent_events, recent_events_lock
         
-        # Get queue size
+        # Get current queue size (pending events)
         queue_size = sync_queue.qsize()
         
-        # Get up to 10 events from queue (without removing them)
-        events = []
-        temp_items = []
-        try:
-            for _ in range(min(10, queue_size)):
-                item = sync_queue.get_nowait()
-                temp_items.append(item)
-                events.append(item)
-        except:
-            pass
-        finally:
-            # Put items back in queue
-            for item in temp_items:
-                sync_queue.put(item)
+        # Get recent events from persistent log (thread-safe)
+        with recent_events_lock:
+            events = list(recent_events[-10:])  # Last 10 events
         
         return jsonify({
             'queue_size': queue_size,

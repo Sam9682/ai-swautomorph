@@ -3,7 +3,7 @@ import os
 import logging
 import sys
 from datetime import datetime
-from .ControlPlanFlaskApp import create_app
+from .ControlPlanFlaskApp_postgres import create_app
 from .database_postgres import init_db
 
 class TimestampedPrint:

@@ -57,19 +57,19 @@ COMMAND=${1:-help}
 LOCAL_MODE=${2:-0}
 USER_ID=${3:-${DEFAULT_USER_ID:-0}}
 USER_NAME=${4:-${DEFAULT_USER_NAME:-"admin"}}
-USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@swautomorph.com"}}
+USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@softfluid.fr"}}
 DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 
 # Configuration (loaded from deploy.ini with fallback defaults)
-DOMAIN=${DOMAIN:-"www.swautomorph.com"}
-EMAIL=${EMAIL:-"admin@swautomorph.com"}
+DOMAIN=${DOMAIN:-"www.softfluid.fr"}
+EMAIL=${EMAIL:-"admin@softfluid.fr"}
 ENV_FILE=${ENV_FILE:-".env.prod"}
 SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt"}
 SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key"}
 GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
 GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
 GITEA_ADMIN_PASSWORD=${GITEA_ADMIN_PASSWORD:-"password"}
-GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@swautomorph.com"}
+GITEA_ADMIN_EMAIL=${GITEA_ADMIN_EMAIL:-"admin@softfluid.fr"}
 
 # Normalize LOCAL_MODE parameter (handle --locally and --docker)
 case "$LOCAL_MODE" in
@@ -211,7 +211,7 @@ check_flask_status() {
     fi
     
     # Check for any old Flask development server processes
-    OTHER_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+    OTHER_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
     if [ -n "$OTHER_PIDS" ]; then
         echo -e "  $WARN Old Flask development server processes found: $OTHER_PIDS"
         for pid in $OTHER_PIDS; do
@@ -257,8 +257,8 @@ provide_cleanup_guidance() {
     echo "  1. Check running Gunicorn processes: ps aux | grep 'gunicorn.*wsgi:application'"
     echo "  2. Kill specific PID: sudo kill -9 <PID>"
     echo "  3. Kill all Gunicorn processes: sudo pkill -9 -f 'gunicorn.*wsgi:application'"
-    echo "  4. Check for old Flask processes: ps aux | grep 'python3 ControlPlanFlaskApp.py'"
-    echo "  5. Kill old Flask processes: sudo pkill -9 -f 'python3 ControlPlanFlaskApp.py'"
+    echo "  4. Check for old Flask processes: ps aux | grep 'python3 ControlPlanFlaskApp_postgres.py'"
+    echo "  5. Kill old Flask processes: sudo pkill -9 -f 'python3 ControlPlanFlaskApp_postgres.py'"
     echo "  6. Check process ownership: ps -o pid,user,cmd -C python3"
     echo ""
 }
@@ -676,10 +676,10 @@ stop_flask_service() {
     fi
     
     # Also check for old Flask development server processes
-    FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true)
+    FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
     if [ -n "$FLASK_PIDS" ]; then
         echo "  🔥 Found old Flask development server processes: $FLASK_PIDS"
-        pkill -9 -f "python3 ControlPlanFlaskApp.py" 2>/dev/null || true
+        pkill -9 -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true
     fi
     
     # Return appropriate exit code
@@ -993,10 +993,10 @@ PATH = /home/ubuntu/admin/db/gitea.db
 ROOT = /home/ubuntu/admin/data/gitea-repositories
 
 [server]
-DOMAIN = www.swautomorph.com
+DOMAIN = www.fostfluid.fr
 HTTP_ADDR = 0.0.0.0
 HTTP_PORT = 3000
-ROOT_URL = https://www.swautomorph.com/gitea/
+ROOT_URL = https://www.softfluid.fr/gitea/
 
 [mailer]
 ENABLED = false
@@ -1053,7 +1053,7 @@ create_gitea_admin_user() {
     if timeout 10 sudo -u git -E /usr/local/bin/gitea admin user create \
         --username gitadmin \
         --password password \
-        --email admin@swautomorph.com \
+        --email admin@softfluid.fr \
         --admin \
         --config /etc/gitea/app.ini \
         --work-path /var/lib/gitea 2>/dev/null; then
@@ -1064,7 +1064,7 @@ create_gitea_admin_user() {
         sudo -u git -E /usr/local/bin/gitea admin user create \
             --username gitadmin \
             --password password \
-            --email admin@swautomorph.com \
+            --email admin@softfluid.fr \
             --admin \
             --config /etc/gitea/app.ini \
             --work-path /var/lib/gitea || echo "  ❌ Manual user creation also failed"
@@ -1073,7 +1073,7 @@ create_gitea_admin_user() {
     echo "  🔑 Gitea Admin Credentials:"
     echo "      Username: gitadmin"
     echo "      Password: password"
-    echo "      URL: http://www.swautomorph.com/gitea"
+    echo "      URL: http://www.softfluid.fr/gitea"
     
     # Try to generate API token with timeout
     setup_api_token
@@ -1279,13 +1279,13 @@ create_nginx_config() {
     cat > /tmp/ai-swautomorph-site << EOF
 server {
     listen 80;
-    server_name localhost www.swautomorph.com;
+    server_name localhost www.softfluid.fr;
     return 301 https://\$host\$request_uri;
 }
 
 server {
     listen 443 ssl;
-    server_name localhost www.swautomorph.com;
+    server_name localhost www.softfluid.fr;
     
     ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt};
     ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key};
@@ -1668,7 +1668,7 @@ help() {
     echo "  USER_NAME    - Display name for the user (default: 'admin')"
     echo "                 Used in configuration and logging"
     echo ""
-    echo "  USER_EMAIL   - User email address (default: 'admin@swautomorph.com')"
+    echo "  USER_EMAIL   - User email address (default: 'admin@softfluid.fr')"
     echo "                 Used for SSL certificates and notifications"
     echo ""
     echo "  DESCRIPTION  - Deployment description (default: 'Basic Information Display')"
@@ -1702,8 +1702,8 @@ help() {
     echo "  • Docker Containers (optional)"
     echo ""
     echo "ACCESS URLS:"
-    echo "  • Main App: https://www.swautomorph.com"
-    echo "  • Gitea:    https://www.swautomorph.com/gitea"
+    echo "  • Main App: https://www.softfluid.fr"
+    echo "  • Gitea:    https://www.softfluid.fr/gitea"
     echo "  • Local:    https://localhost (with SSL certificates)"
 }
 
