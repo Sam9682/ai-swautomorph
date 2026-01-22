@@ -25,10 +25,10 @@ REPLICATED_TABLES = {
 # Global sync queue
 sync_queue = queue.Queue()
 
-# Recent events log (for monitoring)
-recent_events = []
-recent_events_lock = threading.Lock()
-MAX_RECENT_EVENTS = 50
+# Recent events log (for monitoring) - only PENDING events
+pending_events = {}
+pending_events_lock = threading.Lock()
+MAX_PENDING_EVENTS = 1000
 
 # Shared secret for server authentication (should be in config)
 SYNC_SECRET = None
@@ -68,7 +68,11 @@ class ReplicationManager:
                 # Process new events
                 try:
                     event = sync_queue.get(timeout=1)
-                    self._propagate_event(event)
+                    success = self._propagate_event(event)
+                    # Remove from pending events after successful propagation
+                    if success:
+                        with pending_events_lock:
+                            pending_events.pop(event['event_id'], None)
                 except queue.Empty:
                     pass
                 
@@ -81,6 +85,9 @@ class ReplicationManager:
                             retry_queue.append(event)
                         else:
                             logger.error(f"[REPLICATION] Event {event['event_id']} failed after 3 retries")
+                            # Remove from pending after max retries
+                            with pending_events_lock:
+                                pending_events.pop(event['event_id'], None)
                 
                 time.sleep(0.1)
             except Exception as e:
@@ -168,11 +175,13 @@ def replicate(table, operation='INSERT'):
                 }
                 sync_queue.put(event)
                 
-                # Add to recent events log
-                with recent_events_lock:
-                    recent_events.append(event)
-                    if len(recent_events) > MAX_RECENT_EVENTS:
-                        recent_events.pop(0)
+                # Add to pending events (will be removed after processing)
+                with pending_events_lock:
+                    pending_events[event['event_id']] = event
+                    # Cleanup old events if too many
+                    if len(pending_events) > MAX_PENDING_EVENTS:
+                        oldest_key = next(iter(pending_events))
+                        pending_events.pop(oldest_key)
                 
                 logger.debug(f"[REPLICATION] Queued {table}.{operation}")
             except Exception as e:
@@ -198,11 +207,13 @@ def queue_replication_event(table, operation, data, primary_key=None):
     }
     sync_queue.put(event)
     
-    # Add to recent events log
-    with recent_events_lock:
-        recent_events.append(event)
-        if len(recent_events) > MAX_RECENT_EVENTS:
-            recent_events.pop(0)
+    # Add to pending events (will be removed after processing)
+    with pending_events_lock:
+        pending_events[event['event_id']] = event
+        # Cleanup old events if too many
+        if len(pending_events) > MAX_PENDING_EVENTS:
+            oldest_key = next(iter(pending_events))
+            pending_events.pop(oldest_key)
     
     logger.debug(f"[REPLICATION] Queued {table}.{operation}")
 

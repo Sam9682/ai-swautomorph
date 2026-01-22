@@ -1474,14 +1474,14 @@ def api_replication_queue():
         return jsonify({'error': 'Admin access required'}), 403
     
     try:
-        from src.replication_manager import sync_queue, recent_events, recent_events_lock
+        from src.replication_manager import sync_queue, pending_events, pending_events_lock
         
         # Get current queue size (pending events)
         queue_size = sync_queue.qsize()
         
-        # Get recent events from persistent log (thread-safe)
-        with recent_events_lock:
-            events = list(recent_events[-10:])  # Last 10 events
+        # Get pending events from dictionary (thread-safe)
+        with pending_events_lock:
+            events = list(pending_events.values())[-10:]  # Last 10 pending events
         
         return jsonify({
             'queue_size': queue_size,
