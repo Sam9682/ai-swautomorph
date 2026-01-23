@@ -1362,6 +1362,7 @@ configure_firewall() {
     sudo ufw allow 80/tcp
     sudo ufw allow 443/tcp
     sudo ufw allow 3000/tcp
+    sudo ufw allow 53/tcp
     sudo ufw --force enable
 }
 

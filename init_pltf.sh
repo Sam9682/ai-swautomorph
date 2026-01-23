@@ -55,6 +55,52 @@ sudo ./aws/install > /dev/null 2>&1
 rm -rf aws awscliv2.zip
 print_success "AWS CLI installed"
 
+# Configure network interface priorities
+print_step "Configuring network interface priorities..."
+if [ -f /etc/netplan/*.yaml ]; then
+    NETPLAN_FILE=$(ls /etc/netplan/*.yaml | head -1)
+    sudo cp $NETPLAN_FILE ${NETPLAN_FILE}.backup
+    
+    # Detect interfaces and their IPs
+    INTERFACES=$(ip -o link show | awk -F': ' '{print $2}' | grep -E '^e' | grep -v '@')
+    PUBLIC_IF=""
+    PRIVATE_IF=""
+    
+    for iface in $INTERFACES; do
+        IP=$(ip -4 addr show $iface | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | head -1)
+        if [ -n "$IP" ]; then
+            # Check if IP is private (10.x, 172.16-31.x, 192.168.x)
+            if [[ $IP =~ ^10\. ]] || [[ $IP =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. ]] || [[ $IP =~ ^192\.168\. ]]; then
+                PRIVATE_IF=$iface
+            else
+                PUBLIC_IF=$iface
+            fi
+        fi
+    done
+    
+    # Generate netplan config
+    echo "network:" | sudo tee $NETPLAN_FILE > /dev/null
+    echo "  version: 2" | sudo tee -a $NETPLAN_FILE > /dev/null
+    echo "  ethernets:" | sudo tee -a $NETPLAN_FILE > /dev/null
+    
+    for iface in $INTERFACES; do
+        echo "    $iface:" | sudo tee -a $NETPLAN_FILE > /dev/null
+        echo "      dhcp4: true" | sudo tee -a $NETPLAN_FILE > /dev/null
+        if [ "$iface" = "$PUBLIC_IF" ]; then
+            echo "      dhcp4-overrides:" | sudo tee -a $NETPLAN_FILE > /dev/null
+            echo "        route-metric: 50" | sudo tee -a $NETPLAN_FILE > /dev/null
+        elif [ "$iface" = "$PRIVATE_IF" ]; then
+            echo "      dhcp4-overrides:" | sudo tee -a $NETPLAN_FILE > /dev/null
+            echo "        route-metric: 200" | sudo tee -a $NETPLAN_FILE > /dev/null
+        fi
+    done
+    
+    sudo netplan apply > /dev/null 2>&1
+    print_success "Network priorities configured (public: 50, private: 200)"
+else
+    print_warning "Netplan not found, skipping network configuration"
+fi
+
 # Install Docker
 print_step "Installing Docker..."
 curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh > /dev/null 2>&1
