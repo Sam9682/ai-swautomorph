@@ -4,7 +4,17 @@ from flask import Blueprint, request, jsonify, session
 import logging
 import os
 from datetime import datetime, timedelta
-from ..config_postgres import get_logs_dir, PLTF_NAME
+from ..config_postgres import get_logs_dir, PLTF_NAME, TRANSLATIONS
+
+def get_language():
+    return session.get('language', 'en')
+
+def get_text(key):
+    try:
+        lang = get_language()
+        return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
+    except (KeyError, AttributeError, TypeError):
+        return key
 
 # Determine database type based on environment
 from ..database_postgres import db_manager
@@ -588,7 +598,7 @@ def generate_invoice_pdf(invoice_id):
     """
     
     for activity in activities:
-        duration = f"{activity[5] // 60}m" if activity[5] else "-"
+        duration = f"{-(-activity[5] // 60)}m" if activity[5] else "-"
         html_content += f"""
                 <tr>
                     <td>{activity[1]}</td>

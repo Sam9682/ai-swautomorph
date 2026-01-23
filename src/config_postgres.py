@@ -368,7 +368,8 @@ TRANSLATIONS = {
         'dev_modify_code_request2': 'Please, hereafter is the specification of the request :',
         'ops_exec_request1': 'I need an operations specialist to execute the',
         'ops_exec_request2': 'action on the application',
-        'select_app_tooltip': 'Select an application on which you want to ask the virtual IT specialists to perform an action'
+        'select_app_tooltip': 'Select an application on which you want to ask the virtual IT specialists to perform an action',
+        'replication_queue': 'Replication Synchronization Queue between servers PRIMARY and SECONDARY'
     },
     'fr': {
         'login': 'Connexion',
@@ -588,6 +589,7 @@ TRANSLATIONS = {
         'ops_exec_request1': "Je veux un spécialiste des opérations pour exécuter",
         'ops_exec_request2': "action sur mon application",
         'select_app_tooltip': "Selectionnez une application sur laquelle vous voulez demander aux informaticiens virtuels d'effectuer une action",
-        'unified_input_tooltip': "Tapez en français ce que vous voulez demander à votre informaticien virtuel concernant les modifications à réaliser concernant l'application. Soyez précis, par exemple: modifie le numéro de téléphone qui s'affiche sur la page principale du site web 06 19 89 90 50 et remplace par 01 46 43 23 56"
+        'unified_input_tooltip': "Tapez en français ce que vous voulez demander à votre informaticien virtuel concernant les modifications à réaliser concernant l'application. Soyez précis, par exemple: modifie le numéro de téléphone qui s'affiche sur la page principale du site web 06 19 89 90 50 et remplace par 01 46 43 23 56",
+        'replication_queue': "Queue/Liste pour la synchronisation entre le serveur PRIMAIRE et les SECONDAIRES"
     }
 }
