@@ -5,7 +5,7 @@
 set -e
 
 SSL_DIR="./ssl"
-DOMAIN=${DOMAIN:-"www.softfluid.com"}
+DOMAIN=${DOMAIN:-"softfluid.fr"}
 
 echo "🔐 Generating SSL certificates for $DOMAIN..."
 

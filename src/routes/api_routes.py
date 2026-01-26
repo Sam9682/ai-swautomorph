@@ -436,7 +436,7 @@ def api_user_applications(user_id):
                     return jsonify({'error': 'Application not found'}), 404
                 
                 app_name = app_result[0]
-                url = f'https://${DOMAIN}:{HTTPS_PORT}'
+                url = f'https://{DOMAIN}:{HTTPS_PORT}'
                 
                 db_manager.execute_query(
                     'INSERT INTO user_applications (user_id, application_id, url, http_port, https_port, http_port2, https_port2) VALUES (%s, %s, %s, %s, %s, %s, %s)',

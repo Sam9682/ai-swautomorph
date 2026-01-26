@@ -61,7 +61,7 @@ USER_EMAIL=${5:-${DEFAULT_USER_EMAIL:-"admin@softfluid.fr"}}
 DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 
 # Configuration (loaded from deploy.ini with fallback defaults)
-DOMAIN=${DOMAIN:-"www.softfluid.fr"}
+DOMAIN=${DOMAIN:-"softfluid.fr"}
 EMAIL=${EMAIL:-"admin@softfluid.fr"}
 ENV_FILE=${ENV_FILE:-".env.prod"}
 SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt"}
