@@ -37,7 +37,7 @@ def generate_location_block(user_id: int, app_name: str, target_url: str) -> str
         sub_filter 'href="/' 'href="/{user_id}/{app_name}/';
         sub_filter 'src="/' 'src="/{user_id}/{app_name}/';
         sub_filter_once off;
-        sub_filter_types text/html text/css text/javascript application/javascript;
+        sub_filter_types text/css text/javascript application/javascript;
     }}
 """
 

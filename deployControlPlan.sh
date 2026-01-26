@@ -978,10 +978,12 @@ configure_gitea() {
     echo "  ⚙️ Configuring Gitea..."
     
     # Create required directories
-    sudo mkdir -p /home/ubuntu/admin/data/gitea-repositories
-    sudo mkdir -p /home/ubuntu/admin/db
     sudo mkdir -p /home/ubuntu/admin
+    sudo mkdir -p /home/ubuntu/admin/db
+    sudo mkdir -p /home/ubuntu/admin/data
+    sudo mkdir -p /home/ubuntu/admin/data/gitea-repositories
     sudo chown -R git:git /home/ubuntu/admin
+    sudo chmod a+w /home/ubuntu/admin/db/gitea.db
     
     # Create Gitea configuration
     sudo tee /etc/gitea/app.ini > /dev/null << 'EOF'
@@ -993,7 +995,7 @@ PATH = /home/ubuntu/admin/db/gitea.db
 ROOT = /home/ubuntu/admin/data/gitea-repositories
 
 [server]
-DOMAIN = www.fostfluid.fr
+DOMAIN = www.softfluid.fr
 HTTP_ADDR = 0.0.0.0
 HTTP_PORT = 3000
 ROOT_URL = https://www.softfluid.fr/gitea/
