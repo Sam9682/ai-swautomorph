@@ -1127,7 +1127,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         logger.error(f"[DEPLOYMENT API] CLONE - FAILED - No server_id provided for user {user_id}")
         return jsonify({'error': 'Server ID required for clone action'}), 400
     
-    logger.info(f"[DEPLOYMENT API] CLONE - Starting clone from {git_url} to {deployment_path}")
+    logger.info(f"[DEPLOYMENT API] CLONE/SWITCH - Starting clone from {git_url} to {deployment_path}")
     
     # Get current and target server IPs
     try:
@@ -1151,26 +1151,57 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
     target_server_ip = target_server[0]
     is_local_server = (target_server_ip == current_server_ip or target_server_ip == "127.0.0.1" or target_server_ip == "localhost")
     
+    # Determine if git_url is GitHub or Gitea/localhost
+    is_github = 'github.com' in git_url.lower()
+    
     # Execute clone operation
+    git_env = os.environ.copy()
+    git_env.update({'GIT_CONFIG_NOSYSTEM': '1', 'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
+    
     if is_local_server:
-        if os.path.exists(deployment_path):
-            shutil.rmtree(deployment_path)
-        os.makedirs(deployment_path, exist_ok=True)
-        
-        git_env = os.environ.copy()
-        git_env.update({'GIT_CONFIG_NOSYSTEM': '1', 'HOME': '/home/ubuntu', 'USER': 'ubuntu'})
-        result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
-                              capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
-        logger.info(f"[DEPLOYMENT API] CLONE - git clone --recurse-submodules {git_url} {deployment_path}")
+        if is_github:
+            # GitHub: Fresh clone (delete and clone)
+            if os.path.exists(deployment_path):
+                shutil.rmtree(deployment_path)
+            os.makedirs(deployment_path, exist_ok=True)
+            result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
+                                  capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+            logger.info(f"[DEPLOYMENT API] CLONE - GitHub: git clone --recurse-submodules {git_url} {deployment_path}")
+        else:
+            # Gitea/localhost: Use fetch and switch
+            if os.path.exists(deployment_path):
+                result = subprocess.run(['git', 'fetch', '--all'], cwd=deployment_path,
+                                      capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+                if result.returncode == 0:
+                    result = subprocess.run(['git', 'remote', 'set-url', 'origin', git_url], cwd=deployment_path,
+                                          capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+                    logger.info(f"[DEPLOYMENT API] GIT SWITCH - Gitea/localhost: git remote set-url origin {git_url}")
+
+                    if result.returncode == 0:
+                        result = subprocess.run(['git', 'checkout', '-B', 'main', 'origin/main'], cwd=deployment_path,
+                                              capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+                        logger.info(f"[DEPLOYMENT API] GIT SWITCH - Gitea/localhost: git checkout -B main origin/main")
+            else:
+                os.makedirs(deployment_path, exist_ok=True)
+                result = subprocess.run(['git', 'clone', '--recurse-submodules', git_url, deployment_path], 
+                                      capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN, env=git_env)
+                logger.info(f"[DEPLOYMENT API] GIT CLONE - Gitea/localhost: Initial git clone {git_url} {deployment_path}")
     else:
-        ssh_commands = [
-            f"rm -rf {deployment_path}",
-            f"mkdir -p {deployment_path}",
-            f"cd {os.path.dirname(deployment_path)} && git clone --recurse-submodules {git_url} {os.path.basename(deployment_path)}"
-        ]
-        ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
-        result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
-        logger.info(f"[DEPLOYMENT API] CLONE - ssh -o ubuntu@{target_server_ip} git clone --recurse-submodules {git_url} {deployment_path}")
+        if is_github:
+            # GitHub: Fresh clone (delete and clone)
+            ssh_commands = [
+                f"rm -rf {deployment_path}",
+                f"mkdir -p {deployment_path}",
+                f"cd {os.path.dirname(deployment_path)} && git clone --recurse-submodules {git_url} {os.path.basename(deployment_path)}"
+            ]
+            ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} '{'; '.join(ssh_commands)}'"
+            result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            logger.info(f"[DEPLOYMENT API] CLONE - GitHub remote: git clone --recurse-submodules {git_url} {deployment_path}")
+        else:
+            # Gitea/localhost: Use fetch and switch
+            ssh_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'if [ -d {deployment_path} ]; then cd {deployment_path} && git fetch --all && git remote set-url origin {git_url} && git checkout -B main origin/main; else mkdir -p {deployment_path} && git clone --recurse-submodules {git_url} {deployment_path}; fi'"
+            result = subprocess.run(ssh_command, shell=True, capture_output=True, text=True, timeout=TIMEOUT_SUBPROCESS_RUN)
+            logger.info(f"[DEPLOYMENT API] CLONE - Gitea/localhost remote: git fetch and switch to {git_url}")
     
     # Handle result
     output_parts = []
@@ -1235,8 +1266,9 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
                            headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
     else:
         status = 'failed'
-        error_msg = f'Git clone failed: {result.stderr}'
-        logger.error(f"[DEPLOYMENT API] CLONE - FAILED - {error_msg}")
+        # test if is_github then display CLONE else SWITCH in the error message
+        error_msg = f'Git {"clone" if is_github else "switch"} failed: {result.stderr}'
+        logger.error(f"[DEPLOYMENT API] GIT - FAILED - {error_msg}")
         return jsonify({'error': error_msg, 'logs': ssl_result.stdout}), 400
     
     return jsonify({'message': f'Clone completed for {app_name}', 'status': status, 'logs': ssl_result.stdout}), 202
