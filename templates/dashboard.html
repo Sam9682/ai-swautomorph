@@ -38,11 +38,20 @@
             {% endif %}
             <h3>{{ app[1] }}</h3>
             <p> (Id={{ app[0] }}) {{ app[3] or get_text('no_description') }}</p>
+            <div class="gitea-info" id="gitea-{{ app[1] | replace(' ', '-') | lower }}" style="margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px;">
+                <div style="margin-bottom: 5px;">
+                    <strong>📦 {{ get_text('gitea_branch') }}:</strong> 
+                    <select class="gitea-branch-select" onchange="switchGiteaBranch('{{ app[1] }}', this.value)" style="margin-left: 5px; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; max-width: 100%; width: auto; box-sizing: border-box;">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div style="word-wrap: break-word; overflow-wrap: break-word;"><strong>🔖 {{ get_text('local_active_version') }}:</strong> <span class="gitea-active-version" style="word-wrap: break-word;">Loading...</span></div>
+            </div>
             <div class="app-buttons">
                 <a href="{{ app[2] }}" target="_blank" class="btn btn-primary" id="openBtn-{{ app[1] | replace(' ', '-') | lower }}">{{ get_text('open_application') }}</a>
                 {% if app[4] %}
                 <div class="deployment-buttons">
-                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '{{ app[4] }}', 'clone', {{ app[6] or 50 }})" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
+                    <button onclick="cloneFromSelectedBranch('{{ app[1] }}', {{ app[6] or 50 }})" class="btn btn-secondary btn-small" id="cloneBtn-{{ app[1] | replace(' ', '-') | lower }}">📥 {{ get_text('clone') }}</button>
                     {% if username == 'admin' %}
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'start', null, {{ app[7] or 30 }})" class="btn btn-success btn-small" id="startBtn-{{ app[1] | replace(' ', '-') | lower }}">▶️ {{ get_text('start') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'stop', null, null, {{ app[9] or 10 }})" class="btn btn-danger btn-small" id="stopBtn-{{ app[1] | replace(' ', '-') | lower }}">⏹️ {{ get_text('stop') }}</button>
@@ -995,7 +1004,21 @@ function viewApp(id, name, url, description, gitUrl, gitLocalUrl, swautomorphUrl
     document.getElementById('viewAppUrl').innerHTML = `<a href="${url}" target="_blank" style="color: #3498db; text-decoration: none;">${url}</a>`;
     document.getElementById('viewAppDescription').textContent = description || 'No description';
     document.getElementById('viewAppGitUrl').textContent = gitUrl || 'Not specified';
-    document.getElementById('viewAppGitLocalUrl').innerHTML = gitLocalUrl ? `<a href="${gitLocalUrl}" target="_blank" style="color: #3498db; text-decoration: none;">${gitLocalUrl}</a>` : 'Not available';
+    
+    // Fetch Gitea repository URL from deployments table
+    fetch(`/api/deployments/${encodeURIComponent(name)}/gitea`)
+        .then(response => response.json())
+        .then(data => {
+            const giteaUrlElement = document.getElementById('viewAppGitLocalUrl');
+            if (data.gitea_branch_url) {
+                giteaUrlElement.innerHTML = `<a href="${data.gitea_branch_url}" target="_blank" style="color: #3498db; text-decoration: none;">${data.gitea_branch_url}</a>`;
+            } else {
+                giteaUrlElement.textContent = 'Not available';
+            }
+        })
+        .catch(error => {
+            document.getElementById('viewAppGitLocalUrl').textContent = 'Not available';
+        });
     
     // Make SwAutoMorph URL a link if it exists and is not "Not yet deployed"
     const swautomorphUrlElement = document.getElementById('viewAppSwautomorphUrl');
@@ -1505,8 +1528,128 @@ function appendLog(message) {
 document.addEventListener('DOMContentLoaded', function() {
     checkAllApplicationStatus();
     setInterval(checkAllApplicationStatus, 3000);
-    
+    loadAllGiteaInfo();
 });
+
+function loadAllGiteaInfo() {
+    const appCards = document.querySelectorAll('.app-card');
+    appCards.forEach(card => {
+        const appName = card.querySelector('h3').textContent;
+        loadGiteaInfo(appName);
+    });
+}
+
+function loadGiteaInfo(appName) {
+    fetch(`/api/deployments/${encodeURIComponent(appName)}/gitea`)
+        .then(response => response.json())
+        .then(data => {
+            const giteaDiv = document.getElementById(`gitea-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+            if (!giteaDiv) return;
+            
+            const branchSelect = giteaDiv.querySelector('.gitea-branch-select');
+            const activeVersionSpan = giteaDiv.querySelector('.gitea-active-version');
+            
+            let history = data.modification_history;
+            if (typeof history === 'string') {
+                try { history = JSON.parse(history); } catch(e) { history = []; }
+            }
+            
+            branchSelect.innerHTML = '';
+            
+            // Get git_url from applications table for this app
+            fetch('/api/applications')
+                .then(response => response.json())
+                .then(apps => {
+                    const app = apps.find(a => a.name === appName);
+                    
+                    // Display local active version: gitea_branch_url if cloned, otherwise git_url from applications
+                    let activeVersionUrl = data.gitea_branch_url || (app ? app.git_url : null);
+                    if (activeVersionUrl) {
+                        const versionName = activeVersionUrl;
+                        activeVersionSpan.textContent = versionName;
+                    } else {
+                        activeVersionSpan.textContent = 'Not cloned yet';
+                    }
+                    
+                    if (app && app.git_url) {
+                        // Add GitHub repository as first option
+                        const githubOption = document.createElement('option');
+                        githubOption.value = app.git_url;
+                        githubOption.textContent = `GitHub: ${app.git_url}`;
+                        githubOption.selected = true;
+                        branchSelect.appendChild(githubOption);
+                    }
+                    
+                    // Add Gitea branches from modification history
+                    if (Array.isArray(history) && history.length > 0) {
+                        history.forEach((mod, idx) => {
+                            const option = document.createElement('option');
+                            option.value = mod.gitea_url || mod.branch_name || '';
+                            option.textContent = `Gitea: ${mod.branch_name || `Branch ${idx + 1}`}`;
+                            if (mod.gitea_url === data.gitea_branch_url) {
+                                option.selected = true;
+                            }
+                            branchSelect.appendChild(option);
+                        });
+                    }
+                    
+                    if (branchSelect.options.length === 0) {
+                        branchSelect.innerHTML = '<option value="">Not deployed</option>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load applications:', error);
+                });
+        })
+        .catch(error => {
+            console.error(`Failed to load Gitea info for ${appName}:`, error);
+        });
+}
+
+function switchGiteaBranch(appName, branchUrl) {
+    if (!branchUrl) return;
+    
+    fetch(`/api/deployments/${encodeURIComponent(appName)}/gitea/branch`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({branch_url: branchUrl})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+        } else {
+            loadGiteaInfo(appName);
+        }
+    })
+    .catch(error => {
+        console.error('Failed to switch branch:', error);
+        alert('Failed to switch branch');
+    });
+}
+
+function cloneFromSelectedBranch(appName, repoSize) {
+    const giteaDiv = document.getElementById(`gitea-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+    if (!giteaDiv) {
+        console.error('Gitea div not found for app:', appName);
+        return;
+    }
+    
+    const branchSelect = giteaDiv.querySelector('.gitea-branch-select');
+    if (!branchSelect) {
+        console.error('Branch select not found for app:', appName);
+        return;
+    }
+    
+    const selectedGitUrl = branchSelect.value;
+    if (!selectedGitUrl) {
+        alert('Please select a branch to clone');
+        return;
+    }
+    
+    // Call the existing deploy function with the selected git URL
+    deploy_sh_executionCmdInApp(appName, selectedGitUrl, 'clone', repoSize);
+}
 
 function checkAllApplicationStatus() {
     const appCards = document.querySelectorAll('.app-card');

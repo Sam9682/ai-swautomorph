@@ -1216,13 +1216,13 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         
         if existing_record:
             db_manager.execute_query(
-                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, swautomorph_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
-                (status, deployment_path, git_url, swautomorph_url, session['user_id'], app_name, server_id)
+                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, gitea_branch_url = %s, swautomorph_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
+                (status, deployment_path, git_url, git_url, swautomorph_url, session['user_id'], app_name, server_id)
             )
         else:
             db_manager.execute_query(
-                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                (session['user_id'], app_name, status, deployment_path, git_url, server_id, swautomorph_url)
+                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, gitea_branch_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
+                (session['user_id'], app_name, status, deployment_path, git_url, git_url, server_id, swautomorph_url)
             )
         
         if data.get('stream', False):
@@ -1588,3 +1588,47 @@ def api_configuration_actions(param_id):
             return jsonify({'message': 'Configuration parameter deleted successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/deployments/<app_name>/gitea', methods=['GET'])
+def api_deployment_gitea(app_name):
+    """Get Gitea branch info and modification history for application"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        deployment = db_manager.execute_query(
+            'SELECT gitea_branch_url, modification_history FROM deployments WHERE user_id = %s AND application_name = %s ORDER BY updated_at DESC LIMIT 1',
+            (session['user_id'], app_name), fetch_one=True
+        )
+        
+        if not deployment:
+            return jsonify({'gitea_branch_url': None, 'modification_history': []})
+        
+        return jsonify({
+            'gitea_branch_url': deployment[0],
+            'modification_history': deployment[1] if deployment[1] else []
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/deployments/<app_name>/gitea/branch', methods=['POST'])
+def api_deployment_gitea_branch(app_name):
+    """Update Gitea branch for application deployment"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        data = request.get_json()
+        branch_url = data.get('branch_url')
+        
+        if not branch_url:
+            return jsonify({'error': 'Branch URL required'}), 400
+        
+        db_manager.execute_query(
+            'UPDATE deployments SET gitea_branch_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s',
+            (branch_url, session['user_id'], app_name)
+        )
+        
+        return jsonify({'message': 'Gitea branch updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
