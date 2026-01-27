@@ -1297,7 +1297,11 @@ def _handle_app_action(user_id, app_name, action, data):
     deploy_script = os.path.join(deploy_path, 'deployApp.sh')
     
     if not os.path.exists(deploy_script):
-        logger.error(f"[DEPLOYMENT API] {action.upper()} - FAILED - deployApp.sh not found at {deploy_script} for user {user_id}")
+        # if action is PS then display treat the message as a WARNIN else treat it as an ERROR
+        if action.upper() == 'PS':
+            logger.warning(f"[DEPLOYMENT API] PS - WARNING - deployApp.sh not found at {deploy_script} for user {user_id}")
+        else:
+            logger.error(f"[DEPLOYMENT API] {action.upper()} - ERROR - deployApp.sh not found at {deploy_script} for user {user_id}")
         return jsonify({'error': f'deployApp.sh not found in {deploy_script}'}), 202
     
     # Get user details

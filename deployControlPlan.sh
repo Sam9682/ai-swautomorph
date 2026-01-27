@@ -64,7 +64,7 @@ DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 DOMAIN=${DOMAIN:-"softfluid.fr"}
 EMAIL=${EMAIL:-"admin@softfluid.fr"}
 ENV_FILE=${ENV_FILE:-".env.prod"}
-SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt"}
+SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/fullchain_domain.crt"}
 SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key"}
 GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
 GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
@@ -1289,7 +1289,7 @@ server {
     listen 443 ssl;
     server_name localhost www.softfluid.fr;
     
-    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/certificate_domain.crt};
+    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/fullchain_domain.crt};
     ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key};
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
@@ -1532,7 +1532,7 @@ create_directories() {
 }
 
 setup_ssl_certificates() {
-    if [ ! -f ssl/certificate_domain.crt ] || [ ! -f ssl/privateKey_domain.key ]; then
+    if [ ! -f ssl/fullchain_domain.crt ] || [ ! -f ssl/privateKey_domain.key ]; then
         echo "🔐 Generating SSL certificates..."
         ./scripts/generate_ssl.sh
     else
