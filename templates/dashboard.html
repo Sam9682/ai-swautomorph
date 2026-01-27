@@ -41,7 +41,7 @@
             <div class="gitea-info" id="gitea-{{ app[1] | replace(' ', '-') | lower }}" style="margin: 10px 0; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 12px;">
                 <div style="margin-bottom: 5px;">
                     <strong>📦 {{ get_text('gitea_branch') }}:</strong> 
-                    <select class="gitea-branch-select" onchange="switchGiteaBranch('{{ app[1] }}', this.value)" style="margin-left: 5px; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; max-width: 100%; width: auto; box-sizing: border-box;">
+                    <select class="gitea-branch-select" style="margin-left: 5px; padding: 2px 5px; border-radius: 3px; border: 1px solid #ddd; max-width: 100%; width: auto; box-sizing: border-box;">
                         <option value="">Loading...</option>
                     </select>
                 </div>
@@ -474,6 +474,33 @@
     </div>
     {% endif %}
     
+    <!-- Deployments Section -->
+    {% if username == 'admin' %}
+    <div id="deploymentsSection" class="tab-content" style="display: none;">
+        <h2>Deployments Management</h2>
+        
+        <div class="deployments-filters" style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+            <div>
+                <label for="filterUserId">User:</label>
+                <select id="filterUserId" onchange="loadDeploymentsTable()">
+                    <option value="">All Users</option>
+                </select>
+            </div>
+            <div>
+                <label for="filterApplicationId">Application:</label>
+                <select id="filterApplicationId" onchange="loadDeploymentsTable()">
+                    <option value="">All Applications</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary" onclick="loadDeploymentsTable()">Refresh</button>
+        </div>
+        
+        <div id="deploymentsTableContainer" class="table-container">
+            <p>Loading deployments...</p>
+        </div>
+    </div>
+    {% endif %}
+    
     <!-- Database Section -->
     {% if username == 'admin' %}
     <div id="databaseSection" class="tab-content" style="display: none;">
@@ -731,6 +758,9 @@ function showTab(tab) {
     const orchestratorSection = document.getElementById('orchestratorSection');
     if (orchestratorSection) orchestratorSection.style.display = 'none';
     
+    const deploymentsSection = document.getElementById('deploymentsSection');
+    if (deploymentsSection) deploymentsSection.style.display = 'none';
+    
     const databaseSection = document.getElementById('databaseSection');
     if (databaseSection) databaseSection.style.display = 'none';
     
@@ -770,6 +800,12 @@ function showTab(tab) {
             loadOrchestratorStatus();
             loadServices();
         }
+    } else if (tab === 'deployments') {
+        if (deploymentsSection) {
+            deploymentsSection.style.display = 'block';
+            loadDeploymentsFilters();
+            loadDeploymentsTable();
+        }
     } else if (tab === 'database') {
         if (databaseSection) {
             databaseSection.style.display = 'block';
@@ -790,7 +826,7 @@ function showTab(tab) {
     
     // Only close dropdowns if we're actually switching tabs within the dashboard
     // Don't close dropdowns for Help menu navigation since those are external links
-    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'servers' || tab === 'orchestrator' || tab === 'database') {
+    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'servers' || tab === 'orchestrator' || tab === 'deployments' || tab === 'database') {
         const configDropdown = document.getElementById('navConfigDropdown');
         const helpDropdown = document.getElementById('navHelpDropdown');
         if (configDropdown) configDropdown.style.display = 'none';
@@ -1189,6 +1225,9 @@ function deploy_sh_executionCmdInApp(appName, gitUrl, action, repoSize, startDur
     // For clone action, proceed directly without server allocation
     if (action === 'clone') {
         console.log('Processing clone action for:', appName);
+        
+        // Store app name for refresh after clone completes
+        window.lastClonedApp = appName;
         
         const data = {
             action: action,
@@ -4044,6 +4083,13 @@ function hideLoadingMessage() {
     if (loadingMessage) {
         loadingMessage.remove();
     }
+    
+    // Refresh application panel after CLONE operation
+    if (window.lastClonedApp) {
+        checkApplicationStatus(window.lastClonedApp);
+        loadGiteaInfo(window.lastClonedApp);
+        window.lastClonedApp = null;
+    }
 }
 
 // Close modal when clicking outside
@@ -4474,6 +4520,156 @@ function deleteConfig(paramId) {
         })
         .catch(error => {
             alert('Error deleting configuration parameter');
+        });
+    }
+}
+</script>
+
+<script>
+// Deployments management functions
+function loadDeploymentsFilters() {
+    // Load users for filter
+    fetch('/api/users')
+        .then(response => response.json())
+        .then(users => {
+            const userSelect = document.getElementById('filterUserId');
+            userSelect.innerHTML = '<option value="">All Users</option>';
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = `${user.username} (ID: ${user.id})`;
+                userSelect.appendChild(option);
+            });
+        });
+    
+    // Load applications for filter
+    fetch('/api/applications')
+        .then(response => response.json())
+        .then(apps => {
+            const appSelect = document.getElementById('filterApplicationId');
+            appSelect.innerHTML = '<option value="">All Applications</option>';
+            apps.forEach(app => {
+                const option = document.createElement('option');
+                option.value = app.id;
+                option.textContent = `${app.name} (ID: ${app.id})`;
+                appSelect.appendChild(option);
+            });
+        });
+}
+
+function loadDeploymentsTable() {
+    const userId = document.getElementById('filterUserId').value;
+    const appId = document.getElementById('filterApplicationId').value;
+    
+    fetch('/api/deployments/all')
+        .then(response => response.json())
+        .then(deployments => {
+            // Filter deployments
+            let filtered = deployments;
+            if (userId) {
+                filtered = filtered.filter(d => d.user_id == userId);
+            }
+            if (appId) {
+                filtered = filtered.filter(d => d.application_id == appId);
+            }
+            
+            const container = document.getElementById('deploymentsTableContainer');
+            if (filtered.length === 0) {
+                container.innerHTML = '<p>No deployments found.</p>';
+                return;
+            }
+            
+            let html = '<table class="database-table"><thead><tr>';
+            html += '<th>ID</th><th>User ID</th><th>App ID</th><th>App Name</th><th>Status</th>';
+            html += '<th>Path</th><th>Git URL</th><th>Server ID</th><th>SwAutoMorph URL</th>';
+            html += '<th>Modification History</th><th>Actions</th>';
+            html += '</tr></thead><tbody>';
+            
+            filtered.forEach(dep => {
+                html += '<tr>';
+                html += `<td>${dep.id}</td>`;
+                html += `<td>${dep.user_id}</td>`;
+                html += `<td>${dep.application_id || 'N/A'}</td>`;
+                html += `<td>${dep.application_name}</td>`;
+                html += `<td><span class="status-${dep.status}">${dep.status}</span></td>`;
+                html += `<td style="font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${dep.deployment_path || 'N/A'}</td>`;
+                html += `<td style="font-size: 11px; max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${dep.git_url || 'N/A'}</td>`;
+                html += `<td>${dep.server_id || 'N/A'}</td>`;
+                html += `<td style="font-size: 11px;"><a href="${dep.swautomorph_url || '#'}" target="_blank">${dep.swautomorph_url || 'N/A'}</a></td>`;
+                
+                // Modification history as listbox
+                let history = dep.modification_history;
+                if (typeof history === 'string') {
+                    try { history = JSON.parse(history); } catch(e) { history = []; }
+                }
+                
+                if (Array.isArray(history) && history.length > 0) {
+                    html += '<td><select size="3" style="width: 200px; font-size: 11px;" onclick="copyToClipboard(this.value)">';
+                    history.forEach((item, idx) => {
+                        const displayText = item.branch_name || item.gitea_url || `Entry ${idx + 1}`;
+                        const value = item.gitea_url || item.branch_name || JSON.stringify(item);
+                        html += `<option value="${value}">${displayText}</option>`;
+                    });
+                    html += '</select></td>';
+                } else {
+                    html += '<td>No history</td>';
+                }
+                
+                // Actions
+                html += '<td>';
+                html += `<button class="btn-small" onclick="updateNginxForDeployment(${dep.user_id}, '${dep.application_name}', '${dep.swautomorph_url || ''}')">Update Nginx</button>`;
+                html += '</td>';
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            document.getElementById('deploymentsTableContainer').innerHTML = '<p>Error loading deployments.</p>';
+        });
+}
+
+function copyToClipboard(text) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        // Show brief notification
+        const notification = document.createElement('div');
+        notification.textContent = 'Copied to clipboard!';
+        notification.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; z-index: 10000;';
+        document.body.appendChild(notification);
+        setTimeout(() => notification.remove(), 2000);
+    }).catch(err => {
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function updateNginxForDeployment(userId, appName, targetUrl) {
+    if (!targetUrl || targetUrl === 'N/A') {
+        alert('No SwAutoMorph URL available for this deployment');
+        return;
+    }
+    
+    if (confirm(`Update nginx configuration for user ${userId} - ${appName}?`)) {
+        fetch('/api/nginx/update-deployment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                user_id: userId,
+                app_name: appName,
+                target_url: targetUrl
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message || 'Nginx configuration updated successfully');
+            }
+        })
+        .catch(error => {
+            alert('Failed to update nginx configuration: ' + error);
         });
     }
 }

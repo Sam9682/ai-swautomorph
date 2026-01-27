@@ -76,6 +76,7 @@ CREATE TABLE servers (
 CREATE TABLE deployments (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL,
+    application_id BIGINT,
     application_name VARCHAR(255) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
     deployment_path TEXT,
@@ -87,6 +88,7 @@ CREATE TABLE deployments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (application_id) REFERENCES applications (id) ON DELETE SET NULL,
     FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE SET NULL
 );
 
@@ -205,6 +207,7 @@ CREATE INDEX idx_auth_tokens_expires_at ON auth_tokens(expires_at);
 CREATE INDEX idx_user_applications_user_id ON user_applications(user_id);
 CREATE INDEX idx_user_applications_application_id ON user_applications(application_id);
 CREATE INDEX idx_deployments_user_id ON deployments(user_id);
+CREATE INDEX idx_deployments_application_id ON deployments(application_id);
 CREATE INDEX idx_deployments_server_id ON deployments(server_id);
 CREATE INDEX idx_deployments_status ON deployments(status);
 CREATE INDEX idx_billing_activities_user_id ON billing_activities(user_id);

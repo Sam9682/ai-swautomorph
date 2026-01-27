@@ -1240,6 +1240,14 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         
         # Record deployment
         swautomorph_url = f"https://{DOMAIN}/{user_id}/{app_name}"
+        
+        # Get application_id from database
+        app_result = db_manager.execute_query(
+            'SELECT id FROM applications WHERE name = %s',
+            (app_name,), fetch_one=True
+        )
+        application_id = app_result[0] if app_result else None
+        
         existing_record = db_manager.execute_query(
             'SELECT id FROM deployments WHERE user_id = %s AND application_name = %s AND server_id = %s',
             (user_id, app_name, server_id), fetch_one=True
@@ -1247,13 +1255,13 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         
         if existing_record:
             db_manager.execute_query(
-                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, gitea_branch_url = %s, swautomorph_url = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
-                (status, deployment_path, git_url, git_url, swautomorph_url, session['user_id'], app_name, server_id)
+                'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, gitea_branch_url = %s, swautomorph_url = %s, application_id = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
+                (status, deployment_path, git_url, git_url, swautomorph_url, application_id, session['user_id'], app_name, server_id)
             )
         else:
             db_manager.execute_query(
-                'INSERT INTO deployments (user_id, application_name, status, deployment_path, git_url, gitea_branch_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)',
-                (session['user_id'], app_name, status, deployment_path, git_url, git_url, server_id, swautomorph_url)
+                'INSERT INTO deployments (user_id, application_id, application_name, status, deployment_path, git_url, gitea_branch_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                (session['user_id'], application_id, app_name, status, deployment_path, git_url, git_url, server_id, swautomorph_url)
             )
         
         if data.get('stream', False):
@@ -1373,13 +1381,13 @@ def api_deployments():
     
     if request.method == 'GET':
         logger.info(f"[DEPLOYMENT API] GET - Fetching deployments for user {user_id}")
-        deployments_data = db_manager.execute_query('''SELECT id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
+        deployments_data = db_manager.execute_query('''SELECT id, application_id, application_name, status, deployment_path, git_url, created_at, updated_at, server_id
             FROM deployments WHERE user_id = %s ORDER BY updated_at DESC
         ''', (session['user_id'],), fetch_all=True)
         
         deployments = [{
-            'id': row[0], 'application_name': row[1], 'status': row[2], 'deployment_path': row[3],
-            'git_url': row[4], 'created_at': row[5], 'updated_at': row[6], 'server_id': row[7]
+            'id': row[0], 'application_id': row[1], 'application_name': row[2], 'status': row[3], 'deployment_path': row[4],
+            'git_url': row[5], 'created_at': row[6], 'updated_at': row[7], 'server_id': row[8]
         } for row in deployments_data]
         
         logger.info(f"[DEPLOYMENT API] GET - Returning {len(deployments)} deployments for user {user_id}")
@@ -1620,6 +1628,89 @@ def api_configuration_actions(param_id):
             return jsonify({'message': 'Configuration parameter deleted successfully'})
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/deployments/all', methods=['GET'])
+def api_deployments_all():
+    """Get all deployments (admin only)"""
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    
+    logger.info(f"[DEPLOYMENTS_ALL] GET request from user {user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        logger.warning(f"[DEPLOYMENTS_ALL] Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        logger.warning(f"[DEPLOYMENTS_ALL] Admin access denied for user {user_id}")
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        deployments_data = db_manager.execute_query('''SELECT id, user_id, application_id, application_name, status, deployment_path, 
+                   git_url, server_id, swautomorph_url, modification_history, created_at, updated_at
+            FROM deployments ORDER BY updated_at DESC
+        ''', fetch_all=True)
+        
+        deployments = [{
+            'id': row[0], 'user_id': row[1], 'application_id': row[2], 'application_name': row[3],
+            'status': row[4], 'deployment_path': row[5], 'git_url': row[6], 'server_id': row[7],
+            'swautomorph_url': row[8], 'modification_history': row[9], 'created_at': row[10], 'updated_at': row[11]
+        } for row in deployments_data]
+        
+        logger.info(f"[DEPLOYMENTS_ALL] Returning {len(deployments)} deployments to user {user_id}")
+        return jsonify(deployments)
+    except Exception as e:
+        logger.error(f"[DEPLOYMENTS_ALL] Error for user {user_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/nginx/update-deployment', methods=['POST'])
+def api_nginx_update_deployment():
+    """Update nginx configuration for a specific deployment"""
+    session_user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    
+    logger.info(f"[NGINX_UPDATE] POST request from user {session_user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        logger.warning(f"[NGINX_UPDATE] Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        logger.warning(f"[NGINX_UPDATE] Admin access denied for user {session_user_id}")
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        app_name = data.get('app_name')
+        target_url = data.get('target_url')
+        
+        logger.info(f"[NGINX_UPDATE] Request for user_id={user_id}, app={app_name}, url={target_url}")
+        
+        if not all([user_id, app_name, target_url]):
+            logger.error(f"[NGINX_UPDATE] Missing parameters: user_id={user_id}, app={app_name}, url={target_url}")
+            return jsonify({'error': 'user_id, app_name, and target_url are required'}), 400
+        
+        # Check if nginx location already exists and update/insert
+        if insert_location_block(user_id, app_name, target_url):
+            logger.info(f"[NGINX_UPDATE] SUCCESS - Nginx updated for user {user_id}, app {app_name}")
+            return jsonify({'message': f'Nginx configuration updated for {app_name}'})
+        else:
+            logger.error(f"[NGINX_UPDATE] FAILED - Could not update nginx for user {user_id}, app {app_name}")
+            return jsonify({'error': 'Failed to update nginx configuration'}), 500
+    except Exception as e:
+        logger.error(f"[NGINX_UPDATE] Exception for user {session_user_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @api_bp.route('/deployments/<app_name>/gitea', methods=['GET'])
 def api_deployment_gitea(app_name):
