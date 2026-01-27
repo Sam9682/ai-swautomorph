@@ -445,8 +445,14 @@ def api_user_applications(user_id):
                 
                 # Update nginx configuration with dynamic location
                 try:
-                    insert_location_block(user_id, app_name, url)
-                    logger.info(f"Nginx location added for user {user_id} app {app_name}")
+                    # Get username for nginx location
+                    user_result = db_manager.execute_query(
+                        'SELECT username FROM users WHERE id = %s',
+                        (user_id,), fetch_one=True
+                    )
+                    user_name = user_result[0] if user_result else f'user_{user_id}'
+                    insert_location_block(user_name, app_name, url)
+                    logger.info(f"Nginx location added for user {user_name} app {app_name}")
                 except Exception as e:
                     logger.warning(f"Failed to update nginx config: {e}")
                 
@@ -477,8 +483,14 @@ def api_user_applications(user_id):
             # Remove nginx location
             if app_result:
                 try:
-                    remove_location_block(user_id, app_result[0])
-                    logger.info(f"Nginx location removed for user {user_id} app {app_result[0]}")
+                    # Get username for nginx location
+                    user_result = db_manager.execute_query(
+                        'SELECT username FROM users WHERE id = %s',
+                        (user_id,), fetch_one=True
+                    )
+                    user_name = user_result[0] if user_result else f'user_{user_id}'
+                    remove_location_block(user_name, app_result[0])
+                    logger.info(f"Nginx location removed for user {user_name} app {app_result[0]}")
                 except Exception as e:
                     logger.warning(f"Failed to remove nginx location: {e}")
             
@@ -1221,8 +1233,14 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
                 (user_id, app_name), fetch_one=True
             )
             if user_app and user_app[0]:
-                insert_location_block(user_id, app_name, user_app[0])
-                logger.info(f"Nginx location updated for user {user_id} app {app_name}")
+                # Get username for nginx location
+                user_result = db_manager.execute_query(
+                    'SELECT username FROM users WHERE id = %s',
+                    (user_id,), fetch_one=True
+                )
+                user_name = user_result[0] if user_result else f'user_{user_id}'
+                insert_location_block(user_name, app_name, user_app[0])
+                logger.info(f"Nginx location updated for user {user_name} app {app_name}")
         except Exception as e:
             logger.warning(f"Failed to update nginx after clone: {e}")
         
@@ -1231,7 +1249,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         ssl_env['USER'] = 'ubuntu'
         
         if is_local_server:
-            ssl_command = f"mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/fullchain_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_domain.key ]; then cp {PROJECT_ROOT}/ssl/fullchain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem && chmod 600 {deployment_path}/ssl/*.pem; elif command -v certbot > /dev/null 2>&1; then sudo certbot certonly --standalone -d www.{DOMAIN} --email admin@{DOMAIN} --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/ && chmod 600 {deployment_path}/ssl/*.pem; fi"
+            ssl_command = f"mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/fullchain_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_domain.key ]; then cp {PROJECT_ROOT}/ssl/fullchain_domain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem && chmod 600 {deployment_path}/ssl/*.pem; elif command -v certbot > /dev/null 2>&1; then sudo certbot certonly --standalone -d www.{DOMAIN} --email admin@{DOMAIN} --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/ && chmod 600 {deployment_path}/ssl/*.pem; fi"
         else:
             ssl_command = f"ssh -o StrictHostKeyChecking=no ubuntu@{target_server_ip} 'mkdir -p {deployment_path}/ssl && if [ -f {PROJECT_ROOT}/ssl/fullchain_domain.crt ] && [ -f {PROJECT_ROOT}/ssl/privateKey_domain.key ]; then cp {PROJECT_ROOT}/ssl/fullchain_domain.crt {deployment_path}/ssl/fullchain.pem && cp {PROJECT_ROOT}/ssl/privateKey_domain.key {deployment_path}/ssl/privkey.pem && chmod 600 {deployment_path}/ssl/*.pem; elif command -v certbot > /dev/null 2>&1; then sudo systemctl stop nginx 2>/dev/null || true && sudo certbot certonly --standalone -d www.{DOMAIN} --email admin@{DOMAIN} --agree-tos --non-interactive --quiet && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/fullchain.pem {deployment_path}/ssl/ && sudo cp /etc/letsencrypt/live/www.{DOMAIN}/privkey.pem {deployment_path}/ssl/ && sudo chown -R ubuntu:ubuntu {deployment_path}/ssl/ && chmod 600 {deployment_path}/ssl/*.pem; fi'"
 
@@ -1239,7 +1257,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         logger.info(f"[DEPLOYMENT API] CLONE - SSL setup result: {ssl_result.returncode}, stdout: {ssl_result.stdout}, stderr: {ssl_result.stderr}")
         
         # Record deployment
-        swautomorph_url = f"https://{DOMAIN}/{user_id}/{app_name}"
+        swautomorph_url = f"https://{DOMAIN}/{user_name}/{app_name}"
         
         # Get application_id from database
         app_result = db_manager.execute_query(
@@ -1695,22 +1713,22 @@ def api_nginx_update_deployment():
     
     try:
         data = request.get_json()
-        user_id = data.get('user_id')
+        user_name = data.get('user_name')
         app_name = data.get('app_name')
         target_url = data.get('target_url')
         
-        logger.info(f"[NGINX_UPDATE] Request for user_id={user_id}, app={app_name}, url={target_url}")
+        logger.info(f"[NGINX_UPDATE] Request for user_name={user_name}, app={app_name}, url={target_url}")
         
-        if not all([user_id, app_name, target_url]):
-            logger.error(f"[NGINX_UPDATE] Missing parameters: user_id={user_id}, app={app_name}, url={target_url}")
-            return jsonify({'error': 'user_id, app_name, and target_url are required'}), 400
+        if not all([user_name, app_name, target_url]):
+            logger.error(f"[NGINX_UPDATE] Missing parameters: user_name={user_name}, app={app_name}, url={target_url}")
+            return jsonify({'error': 'user_name, app_name, and target_url are required'}), 400
         
         # Check if nginx location already exists and update/insert
-        if insert_location_block(user_id, app_name, target_url):
-            logger.info(f"[NGINX_UPDATE] SUCCESS - Nginx updated for user {user_id}, app {app_name}")
+        if insert_location_block(user_name, app_name, target_url):
+            logger.info(f"[NGINX_UPDATE] SUCCESS - Nginx updated for user {user_name}, app {app_name}")
             return jsonify({'message': f'Nginx configuration updated for {app_name}'})
         else:
-            logger.error(f"[NGINX_UPDATE] FAILED - Could not update nginx for user {user_id}, app {app_name}")
+            logger.error(f"[NGINX_UPDATE] FAILED - Could not update nginx for user {user_name}, app {app_name}")
             return jsonify({'error': 'Failed to update nginx configuration'}), 500
     except Exception as e:
         logger.error(f"[NGINX_UPDATE] Exception for user {session_user_id}: {str(e)}")

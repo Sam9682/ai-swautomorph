@@ -10,12 +10,12 @@ NGINX_CONF_DIR = "/etc/nginx/sites-available"
 NGINX_ENABLED_DIR = "/etc/nginx/sites-enabled"
 NGINX_CONF_FILE = "ai-swautomorph"
 
-def generate_location_block(user_id: int, app_name: str, target_url: str) -> str:
+def generate_location_block(user_name: str, app_name: str, target_url: str) -> str:
     """Generate nginx location block for user application"""
-    location_path = f"/{user_id}/{app_name}"
+    location_path = f"/{user_name}/{app_name}"
     
     return f"""
-    # Dynamic location for user {user_id} - {app_name}
+    # Dynamic location for user {user_name} - {app_name}
     location {location_path}/ {{
         proxy_pass {target_url}/;
         proxy_set_header Host $host;
@@ -34,8 +34,8 @@ def generate_location_block(user_id: int, app_name: str, target_url: str) -> str
         proxy_read_timeout 60s;
         
         # Rewrite HTML content to fix absolute paths
-        sub_filter 'href="/' 'href="/{user_id}/{app_name}/';
-        sub_filter 'src="/' 'src="/{user_id}/{app_name}/';
+        sub_filter 'href="/' 'href="/{user_name}/{app_name}/';
+        sub_filter 'src="/' 'src="/{user_name}/{app_name}/';
         sub_filter_once off;
         sub_filter_types text/css text/javascript application/javascript;
     }}
@@ -85,14 +85,14 @@ def write_nginx_config(config: str) -> bool:
         logger.error(f"Failed to write nginx config: {e}")
         return False
 
-def insert_location_block(user_id: int, app_name: str, target_url: str) -> bool:
+def insert_location_block(user_name: str, app_name: str, target_url: str) -> bool:
     """Insert or update location block in nginx configuration"""
     try:
         config = read_nginx_config()
-        location_block = generate_location_block(user_id, app_name, target_url)
+        location_block = generate_location_block(user_name, app_name, target_url)
         
         # Remove existing location block for this user/app if exists
-        marker_start = f"# Dynamic location for user {user_id} - {app_name}"
+        marker_start = f"# Dynamic location for user {user_name} - {app_name}"
         marker_end = "}"
         
         lines = config.split('\n')
@@ -124,13 +124,13 @@ def insert_location_block(user_id: int, app_name: str, target_url: str) -> bool:
         logger.error(f"Failed to insert location block: {e}")
         return False
 
-def remove_location_block(user_id: int, app_name: str) -> bool:
+def remove_location_block(user_name: str, app_name: str) -> bool:
     """Remove location block from nginx configuration"""
     try:
         config = read_nginx_config()
         
         # Remove location block
-        marker_start = f"# Dynamic location for user {user_id} - {app_name}"
+        marker_start = f"# Dynamic location for user {user_name} - {app_name}"
         marker_end = "}"
         
         lines = config.split('\n')
@@ -192,9 +192,10 @@ def sync_all_locations(db_manager) -> bool:
     try:
         # Get all user applications with URLs
         apps = db_manager.execute_query("""
-            SELECT ua.user_id, a.name, ua.url
+            SELECT u.username, a.name, ua.url
             FROM user_applications ua
             JOIN applications a ON ua.application_id = a.id
+            JOIN users u ON ua.user_id = u.id
             WHERE ua.url IS NOT NULL AND ua.url != ''
         """, fetch_all=True)
         
@@ -223,8 +224,8 @@ def sync_all_locations(db_manager) -> bool:
         # Insert all location blocks before the main location / block
         location_blocks = []
         for app in apps:
-            user_id, app_name, url = app
-            location_blocks.append(generate_location_block(user_id, app_name, url))
+            user_name, app_name, url = app
+            location_blocks.append(generate_location_block(user_name, app_name, url))
         
         # Insert before location / in the 443 server
         location_root_idx = config.find('    location / {')
