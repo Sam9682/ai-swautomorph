@@ -134,8 +134,8 @@ python3 ./scripts/sf_cli.py db-health
 ./scripts/generate_ssl.sh
 
 # Or use production certificates (place in ssl/ directory)
-# - STAR_swautomorph_com.crt
-# - privateKey_STAR_swautomorph_com.key
+# - fullchain_domain.crt
+# - privateKey_domain.key
 ```
 
 ## API Access for GenAI Agents

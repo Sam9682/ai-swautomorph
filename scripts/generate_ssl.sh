@@ -13,7 +13,7 @@ echo "🔐 Generating SSL certificates for $DOMAIN..."
 mkdir -p "$SSL_DIR"
 
 # Check if certificates already exist
-if [ -f "$SSL_DIR/certificate_domain.crt" ] && [ -f "$SSL_DIR/privateKey_domain.key" ]; then
+if [ -f "$SSL_DIR/fullchain_domain.crt" ] && [ -f "$SSL_DIR/privateKey_domain.key" ]; then
     echo "⚠️  SSL certificates already exist. Use --force to regenerate."
     if [ "$1" != "--force" ]; then
         exit 0
@@ -35,7 +35,7 @@ openssl x509 -req -in "$SSL_DIR/csr.pem" -signkey "$SSL_DIR/privateKey_domain.cr
 
 # Set proper permissions
 chmod 600 "$SSL_DIR/privateKey_domain.key"
-chmod 644 "$SSL_DIR/certificate_domain.crt"
+chmod 644 "$SSL_DIR/fullchain_domain.crt"
 
 # Clean up CSR file
 rm "$SSL_DIR/csr.pem"
