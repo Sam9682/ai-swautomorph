@@ -12,17 +12,21 @@ NGINX_CONF_FILE = "ai-swautomorph"
 
 def generate_location_block(user_name: str, app_name: str, target_url: str) -> str:
     """Generate nginx location block for user application"""
-    location_path = f"/{user_name}/{app_name}"
-    
+    location_path = f"/{user_name}/{app_name}/"
+
     return f"""
     # Dynamic location for user {user_name} - {app_name}
-    location {location_path}/ {{
+    location {location_path} {{
         proxy_pass {target_url}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
+        # Redirect rewriting to preserve context path
+        proxy_redirect {target_url}/ {location_path};
+        proxy_redirect / {location_path};
+
         # WebSocket support
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -34,8 +38,8 @@ def generate_location_block(user_name: str, app_name: str, target_url: str) -> s
         proxy_read_timeout 60s;
         
         # Rewrite HTML content to fix absolute paths
-        sub_filter 'href="/' 'href="/{user_name}/{app_name}/';
-        sub_filter 'src="/' 'src="/{user_name}/{app_name}/';
+        sub_filter 'href="/' 'href="{location_path}';
+        sub_filter 'src="/' 'src="{location_path}';
         sub_filter_once off;
         sub_filter_types text/css text/javascript application/javascript;
     }}
