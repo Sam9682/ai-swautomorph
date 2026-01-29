@@ -371,7 +371,8 @@ TRANSLATIONS = {
         'select_app_tooltip': 'Select an application on which you want to ask the virtual IT specialists to perform an action',
         'replication_queue': 'Replication Synchronization Queue between servers PRIMARY and SECONDARY',
         'gitea_branch': 'Gitea Branch',
-        'local_active_version': 'Local Active Version'
+        'local_active_version': 'Local Active Version',
+        'orchestrator': 'Applications Orchestrator'
     },
     'fr': {
         'login': 'Connexion',
@@ -594,6 +595,7 @@ TRANSLATIONS = {
         'unified_input_tooltip': "Tapez en français ce que vous voulez demander à votre informaticien virtuel concernant les modifications à réaliser concernant l'application. Soyez précis, par exemple: modifie le numéro de téléphone qui s'affiche sur la page principale du site web 06 19 89 90 50 et remplace par 01 46 43 23 56",
         'replication_queue': "Queue/Liste pour la synchronisation entre le serveur PRIMAIRE et les SECONDAIRES",
         'gitea_branch': 'Branche Gitea',
-        'local_active_version': 'Version Active Locale'
+        'local_active_version': 'Version Active Locale',
+        'orchestrator': 'Applications Orchestrateur'
     }
 }

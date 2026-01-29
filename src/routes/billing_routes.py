@@ -6,6 +6,9 @@ import os
 from datetime import datetime, timedelta
 from ..config_postgres import get_logs_dir, PLTF_NAME, TRANSLATIONS
 
+# Determine database type based on environment
+from ..database_postgres import db_manager
+
 def get_language():
     return session.get('language', 'en')
 
@@ -15,9 +18,6 @@ def get_text(key):
         return TRANSLATIONS.get(lang, {}).get(key, TRANSLATIONS['en'].get(key, key))
     except (KeyError, AttributeError, TypeError):
         return key
-
-# Determine database type based on environment
-from ..database_postgres import db_manager
 
 # Configure logging for billing activities
 logger = logging.getLogger(__name__)

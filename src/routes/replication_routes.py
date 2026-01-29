@@ -3,11 +3,32 @@ Replication API Routes
 Handles incoming replication events from peer servers
 """
 from flask import Blueprint, request, jsonify
-import logging
+import logging, os
 from datetime import datetime
 from src.replication_manager import apply_replication_event, SYNC_SECRET
 
+# Configure logging for activities
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# File handler
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+log_file = os.path.join(PROJECT_ROOT, 'logs', 'replication_routes.log')
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(file_formatter)
+logger.addHandler(console_handler)
+
+# Prevent propagation to avoid duplicate logs
+logger.propagate = False
 
 replication_bp = Blueprint('replication', __name__)
 

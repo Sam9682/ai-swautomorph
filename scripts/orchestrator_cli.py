@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI commands for Light Orchestrator management"""
+"""CLI commands for App Orchestrator management"""
 import sys
 import os
 import json
@@ -113,7 +113,7 @@ def init_orchestrator(args):
     print("Orchestrator initialized successfully")
 
 def main():
-    parser = argparse.ArgumentParser(description='Light Orchestrator CLI')
+    parser = argparse.ArgumentParser(description='App Orchestrator CLI')
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
     
     # Init command

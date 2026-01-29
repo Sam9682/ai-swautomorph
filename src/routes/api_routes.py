@@ -10,7 +10,36 @@ import shutil
 import socket
 import logging
 from datetime import datetime
-from ..config_postgres import DOMAIN, TRANSLATIONS
+from .. import config_postgres
+
+# Configure logging for API activities
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# Remove existing handlers to avoid duplicates
+if logger.handlers:
+    logger.handlers.clear()
+
+# Get the project root directory dynamically
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+log_file = os.path.join(PROJECT_ROOT, 'logs', 'api_routes.log')
+os.makedirs(os.path.dirname(log_file), exist_ok=True)
+
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.INFO)
+file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(file_formatter)
+logger.addHandler(file_handler)
+
+# Console handler
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(file_formatter)
+logger.addHandler(console_handler)
+
+# Prevent propagation to avoid duplicate logs
+logger.propagate = False
 
 def get_language():
     return session.get('language', 'en')
@@ -34,36 +63,6 @@ try:
 except Exception as e:
     print(f"Failed to initialize PostgreSQL: {e}")
     raise RuntimeError("PostgreSQL database is required but failed to initialize")
-
-from src.config_postgres import *
-
-# Configure logging for API activities
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-
-# Remove existing handlers to avoid duplicates
-if logger.handlers:
-    logger.handlers.clear()
-
-# File handler
-log_file = os.path.join(get_logs_dir(), 'api_routes.log')
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.INFO)
-file_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-
-# Console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(file_formatter)
-logger.addHandler(console_handler)
-
-# Prevent propagation to avoid duplicate logs
-logger.propagate = False
-
-# Get the project root directory dynamically
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -519,7 +518,8 @@ def api_database_table(table_name):
     # Validate table name to prevent SQL injection
     allowed_tables = [
         'users', 'applications', 'auth_tokens', 'user_applications', 
-        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs',
+        'deployments', 'servers', 'instances', 'services',
+        'application_costs', 'billing_activities', 'users_logs',
         'payment_modes', 'invoicing'
     ]
     
@@ -1084,7 +1084,8 @@ def api_database_record(table_name, record_id):
     # Validate table name
     allowed_tables = [
         'users', 'applications', 'auth_tokens', 'user_applications', 
-        'deployments', 'servers', 'application_costs', 'billing_activities', 'users_logs',
+        'deployments', 'servers', 'instances', 'services',
+        'application_costs', 'billing_activities', 'users_logs',
         'payment_modes', 'invoicing'
     ]
     

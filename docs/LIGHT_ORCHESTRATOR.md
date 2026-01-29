@@ -1,8 +1,8 @@
-# Light Orchestrator - Documentation
+# App Orchestrator - Documentation
 
 ## Vue d'ensemble
 
-Le Light Orchestrator est un système d'orchestration simple et maintenable pour SwAutoMorph qui permet de gérer des applications multi-instances (HA) sans la complexité de Kubernetes.
+Le App Orchestrator est un système d'orchestration simple et maintenable pour SwAutoMorph qui permet de gérer des applications multi-instances (HA) sans la complexité de Kubernetes.
 
 ## Fonctionnalités
 
@@ -77,7 +77,7 @@ CREATE TABLE instances (
 
 ### Interface Web
 
-Accédez à l'interface d'administration → Configuration → 🎯 Light Orchestrator
+Accédez à l'interface d'administration → Configuration → 🎯 App Orchestrator
 
 #### Créer un Service
 1. Cliquez sur "Create Service"

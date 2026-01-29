@@ -403,11 +403,11 @@
     </div>
     {% endif %}
     
-    <!-- Light Orchestrator Section -->
+    <!-- App Orchestrator Section -->
     {% if username == 'admin' %}
     <div id="orchestratorSection" class="tab-content" style="display: none;">
         <div class="section-header">
-            <h2>🎯 Light Orchestrator</h2>
+            <h2>🎯 {{ get_text('orchestrator') }}</h2>
             <button class="btn btn-primary" onclick="showCreateServiceForm()">Create Service</button>
         </div>
         
@@ -429,29 +429,24 @@
             <h3>Create New Service</h3>
             <form id="newServiceForm">
                 <div class="form-group">
-                    <label for="serviceName">Service Name:</label>
-                    <input type="text" id="serviceName" required placeholder="my-app">
+                    <label for="serviceName">Application Name:</label>
+                    <select id="serviceName" required>
+                        <option value="">Select Application</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label for="serviceImage">Docker Image:</label>
-                    <input type="text" id="serviceImage" required placeholder="nginx:latest">
+                    <label for="serviceImage">Git URL:</label>
+                    <select id="serviceImage" required>
+                        <option value="">Select Git URL</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label for="serviceReplicas">Desired Replicas:</label>
                     <input type="number" id="serviceReplicas" min="0" max="10" value="1">
                 </div>
                 <div class="form-group">
-                    <label for="servicePorts">Port Mappings (JSON):</label>
-                    <textarea id="servicePorts" placeholder='{"80": "8080", "443": "8443"}' rows="2"></textarea>
-                    <small>Format: {"container_port": "host_port"}</small>
-                </div>
-                <div class="form-group">
                     <label for="serviceEnvironment">Environment Variables (JSON):</label>
                     <textarea id="serviceEnvironment" placeholder='{"ENV_VAR": "value"}' rows="2"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="serviceVolumes">Volumes (JSON Array):</label>
-                    <textarea id="serviceVolumes" placeholder='["/host/path:/container/path"]' rows="2"></textarea>
                 </div>
                 <div class="form-group">
                     <label for="serviceHealthCheck">Health Check Path:</label>
@@ -516,6 +511,8 @@
                 <option value="user_applications">{{ get_text('user_applications_ports') }}</option>
                 <option value="deployments">{{ get_text('deployments') }}</option>
                 <option value="servers">{{ get_text('servers') }}</option>
+                <option value="instances">Instances</option>
+                <option value="services">Services</option>
                 <option value="application_costs">{{ get_text('application_costs') }}</option>
                 <option value="billing_activities">{{ get_text('billing_activities') }}</option>
                 <option value="users_logs">{{ get_text('users_logs') }}</option>
@@ -3139,10 +3136,11 @@ function loadServers() {
                 const rowClass = server.SERVER_STATUS === 'ACTIVE' ? 'server-active' : '';
                 const isLocalServer = localIp && server.SERVER_IP === localIp;
                 const localServerStyle = isLocalServer ? 'background-color: yellow;' : '';
+                const editDisabled = isLocalServer ? '' : 'disabled style="opacity: 0.5; cursor: not-allowed;"';
                 const deleteDisabled = server.SERVER_STATUS === 'ACTIVE' ? 'disabled' : '';
                 const promoteDisabled = server.SERVER_TYPE !== 'STAND_ALONE' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 const promoteSecondaryDisabled = (server.SERVER_TYPE === 'PRIMARY' || server.SERVER_TYPE === 'SECONDARY' || !hasPrimary) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
-                const syncDisabled = server.SERVER_TYPE !== 'SECONDARY' ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+                const syncDisabled = (server.SERVER_TYPE !== 'SECONDARY') || ((server.SERVER_TYPE == 'SECONDARY') && isLocalServer) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
                 html += `<tr class="${rowClass}" style="${localServerStyle}">
                     <td>${server.id}</td>
                     <td>${server.SERVER_IP}</td>
@@ -3153,7 +3151,7 @@ function loadServers() {
                     <td>${server.SERVER_TYPE}</td>
                     <td>${new Date(server.created_at).toLocaleDateString()}</td>
                     <td class="actions">
-                        <button onclick="editServer(${server.id})" class="btn-small">Edit</button>
+                        <button onclick="editServer(${server.id})" class="btn-small" ${editDisabled}>Edit</button>
                         <button onclick="syncServer(${server.id})" class="btn-small btn-info" ${syncDisabled}>Synchronization</button>
                         <button onclick="promoteServer(${server.id})" class="btn-small btn-primary" ${promoteDisabled}>Promote PRIMARY</button>
                         <button onclick="promoteSecondaryServer(${server.id})" class="btn-small btn-secondary" ${promoteSecondaryDisabled}>Promote SECONDARY</button>
@@ -3301,7 +3299,8 @@ function hideEditServerForm() {
 function editServer(serverId) {
     fetch('/api/servers')
         .then(response => response.json())
-        .then(servers => {
+        .then(data => {
+            const servers = data.servers || data;
             const server = servers.find(s => s.id === serverId);
             if (server) {
                 document.getElementById('editServerId').value = server.id;
@@ -4109,7 +4108,7 @@ window.onclick = function(event) {
     }
 }
 
-// Light Orchestrator functions
+// App Orchestrator functions
 function loadOrchestratorStatus() {
     fetch('/api/orchestrator/status')
         .then(response => response.json())
@@ -4226,11 +4225,49 @@ function loadServices() {
 
 function showCreateServiceForm() {
     document.getElementById('createServiceForm').style.display = 'block';
+    loadUserApplicationsForService();
+    loadGitUrlsForService();
 }
 
 function hideCreateServiceForm() {
     document.getElementById('createServiceForm').style.display = 'none';
     document.getElementById('newServiceForm').reset();
+}
+
+function loadUserApplicationsForService() {
+    fetch('/api/orchestrator/user-applications')
+        .then(response => response.json())
+        .then(apps => {
+            const select = document.getElementById('serviceName');
+            select.innerHTML = '<option value="">Select Application</option>';
+            apps.forEach(app => {
+                const option = document.createElement('option');
+                option.value = app.name;
+                option.textContent = app.name;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading applications:', error);
+        });
+}
+
+function loadGitUrlsForService() {
+    fetch('/api/orchestrator/git-urls')
+        .then(response => response.json())
+        .then(urls => {
+            const select = document.getElementById('serviceImage');
+            select.innerHTML = '<option value="">Select Git URL</option>';
+            urls.forEach(url => {
+                const option = document.createElement('option');
+                option.value = url;
+                option.textContent = url;
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading git URLs:', error);
+        });
 }
 
 function scaleService(serviceName, replicas) {
@@ -4317,33 +4354,42 @@ document.addEventListener('DOMContentLoaded', function() {
             };
             
             // Parse JSON fields
-            const portsText = document.getElementById('servicePorts').value.trim();
-            if (portsText) {
-                try {
-                    formData.ports = JSON.parse(portsText);
-                } catch (e) {
-                    alert('Invalid JSON format for ports');
-                    return;
+            const portsElement = document.getElementById('servicePorts');
+            if (portsElement) {
+                const portsText = portsElement.value.trim();
+                if (portsText) {
+                    try {
+                        formData.ports = JSON.parse(portsText);
+                    } catch (e) {
+                        alert('Invalid JSON format for ports');
+                        return;
+                    }
                 }
             }
             
-            const envText = document.getElementById('serviceEnvironment').value.trim();
-            if (envText) {
-                try {
-                    formData.environment = JSON.parse(envText);
-                } catch (e) {
-                    alert('Invalid JSON format for environment variables');
-                    return;
+            const envElement = document.getElementById('serviceEnvironment');
+            if (envElement) {
+                const envText = envElement.value.trim();
+                if (envText) {
+                    try {
+                        formData.environment = JSON.parse(envText);
+                    } catch (e) {
+                        alert('Invalid JSON format for environment variables');
+                        return;
+                    }
                 }
             }
             
-            const volumesText = document.getElementById('serviceVolumes').value.trim();
-            if (volumesText) {
-                try {
-                    formData.volumes = JSON.parse(volumesText);
-                } catch (e) {
-                    alert('Invalid JSON format for volumes');
-                    return;
+            const volumesElement = document.getElementById('serviceVolumes');
+            if (volumesElement) {
+                const volumesText = volumesElement.value.trim();
+                if (volumesText) {
+                    try {
+                        formData.volumes = JSON.parse(volumesText);
+                    } catch (e) {
+                        alert('Invalid JSON format for volumes');
+                        return;
+                    }
                 }
             }
             
@@ -4352,6 +4398,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 formData.health_check_path = healthCheck;
             }
             
+            // Show loading indicator
+            showServiceCreationLoading();
+            
             fetch('/api/orchestrator/services', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -4359,6 +4408,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(response => response.json())
             .then(data => {
+                hideServiceCreationLoading();
                 if (data.error) {
                     alert(data.error);
                 } else {
@@ -4368,6 +4418,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
+                hideServiceCreationLoading();
                 alert('Error creating service.');
             });
         });
@@ -4376,6 +4427,49 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script>
+// Service creation loading indicator
+function showServiceCreationLoading() {
+    const overlay = document.createElement('div');
+    overlay.id = 'serviceCreationLoading';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    `;
+    
+    const loadingBox = document.createElement('div');
+    loadingBox.style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    `;
+    
+    loadingBox.innerHTML = `
+        <div style="width: 60px; height: 60px; border: 6px solid #f3f3f3; border-top: 6px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
+        <h3 style="margin: 0 0 0.5rem 0; color: #2c3e50;">⏳ Creating Service</h3>
+        <p style="margin: 0; color: #7f8c8d;">Please wait...</p>
+    `;
+    
+    overlay.appendChild(loadingBox);
+    document.body.appendChild(overlay);
+}
+
+function hideServiceCreationLoading() {
+    const overlay = document.getElementById('serviceCreationLoading');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
 // Configuration management functions
 function loadConfigTable() {
     fetch('/api/configuration')
@@ -4558,8 +4652,15 @@ function loadDeploymentsFilters() {
 }
 
 function loadDeploymentsTable() {
-    const userId = document.getElementById('filterUserId').value;
-    const appId = document.getElementById('filterApplicationId').value;
+    const userIdElement = document.getElementById('filterUserId');
+    const appIdElement = document.getElementById('filterApplicationId');
+    
+    if (!userIdElement || !appIdElement) {
+        return;
+    }
+    
+    const userId = userIdElement.value;
+    const appId = appIdElement.value;
     
     fetch('/api/deployments/all')
         .then(response => response.json())

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test script for Light Orchestrator"""
+"""Test script for App Orchestrator"""
 import os
 import sys
 
@@ -12,7 +12,7 @@ from src.ControlPlanFlaskApp_postgres import create_app
 
 def test_orchestrator():
     """Test orchestrator functionality"""
-    print("🎯 Testing Light Orchestrator")
+    print("🎯 Testing App Orchestrator")
     print("=" * 50)
     
     # Create Flask app context
@@ -58,7 +58,7 @@ def test_orchestrator():
         except Exception as e:
             print(f"❌ Error generating Nginx config: {e}")
         
-        print("\n🎉 Light Orchestrator test completed!")
+        print("\n🎉 App Orchestrator test completed!")
 
 if __name__ == '__main__':
     test_orchestrator()

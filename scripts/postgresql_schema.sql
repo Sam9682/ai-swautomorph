@@ -163,21 +163,24 @@ CREATE TABLE configuration (
     value TEXT
 );
 
--- Services table - logical services with desired state (Light Orchestrator)
+-- Services table - logical services with desired state (App Orchestrator)
 CREATE TABLE services (
     id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
     image VARCHAR(255) NOT NULL,
+    user_id BIGINT NOT NULL,
     desired_replicas INTEGER DEFAULT 1,
     ports TEXT,  -- JSON: {"80": "8080", "443": "8443"}
     environment TEXT,  -- JSON: {"ENV_VAR": "value"}
     volumes TEXT,  -- JSON: ["/host:/container"]
     health_check_path VARCHAR(255) DEFAULT '/health',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(name, user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Instances table - actual running containers (Light Orchestrator)
+-- Instances table - actual running containers (App Orchestrator)
 CREATE TABLE instances (
     id BIGSERIAL PRIMARY KEY,
     service_name VARCHAR(255) NOT NULL,

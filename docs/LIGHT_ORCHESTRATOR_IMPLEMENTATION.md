@@ -1,4 +1,4 @@
-# Light Orchestrator - Résumé d'Implémentation
+# App Orchestrator - Résumé d'Implémentation
 
 ## ✅ Fonctionnalités Implémentées
 
@@ -24,7 +24,7 @@
 - Génération et rechargement Nginx
 
 #### 3. **Interface Web** (intégrée dans `templates/dashboard.html`)
-- Section "🎯 Light Orchestrator" dans le dashboard admin
+- Section "🎯 App Orchestrator" dans le dashboard admin
 - Création de services via formulaire
 - Visualisation en temps réel des services et instances
 - Contrôles de scaling (+/- replicas)
@@ -50,7 +50,7 @@
 ## 🚀 Utilisation
 
 ### Interface Web
-1. Connexion admin → Configuration → 🎯 Light Orchestrator
+1. Connexion admin → Configuration → 🎯 App Orchestrator
 2. "Create Service" pour créer un nouveau service
 3. Boutons +/- pour scaler les replicas
 4. Génération automatique de la config Nginx
@@ -166,7 +166,7 @@ curl -X POST https://www.swautomorph.com/api/orchestrator/services/my-app/scale 
 
 ## ✅ Test et Validation
 
-Le Light Orchestrator a été testé avec succès :
+Le App Orchestrator a été testé avec succès :
 - ✅ Initialisation des tables
 - ✅ Création de services
 - ✅ Génération de configuration Nginx
@@ -176,4 +176,4 @@ Le Light Orchestrator a été testé avec succès :
 
 ## 🎉 Conclusion
 
-Le Light Orchestrator pour SwAutoMorph est maintenant opérationnel et fournit une solution d'orchestration simple et efficace pour les applications multi-instances, sans la complexité de Kubernetes, tout en conservant la compatibilité avec l'écosystème SwAutoMorph existant.
+Le App Orchestrator pour SwAutoMorph est maintenant opérationnel et fournit une solution d'orchestration simple et efficace pour les applications multi-instances, sans la complexité de Kubernetes, tout en conservant la compatibilité avec l'écosystème SwAutoMorph existant.

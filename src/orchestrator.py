@@ -1,12 +1,15 @@
-"""Light Orchestrator for multi-instance application management"""
+"""App Orchestrator for multi-instance application management"""
 # import sqlite3  # COMMENTED OUT - Using PostgreSQL now
 import threading
 import time
 import json
 import subprocess
 import requests
+import logging
 from contextlib import contextmanager
 from .database_postgres import db_manager
+
+logger = logging.getLogger(__name__)
 
 class LightOrchestrator:
     """Simple orchestrator for managing multi-instance applications"""
@@ -22,9 +25,9 @@ class LightOrchestrator:
         # This method kept for backward compatibility
         pass
     
-    def create_service(self, name, image, desired_replicas=1, ports=None, environment=None, volumes=None, health_check_path='/health'):
+    def create_service(self, name, image, user_id, desired_replicas=1, ports=None, environment=None, volumes=None, health_check_path='/health'):
         """Create a new service"""
-        print(f"[ORCHESTRATOR DEBUG] Creating service {name} with {desired_replicas} replicas")
+        logger.debug(f"Creating service {name} for user {user_id} with {desired_replicas} replicas")
         
         ports_json = json.dumps(ports) if ports else None
         env_json = json.dumps(environment) if environment else None
@@ -34,9 +37,9 @@ class LightOrchestrator:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO services 
-                (name, image, desired_replicas, ports, environment, volumes, health_check_path, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
-                ON CONFLICT (name) DO UPDATE SET
+                (name, image, user_id, desired_replicas, ports, environment, volumes, health_check_path, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (name, user_id) DO UPDATE SET
                 image = EXCLUDED.image,
                 desired_replicas = EXCLUDED.desired_replicas,
                 ports = EXCLUDED.ports,
@@ -44,47 +47,50 @@ class LightOrchestrator:
                 volumes = EXCLUDED.volumes,
                 health_check_path = EXCLUDED.health_check_path,
                 updated_at = CURRENT_TIMESTAMP
-            ''', (name, image, desired_replicas, ports_json, env_json, volumes_json, health_check_path))
+            ''', (name, image, user_id, desired_replicas, ports_json, env_json, volumes_json, health_check_path))
             conn.commit()
-            print(f"[ORCHESTRATOR DEBUG] Service {name} created in database")
+            logger.debug(f"Service {name} created in database for user {user_id}")
         
         # Trigger reconciliation
         try:
-            self._reconcile_service(name)
-            print(f"[ORCHESTRATOR DEBUG] Reconciliation triggered for {name}")
+            self._reconcile_service(name, user_id)
+            logger.debug(f"Reconciliation triggered for {name}")
         except Exception as e:
-            print(f"[ORCHESTRATOR ERROR] Reconciliation failed for {name}: {e}")
+            logger.error(f"Reconciliation failed for {name}: {e}")
     
-    def scale_service(self, service_name, replicas):
+    def scale_service(self, service_name, user_id, replicas):
         """Scale a service to desired number of replicas"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
                 UPDATE services SET desired_replicas = %s, updated_at = CURRENT_TIMESTAMP 
-                WHERE name = %s
-            ''', (replicas, service_name))
+                WHERE name = %s AND user_id = %s
+            ''', (replicas, service_name, user_id))
             conn.commit()
         
-        self._reconcile_service(service_name)
+        self._reconcile_service(service_name, user_id)
     
-    def delete_service(self, service_name):
+    def delete_service(self, service_name, user_id):
         """Delete a service and all its instances"""
         # Stop all instances first
-        self._stop_all_instances(service_name)
+        self._stop_all_instances(service_name, user_id)
         
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('DELETE FROM instances WHERE service_name = %s', (service_name,))
-            cursor.execute('DELETE FROM services WHERE name = %s', (service_name,))
+            cursor.execute('DELETE FROM services WHERE name = %s AND user_id = %s', (service_name, user_id))
             conn.commit()
     
-    def get_service_status(self, service_name=None):
+    def get_service_status(self, service_name=None, user_id=None):
         """Get status of services and their instances"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             
-            if service_name:
-                cursor.execute('SELECT * FROM services WHERE name = %s', (service_name,))
+            if service_name and user_id:
+                cursor.execute('SELECT * FROM services WHERE name = %s AND user_id = %s', (service_name, user_id))
+                services = cursor.fetchall()
+            elif user_id:
+                cursor.execute('SELECT * FROM services WHERE user_id = %s', (user_id,))
                 services = cursor.fetchall()
             else:
                 cursor.execute('SELECT * FROM services')
@@ -95,8 +101,9 @@ class LightOrchestrator:
                 service_data = {
                     'name': service[1],
                     'image': service[2],
-                    'desired_replicas': service[3],
-                    'ports': json.loads(service[4]) if service[4] else {},
+                    'user_id': service[3],
+                    'desired_replicas': service[4],
+                    'ports': json.loads(service[5]) if service[5] else {},
                     'instances': []
                 }
                 
@@ -124,19 +131,19 @@ class LightOrchestrator:
             
             return result
     
-    def _reconcile_service(self, service_name):
+    def _reconcile_service(self, service_name, user_id):
         """Reconcile desired vs actual state for a service"""
         with self._lock:
             with db_manager.get_db_connection() as conn:
                 cursor = conn.cursor()
                 
                 # Get service configuration
-                cursor.execute('SELECT * FROM services WHERE name = %s', (service_name,))
+                cursor.execute('SELECT * FROM services WHERE name = %s AND user_id = %s', (service_name, user_id))
                 service = cursor.fetchone()
                 if not service:
                     return
                 
-                desired_replicas = service[3]
+                desired_replicas = service[4] or 0
                 
                 # Get current running instances
                 cursor.execute('''
@@ -161,25 +168,26 @@ class LightOrchestrator:
         """Create a new instance of a service"""
         service_name = service[1]
         image = service[2]
-        ports = json.loads(service[4]) if service[4] else {}
-        environment = json.loads(service[5]) if service[5] else {}
-        volumes = json.loads(service[6]) if service[6] else []
+        user_id = service[3]
+        ports = json.loads(service[5]) if service[5] else {}
+        environment = json.loads(service[6]) if service[6] else {}
+        volumes = json.loads(service[7]) if service[7] else []
         
-        print(f"[ORCHESTRATOR DEBUG] Creating instance for service {service_name}")
+        logger.debug(f"Creating instance for service {service_name}")
         
         # Select best server using simple scheduler
         server_id = self._select_server()
         if not server_id:
-            print(f"[ORCHESTRATOR ERROR] No available server for {service_name}")
+            logger.error(f"No available server for {service_name}")
             return
         
-        print(f"[ORCHESTRATOR DEBUG] Selected server {server_id} for {service_name}")
+        logger.debug(f"Selected server {server_id} for {service_name}")
         
         instance_id = f"{service_name}-replica-{replica_num}"
         
         # Find available port
         port = self._find_available_port(server_id)
-        print(f"[ORCHESTRATOR DEBUG] Assigned port {port} to {instance_id}")
+        logger.debug(f"Assigned port {port} to {instance_id}")
         
         # Create instance record
         with db_manager.get_db_connection() as conn:
@@ -191,7 +199,7 @@ class LightOrchestrator:
             ''', (service_name, instance_id, server_id, port))
             db_instance_id = cursor.fetchone()[0]
             conn.commit()
-            print(f"[ORCHESTRATOR DEBUG] Created instance record {db_instance_id}")
+            logger.debug(f"Created instance record {db_instance_id}")
         
         # Start container
         try:
@@ -199,7 +207,7 @@ class LightOrchestrator:
                 server_id, instance_id, image, port, ports, environment, volumes
             )
             
-            print(f"[ORCHESTRATOR DEBUG] Started container {container_id} for {instance_id}")
+            logger.debug(f"Started container {container_id} for {instance_id}")
             
             # Update instance with container ID
             with db_manager.get_db_connection() as conn:
@@ -212,7 +220,7 @@ class LightOrchestrator:
                 conn.commit()
                 
         except Exception as e:
-            print(f"[ORCHESTRATOR ERROR] Failed to start instance {instance_id}: {e}")
+            logger.error(f"Failed to start instance {instance_id}: {e}")
             # Mark as failed
             with db_manager.get_db_connection() as conn:
                 cursor = conn.cursor()
@@ -278,13 +286,13 @@ class LightOrchestrator:
                     subprocess.run(['docker', 'stop', container_id], check=True)
                     subprocess.run(['docker', 'rm', container_id], check=True)
                 except subprocess.CalledProcessError as e:
-                    print(f"Failed to stop container {container_id}: {e}")
+                    logger.error(f"Failed to stop container {container_id}: {e}")
             
             # Remove instance record
             cursor.execute('DELETE FROM instances WHERE id = %s', (instance_db_id,))
             conn.commit()
     
-    def _stop_all_instances(self, service_name):
+    def _stop_all_instances(self, service_name, user_id):
         """Stop all instances of a service"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
@@ -299,23 +307,17 @@ class LightOrchestrator:
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Debug: Check all servers
-            cursor.execute('SELECT id, server_name, server_status, server_capacity_appli_max FROM servers')
-            all_servers = cursor.fetchall()
-            print(f"[ORCHESTRATOR DEBUG] All servers: {all_servers}")
-            
             cursor.execute('''
-                SELECT s.id, s.server_capacity_appli_max, COUNT(i.id) as current_instances
+                SELECT s.id, COALESCE(s.server_capacity_appli_max, 100) as capacity, COUNT(i.id) as current_instances
                 FROM servers s
                 LEFT JOIN instances i ON s.id = i.server_id AND i.status = 'running'
                 WHERE s.server_status IN ('STAND_BY', 'ACTIVE')
-                GROUP BY s.id
-                HAVING current_instances < s.server_capacity_appli_max
-                ORDER BY current_instances ASC
+                GROUP BY s.id, s.server_capacity_appli_max
+                HAVING COUNT(i.id) < COALESCE(s.server_capacity_appli_max, 100)
+                ORDER BY COUNT(i.id) ASC
                 LIMIT 1
             ''')
             result = cursor.fetchone()
-            print(f"[ORCHESTRATOR DEBUG] Selected server query result: {result}")
             return result[0] if result else None
     
     def _find_available_port(self, server_id, start_port=8000):
@@ -324,10 +326,10 @@ class LightOrchestrator:
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT port FROM instances 
-                WHERE server_id = %s AND status = 'running'
+                WHERE server_id = %s AND status = 'running' AND port IS NOT NULL
                 ORDER BY port
             ''', (server_id,))
-            used_ports = {row[0] for row in cursor.fetchall()}
+            used_ports = {row[0] for row in cursor.fetchall() if row[0]}
         
         port = start_port
         while port in used_ports:
@@ -431,17 +433,17 @@ class LightOrchestrator:
                     # Reconcile all services
                     with db_manager.get_db_connection() as conn:
                         cursor = conn.cursor()
-                        cursor.execute('SELECT name FROM services')
+                        cursor.execute('SELECT name, user_id FROM services')
                         services = cursor.fetchall()
                         
                         for service in services:
-                            self._reconcile_service(service[0])
+                            self._reconcile_service(service[0], service[1])
                     
                     # Update Nginx config if needed
                     self.generate_nginx_config()
                     
                 except Exception as e:
-                    print(f"Reconciliation error: {e}")
+                    logger.error(f"Reconciliation error: {e}")
                 
                 time.sleep(interval)
         

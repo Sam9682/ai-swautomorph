@@ -1,9 +1,9 @@
 #!/bin/bash
-# Example deployment script for Light Orchestrator
+# Example deployment script for App Orchestrator
 
 set -e
 
-echo "🎯 Light Orchestrator - Example Service Deployment"
+echo "🎯 App Orchestrator - Example Service Deployment"
 echo "=================================================="
 
 # Configuration
