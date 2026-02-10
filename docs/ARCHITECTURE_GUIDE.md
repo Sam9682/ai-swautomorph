@@ -55,6 +55,49 @@ AI-SwAutoMorph is a **centralized application deployment and management platform
 └── 🚀 deployControlPlan.sh          # Main deployment control script
 ```
 
+**Application Initialization & Graceful Degradation:**
+
+The Flask application implements graceful degradation for optional components during initialization:
+
+```python
+# Initialize database and orchestrator
+with app.app_context():
+    init_db()  # Core database - required
+    
+    try:
+        # Optional: Orchestrator for container management
+        from .orchestrator import orchestrator
+        orchestrator.init_orchestrator_tables()
+        orchestrator.start_reconciliation_loop()
+    except Exception as e:
+        print(f"[ERROR] Orchestrator initialization failed: {e}")
+        # Continue without orchestrator if it fails
+    
+    try:
+        # Optional: Replication for multi-server sync
+        from .replication_manager import ReplicationManager
+        replication_manager = ReplicationManager(db_manager, sync_secret)
+        replication_manager.start_worker()
+    except Exception as e:
+        print(f"[ERROR] Replication initialization failed: {e}")
+        # Continue in single-server mode
+```
+
+**Graceful Degradation Behavior:**
+
+| Component | On Success | On Failure | Impact |
+|-----------|------------|------------|--------|
+| **Database** | Full functionality | Application fails to start | Critical - required |
+| **Orchestrator** | Container orchestration enabled | Continues without orchestration | Core features remain operational |
+| **Replication** | Multi-server sync enabled | Single-server mode | Platform works normally on one server |
+
+**Recovery Options:**
+- Orchestrator: Can be manually initialized via API or CLI without restart
+- Replication: Can be enabled later via configuration update and restart
+- Both: Check logs for specific error messages and resolve underlying issues
+
+This design ensures **high availability** of critical platform features (user management, deployments, billing, authentication) even if optional components encounter initialization issues.
+
 #### 2. 🤖 Enhanced Virtual AI Agents Integration
 
 The platform provides **two specialized AI agents** with advanced features:

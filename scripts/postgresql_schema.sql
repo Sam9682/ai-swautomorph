@@ -183,7 +183,7 @@ CREATE TABLE services (
 -- Instances table - actual running containers (App Orchestrator)
 CREATE TABLE instances (
     id BIGSERIAL PRIMARY KEY,
-    service_name VARCHAR(255) NOT NULL,
+    service_id BIGINT NOT NULL,
     instance_id VARCHAR(255) NOT NULL,  -- service_name-replica-N
     server_id BIGINT NOT NULL,
     container_id VARCHAR(255),
@@ -194,14 +194,14 @@ CREATE TABLE instances (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (server_id) REFERENCES servers (id),
-    FOREIGN KEY (service_name) REFERENCES services (name),
-    UNIQUE(service_name, instance_id)
+    FOREIGN KEY (service_id) REFERENCES services (id) ON DELETE CASCADE,
+    UNIQUE(service_id, instance_id)
 );
 
 -- Indexes for performance
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_services_name ON services(name);
-CREATE INDEX idx_instances_service_name ON instances(service_name);
+CREATE INDEX idx_instances_service_id ON instances(service_id);
 CREATE INDEX idx_instances_server_id ON instances(server_id);
 CREATE INDEX idx_instances_status ON instances(status);
 CREATE INDEX idx_users_email ON users(email);

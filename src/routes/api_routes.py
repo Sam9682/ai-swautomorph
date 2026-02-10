@@ -11,6 +11,7 @@ import socket
 import logging
 from datetime import datetime
 from .. import config_postgres
+from ..config_postgres import DOMAIN, TIMEOUT_GITEA_HTTP_POST, TIMEOUT_SUBPROCESS_RUN
 
 # Configure logging for API activities
 logger = logging.getLogger(__name__)

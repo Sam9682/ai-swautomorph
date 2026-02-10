@@ -104,7 +104,14 @@ The platform automatically selects the optimal server based on:
    - Runs `./deployApp.sh start {user_id} "{user_name}" {user_email}` with environment context
    - Real-time status updates and streaming logs available via SSE
    - Comprehensive billing tracking automatically starts with precise timestamps
-   - Port allocation: HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * RANGE_PORTS_PER_APPLICATION
+   - Port allocation configured in `conf/deploy.ini`:
+     ```ini
+     [PORTS]
+     RANGE_START = 6000
+     RANGE_RESERVED = 100
+     RANGE_PORTS_PER_APPLICATION = 5
+     ```
+   - Port calculation: `HTTP_PORT = RANGE_START + user_id * RANGE_RESERVED + app_id * RANGE_PORTS_PER_APPLICATION`
    - SSL certificate validation and HTTPS configuration
 
 3. **Stop Application**:
@@ -262,6 +269,46 @@ PUT /api/billing/invoices/{invoice_id}/pay
 
 ### Requirements
 
+#### Port Configuration
+
+Application port allocation is configured in `conf/deploy.ini`:
+
+```ini
+[PORTS]
+RANGE_START = 6000
+RANGE_RESERVED = 100
+RANGE_PORTS_PER_APPLICATION = 5
+```
+
+**Port Allocation Formula:**
+```python
+PORT_RANGE_BEGIN = RANGE_START + user_id * RANGE_RESERVED
+HTTP_PORT = PORT_RANGE_BEGIN + app_id * RANGE_PORTS_PER_APPLICATION
+HTTPS_PORT = HTTP_PORT + 1
+HTTP_PORT2 = HTTPS_PORT + 1
+HTTPS_PORT2 = HTTP_PORT2 + 1
+```
+
+**Example Calculation:**
+- User ID: 2
+- App ID: 3
+- RANGE_START: 6000
+- RANGE_RESERVED: 100
+- RANGE_PORTS_PER_APPLICATION: 5
+
+Result:
+- PORT_RANGE_BEGIN = 6000 + (2 × 100) = 6200
+- HTTP_PORT = 6200 + (3 × 5) = 6215
+- HTTPS_PORT = 6216
+- HTTP_PORT2 = 6217
+- HTTPS_PORT2 = 6218
+
+**Configuration Notes:**
+- Each user gets a reserved range of ports (default: 100 ports)
+- Each application within that range gets multiple ports (default: 5 ports)
+- Modify `conf/deploy.ini` to adjust port ranges for your environment
+- Ensure firewall rules allow traffic on allocated port ranges
+
 #### Enhanced Application Requirements
 Applications must include a `deployApp.sh` script that supports:
 - `./deployApp.sh start {user_id} "{user_name}" {user_email}` - Start the application with user context
@@ -281,6 +328,7 @@ Applications must include a `deployApp.sh` script that supports:
 - **PostgreSQL database** with connection pooling for enterprise-grade performance
 - **Database migration tools** for SQLite to PostgreSQL transition
 - Backup system with PostgreSQL pg_dump for disaster recovery
+- **Port configuration** in `conf/deploy.ini` for application port allocation
 
 ### Troubleshooting
 

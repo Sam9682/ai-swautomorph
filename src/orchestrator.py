@@ -77,7 +77,6 @@ class LightOrchestrator:
         
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('DELETE FROM instances WHERE service_name = %s', (service_name,))
             cursor.execute('DELETE FROM services WHERE name = %s AND user_id = %s', (service_name, user_id))
             conn.commit()
     
@@ -112,8 +111,8 @@ class LightOrchestrator:
                     SELECT i.*, s.server_name, s.server_ip 
                     FROM instances i 
                     JOIN servers s ON i.server_id = s.id 
-                    WHERE i.service_name = %s
-                ''', (service[1],))
+                    WHERE i.service_id = %s
+                ''', (service[0],))
                 instances = cursor.fetchall()
                 
                 for instance in instances:
@@ -148,8 +147,8 @@ class LightOrchestrator:
                 # Get current running instances
                 cursor.execute('''
                     SELECT * FROM instances 
-                    WHERE service_name = %s AND status IN ('running', 'pending')
-                ''', (service_name,))
+                    WHERE service_id = %s AND status IN ('running', 'pending')
+                ''', (service[0],))
                 current_instances = cursor.fetchall()
                 
                 current_count = len(current_instances)
@@ -194,9 +193,9 @@ class LightOrchestrator:
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT INTO instances 
-                (service_name, instance_id, server_id, status, port)
+                (service_id, instance_id, server_id, status, port)
                 VALUES (%s, %s, %s, 'pending', %s) RETURNING id
-            ''', (service_name, instance_id, server_id, port))
+            ''', (service[0], instance_id, server_id, port))
             db_instance_id = cursor.fetchone()[0]
             conn.commit()
             logger.debug(f"Created instance record {db_instance_id}")
@@ -296,7 +295,11 @@ class LightOrchestrator:
         """Stop all instances of a service"""
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT id FROM instances WHERE service_name = %s', (service_name,))
+            cursor.execute('''
+                SELECT i.id FROM instances i
+                JOIN services s ON i.service_id = s.id
+                WHERE s.name = %s AND s.user_id = %s
+            ''', (service_name, user_id))
             instances = cursor.fetchall()
             
             for instance in instances:
@@ -343,7 +346,7 @@ class LightOrchestrator:
             cursor.execute('''
                 SELECT i.id, i.instance_id, i.port, s.health_check_path, srv.server_ip
                 FROM instances i
-                JOIN services s ON i.service_name = s.name
+                JOIN services s ON i.service_id = s.id
                 JOIN servers srv ON i.server_id = srv.id
                 WHERE i.status = 'running'
             ''')
@@ -380,20 +383,24 @@ class LightOrchestrator:
         
         with db_manager.get_db_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute('SELECT DISTINCT service_name FROM instances WHERE status = %s', ('running',))
+            cursor.execute('''
+                SELECT DISTINCT s.id, s.name FROM services s
+                JOIN instances i ON i.service_id = s.id
+                WHERE i.status = 'running'
+            ''')
             services = cursor.fetchall()
             
             for service in services:
-                service_name = service[0]
+                service_id, service_name = service[0], service[1]
                 
                 # Get healthy instances
                 cursor.execute('''
                     SELECT srv.server_ip, i.port
                     FROM instances i
                     JOIN servers srv ON i.server_id = srv.id
-                    WHERE i.service_name = %s AND i.status = 'running' 
+                    WHERE i.service_id = %s AND i.status = 'running' 
                     AND (i.health_status = 'healthy' OR i.health_status = 'unknown')
-                ''', (service_name,))
+                ''', (service_id,))
                 instances = cursor.fetchall()
                 
                 if instances:

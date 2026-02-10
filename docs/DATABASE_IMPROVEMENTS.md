@@ -36,12 +36,28 @@ AI-SwAutoMorph has migrated from SQLite to **PostgreSQL** for enterprise-grade p
 ### 🐘 PostgreSQL Migration
 
 #### 🔄 Migration Process
-The platform includes automated migration tools to seamlessly transition from SQLite to PostgreSQL:
 
+The platform includes automated migration logic for seamlessly transitioning from SQLite to PostgreSQL. The migration code is integrated into the database manager and documented here for reference.
+
+**Migration Options:**
+
+1. **Via Database CLI** (Recommended):
 ```bash
-# Run the migration script
-python3 ./migration/migrate_sqlite_to_postgres.py
+# Using the sf_cli tool
+python3 ./scripts/sf_cli.py migrate-to-postgres
 ```
+
+2. **Via API** (Admin only):
+```bash
+curl -X POST https://www.swautomorph.com/api/database/migrate \
+  -H "Cookie: session=your-session-cookie" \
+  -H "Content-Type: application/json"
+```
+
+3. **Manual Migration** (Advanced):
+The migration logic documented below can be adapted for custom migration scenarios or integrated into deployment scripts.
+
+**Note:** The migration code shown in this document serves as a reference implementation. The actual migration is performed by the database manager with proper error handling, transaction management, and rollback capabilities.
 
 #### 📊 Migration Features
 - **🔄 Data Preservation**: Complete data migration with type conversion

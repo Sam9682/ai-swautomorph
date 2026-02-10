@@ -4,7 +4,7 @@
 
 SwAutoMorph now automatically creates nginx location blocks for each user's applications, allowing access via:
 ```
-https://www.swautomorph.com/{USER_ID}/{APPLICATION_NAME}
+https://www.swautomorph.com/{USER_NAME}/{APPLICATION_NAME}
 ```
 
 This URL pattern reverse proxies to the application's actual URL (e.g., `https://www.swautomorph.com:6217`).
@@ -15,17 +15,17 @@ This URL pattern reverse proxies to the application's actual URL (e.g., `https:/
 
 When an application is assigned to a user or deployed:
 1. A location block is dynamically inserted into nginx configuration
-2. The location path follows the pattern `/{USER_ID}/{APPLICATION_NAME}`
+2. The location path follows the pattern `/{USER_NAME}/{APPLICATION_NAME}`
 3. Requests are reverse proxied to the application's actual URL
 4. Path rewriting removes the user prefix before forwarding
 
 ### Example
 
-For user ID `2` with application `ai-staticwebsite` running on port `6217`:
+For user `john` with application `ai-staticwebsite` running on port `6217`:
 
 **Access URL:**
 ```
-https://www.swautomorph.com/2/ai-staticwebsite
+https://www.swautomorph.com/john/ai-staticwebsite
 ```
 
 **Proxies to:**
@@ -35,7 +35,7 @@ https://www.swautomorph.com:6217
 
 **Generated nginx configuration:**
 ```nginx
-location /2/ai-staticwebsite {
+location /john/ai-staticwebsite {
     proxy_pass https://www.swautomorph.com:6217;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -53,7 +53,7 @@ location /2/ai-staticwebsite {
     proxy_read_timeout 60s;
     
     # Rewrite path to remove user prefix
-    rewrite ^/2/ai-staticwebsite(/.*)?$ $1 break;
+    rewrite ^/john/ai-staticwebsite(/.*)?$ $1 break;
 }
 ```
 
@@ -140,13 +140,16 @@ tail -f logs/api_routes.log
 
 ### Database Schema
 
-Uses existing `user_applications` table:
+Uses existing `user_applications` table with username lookup:
 ```sql
-SELECT ua.user_id, a.name, ua.url
+SELECT u.username, a.name, ua.url
 FROM user_applications ua
 JOIN applications a ON ua.application_id = a.id
+JOIN users u ON ua.user_id = u.id
 WHERE ua.url IS NOT NULL AND ua.url != ''
 ```
+
+**Note:** The system uses `username` (not `user_id`) in URL paths for better readability and user experience.
 
 ## Future Enhancements
 
