@@ -624,6 +624,7 @@
                             {% endfor %}
                         </select>
                         <select id="unifiedAction">
+                            <option value="SPECIFY">{{ get_text('specify_context_option') }}</option>
                             <option value="MODIFY_CODE">{{ get_text('modify_code_option') }}</option>
                             <option value="START">{{ get_text('start_app_option') }}</option>
                             <option value="STOP">{{ get_text('stop_app_option') }}</option>
@@ -2046,7 +2047,89 @@ function sendUnifiedMessageWithText(message) {
     const userId = '{{ session.user_id }}';
     const appFolder = `/home/ubuntu/deployments/${username}/${selectedApp.toLowerCase().replace(/\s+/g, '-')}`;
     
-    if (selectedAction === 'MODIFY_CODE') {
+    if (selectedAction === 'SPECIFY') {
+        // Handle AI context specification
+        const fullMessage = `[SPECIFY] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
+        
+        addAgentMessage('unified', 'user', `App: ${selectedApp} | Action: ${selectedAction}`);
+        addAgentMessage('unified', 'user', message);
+        addAgentMessage('unified', 'system', `AI Specification Assistant is generating detailed context for ${selectedApp}...`);
+        
+        // Use persistent message container
+        const contentDiv = document.getElementById('persistentMessageContent');
+        
+        // Clear previous content and add new message
+        contentDiv.textContent = `Generating specification for: ${selectedApp}\n`;
+        
+        // Stream from Developer API with SPECIFY action
+        fetch('/api/qchat_developer', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                message: fullMessage,
+                application_name: selectedApp,
+                application_folder: appFolder,
+                action_operation: 'SPECIFY'
+            })
+        })
+        .then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function readStream() {
+                reader.read().then(({done, value}) => {
+                    if (done) {
+                        hideVirtualAgentLoading();
+                        const sendBtn = document.getElementById('unifiedSendBtn');
+                        if (sendBtn) {
+                            stopProcessingTimer(sendBtn);
+                            sendBtn.textContent = '{{ get_text("send") }}';
+                            updateSendButtonState();
+                        }
+                        return;
+                    }
+                    
+                    const chunk = decoder.decode(value, {stream: true});
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6));
+                                if (data.chunk) {
+                                    contentDiv.textContent += data.chunk + '\n';
+                                    contentDiv.scrollTop = contentDiv.scrollHeight;
+                                } else if (data.error) {
+                                    contentDiv.textContent += `\n❌ Error: ${data.error}`;
+                                } else if (data.done) {
+                                    contentDiv.textContent += '\n✅ Specification completed - Ready to copy and use with MODIFY option';
+                                    hideVirtualAgentLoading();
+                                    const sendBtn = document.getElementById('unifiedSendBtn');
+                                    if (sendBtn) {
+                                        stopProcessingTimer(sendBtn);
+                                        sendBtn.textContent = '{{ get_text("send") }}';
+                                        updateSendButtonState();
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    readStream();
+                });
+            }
+            readStream();
+        })
+        .catch(error => {
+            contentDiv.textContent += `\n❌ Error: ${error.message}`;
+            hideVirtualAgentLoading();
+            const sendBtn = document.getElementById('unifiedSendBtn');
+            if (sendBtn) {
+                stopProcessingTimer(sendBtn);
+                sendBtn.textContent = '{{ get_text("send") }}';
+                updateSendButtonState();
+            }
+        });
+    } else if (selectedAction === 'MODIFY_CODE') {
         // Handle code modification (former developer functionality)
         const fullMessage = `[DEVELOPER] [APP:${selectedApp}] [PATH:${appFolder}] ${message}`;
         
@@ -2350,7 +2433,9 @@ function updateUnifiedInputText() {
     
     if (selectedApp && selectedAction) {
         let text = '';
-        if (selectedAction === 'MODIFY_CODE') {
+        if (selectedAction === 'SPECIFY') {
+            text = `{{ get_text("specify_context_request1") }} ${selectedApp}. {{ get_text("specify_context_request2") }}`;
+        } else if (selectedAction === 'MODIFY_CODE') {
             text = `{{ get_text("dev_modify_code_request1") }} ${selectedApp}. {{ get_text("dev_modify_code_request2") }}`;
         } else {
             text = `{{ get_text("ops_exec_request1") }} [[${selectedAction}]] {{ get_text("ops_exec_request2") }} ${selectedApp}`;

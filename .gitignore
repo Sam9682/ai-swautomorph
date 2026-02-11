@@ -77,3 +77,6 @@ db/ai_swautomorph.db-wal
 amazon-q.deb
 amazon-q.deb.*
 get-docker.sh
+
+# shared
+shared
