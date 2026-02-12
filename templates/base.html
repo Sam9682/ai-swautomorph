@@ -62,6 +62,7 @@
                             <a href="javascript:void(0)" class="nav-dropdown-btn" onclick="toggleNavDropdown('config')">{{ get_text('configuration') }} ▼</a>
                             <div class="nav-dropdown-content" id="navConfigDropdown">
                                 <a href="javascript:void(0)" onclick="showTab('users')">👥 {{ get_text('user_management') }}</a>
+                                <a href="javascript:void(0)" onclick="showTab('appManagement')">📱 Application Management</a>
                                 <a href="javascript:void(0)" onclick="showTab('servers')">🖥️ {{ get_text('server_management') }}</a>
                                 <a href="javascript:void(0)" onclick="showTab('deployments')">🚀 {{ get_text('deployments') }}</a>
                                 <a href="javascript:void(0)" onclick="showTab('orchestrator')">🎯 {{ get_text('orchestrator') }}</a>
@@ -109,6 +110,7 @@
                     <a href="javascript:void(0)" onclick="showTab('billing')">{{ get_text('billing') }}</a>
                     {% if username == 'admin' %}
                     <a href="javascript:void(0)" onclick="showTab('users')">👥 {{ get_text('user_management') }}</a>
+                    <a href="javascript:void(0)" onclick="showTab('appManagement')">📱 Application Management</a>
                     <a href="javascript:void(0)" onclick="showTab('servers')">🖥️ {{ get_text('server_management') }}</a>
                     <a href="javascript:void(0)" onclick="showTab('deployments')">🚀 {{ get_text('deployments') }}</a>
                     <a href="javascript:void(0)" onclick="showTab('orchestrator')">🎯 {{ get_text('orchestrator') }}</a>
