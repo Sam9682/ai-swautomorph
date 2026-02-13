@@ -46,7 +46,7 @@ When an app is in `cloned_but_not_compliant` status:
 }
 ```
 
-### 3. Added MAKE_COMPLIANT Action to Dropdown
+### 3. Added MAKE_APP_COMPLIANT Action to Dropdown
 **Location:** `updateActionDropdown()` function (line ~2026)
 
 Added new action label:
@@ -58,7 +58,7 @@ const actionLabels = {
     'PS': '{{ get_text("display_ps_option") }}',
     'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
     'SPECIFY':'{{ get_text("specify_context_option") }}',
-    'MAKE_COMPLIANT': 'MAKE App. Compliant'  // NEW
+    'MAKE_APP_COMPLIANT': 'MAKE App. Compliant'  // NEW
 };
 ```
 
@@ -69,17 +69,17 @@ Added handling for non-compliant status:
 ```javascript
 } else if (applicationStatus === 'cloned_but_not_compliant') {
     // Cloned but missing deployApp.sh: can make compliant, view logs
-    updateActionDropdown(['MAKE_COMPLIANT', 'LOGS']);
+    updateActionDropdown(['MAKE_APP_COMPLIANT', 'LOGS']);
 }
 ```
 
-### 5. Added MAKE_COMPLIANT Input Text Generation
+### 5. Added MAKE_APP_COMPLIANT Input Text Generation
 **Location:** `updateUnifiedInputText()` function (line ~2545)
 
-When user selects MAKE_COMPLIANT action:
+When user selects MAKE_APP_COMPLIANT action:
 ```javascript
-} else if (selectedAction === 'MAKE_COMPLIANT') {
-    text = `I need an operations specialist to execute the [[MAKE_COMPLIANT]] action on the application ${selectedApp}`;
+} else if (selectedAction === 'MAKE_APP_COMPLIANT') {
+    text = `I need an operations specialist to execute the [[MAKE_APP_COMPLIANT]] action on the application ${selectedApp}`;
 }
 ```
 
@@ -93,12 +93,12 @@ When user selects MAKE_COMPLIANT action:
 4. **User selects the application** in Virtual IT Team panel
 5. **Action dropdown shows**: "MAKE App. Compliant" and "LOGS"
 6. **User selects "MAKE App. Compliant"**
-7. **Input field auto-fills** with: "I need an operations specialist to execute the [[MAKE_COMPLIANT]] action on the application [app-name]"
+7. **Input field auto-fills** with: "I need an operations specialist to execute the [[MAKE_APP_COMPLIANT]] action on the application [app-name]"
 8. **User clicks Send** to request the Virtual Operations agent to make the app compliant
 
 ## Backend Integration Required
 
-The backend Virtual Operations agent needs to handle the `[[MAKE_COMPLIANT]]` action, which should:
+The backend Virtual Operations agent needs to handle the `[[MAKE_APP_COMPLIANT]]` action, which should:
 1. Detect that the application is missing `deployApp.sh`
 2. Create or generate the appropriate `deployApp.sh` file
 3. Ensure the file has proper permissions

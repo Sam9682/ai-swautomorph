@@ -24,7 +24,7 @@ Successfully implemented a new "SPECIFY an AI context" option in the Virtual Age
 - Added new option in Virtual Agents dropdown: `<option value="SPECIFY">{{ get_text('specify_context_option') }}</option>`
 - Added JavaScript handler for SPECIFY action in `sendUnifiedMessageWithText()` function
 - Added placeholder text logic in `updateUnifiedInputText()` function
-- Streams response from `/api/qchat_developer` endpoint with action_operation='SPECIFY'
+- Streams response from `/api/request_dev_ai_for_app` endpoint with action_operation='SPECIFY'
 
 **Location:** Lines 627, 2050-2135, 2436-2438
 
@@ -70,7 +70,7 @@ The backend already supports the SPECIFY action through:
 
 ### Frontend Flow
 ```
-User Input → JavaScript Handler → POST /api/qchat_developer
+User Input → JavaScript Handler → POST /api/request_dev_ai_for_app
 → Backend loads SPECIFY_context.md → AI generates spec → Stream to frontend
 ```
 

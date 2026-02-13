@@ -34,7 +34,7 @@ Both agents support:
 
 ### 🔧 AI Chat Developer Agent
 
-**Endpoint**: `POST /api/qchat_developer`
+**Endpoint**: `POST /api/request_dev_ai_for_app`
 
 **Purpose**: Autonomous code modification and feature development using natural language instructions with advanced Git integration.
 
@@ -76,7 +76,7 @@ The agent automatically loads context from `/home/ubuntu/ai-swautomorph/shared/M
 #### 📡 Enhanced Streaming Response
 ```javascript
 // JavaScript example for handling enhanced streaming response with error handling
-const eventSource = new EventSource('/api/qchat_developer', {
+const eventSource = new EventSource('/api/request_dev_ai_for_app', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ eventSource.onerror = function(event) {
 
 ### 🚀 AI Chat Operations Agent
 
-**Endpoint**: `POST /api/qchat_operations`
+**Endpoint**: `POST /api/request_ops_ai_for_app`
 
 **Purpose**: Autonomous deployment operations and infrastructure management with comprehensive billing integration.
 
@@ -382,7 +382,7 @@ Les deux agents supportent :
 
 ### 🔧 Agent Développeur AI Chat
 
-**Point de terminaison** : `POST /api/qchat_developer`
+**Point de terminaison** : `POST /api/request_dev_ai_for_app`
 
 **Objectif** : Modification autonome de code et développement de fonctionnalités utilisant des instructions en langage naturel avec intégration Git avancée.
 
@@ -398,7 +398,7 @@ Les deux agents supportent :
 
 ### 🚀 Agent Opérations AI Chat
 
-**Point de terminaison** : `POST /api/qchat_operations`
+**Point de terminaison** : `POST /api/request_ops_ai_for_app`
 
 **Objectif** : Opérations de déploiement autonomes et gestion d'infrastructure avec intégration de facturation complète.
 

@@ -201,7 +201,7 @@ GET /api/deployments/{deployment_id}/logs
 ##### Enhanced GenAI Integration with Unified Interface
 ```bash
 # AI Chat Developer for code modification with context-aware prompts and streaming
-POST /api/qchat_developer
+POST /api/request_dev_ai_for_app
 Content-Type: application/json
 {
   "message": "Add a comprehensive health check endpoint with monitoring and alerting",
@@ -211,7 +211,7 @@ Content-Type: application/json
 }
 
 # AI Chat Operations for deployment operations with streaming and billing integration
-POST /api/qchat_operations
+POST /api/request_ops_ai_for_app
 Content-Type: application/json
 {
   "message": "[START] Start the application with full monitoring and logging",

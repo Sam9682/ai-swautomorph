@@ -4,7 +4,7 @@ import os
 import json
 import logging
 from datetime import datetime
-from ..config_postgres import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_QCHAT_DEVELOPER_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, AI_ENGINE
+from ..config_postgres import TIMEOUT_SUBPROCESS_RUN, TIMEOUT_request_dev_ai_for_app_RUN, TIMEOUT_CLEAN_SHUTDOWN, TIMEOUT_QCHAT_OPERATOR_RUN, AI_ENGINE
 
 # Path configuration functions
 def get_logs_dir():
@@ -218,8 +218,8 @@ def api_deployment_logs(deployment_id):
         logger.error(f"[DEPLOYMENT LOGS] ERROR - Failed to read logs for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': f'Failed to read logs: {str(e)}'}), 500
 
-@genai_bp.route('/qchat_developer', methods=['POST'])
-def api_qchat_developer():
+@genai_bp.route('/request_dev_ai_for_app', methods=['POST'])
+def api_request_dev_ai_for_app():
     from flask import Response, stream_with_context
     import subprocess
     import re
@@ -345,7 +345,7 @@ def api_qchat_developer():
             import time
             
             # Set a longer timeout for Agentic AI operations (30 minutes)
-            timeout_seconds = TIMEOUT_QCHAT_DEVELOPER_RUN
+            timeout_seconds = TIMEOUT_request_dev_ai_for_app_RUN
             start_time = time.time()
             
             try:
@@ -415,8 +415,8 @@ def api_qchat_developer():
     return Response(stream_with_context(generate()), mimetype='text/event-stream',
                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
-@genai_bp.route('/qchat_operations', methods=['POST'])
-def api_qchat_operations():
+@genai_bp.route('/request_ops_ai_for_app', methods=['POST'])
+def api_request_ops_ai_for_app():
     from flask import Response, stream_with_context
     import subprocess
     import re

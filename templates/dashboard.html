@@ -2084,7 +2084,7 @@ function updateActionDropdown(allowedActions) {
         'PS': '{{ get_text("display_ps_option") }}',
         'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
         'SPECIFY':'{{ get_text("specify_context_option") }}',
-        'MAKE_COMPLIANT': 'MAKE App. Compliant'
+        'MAKE_APP_COMPLIANT': 'MAKE App. Compliant'
     };
     
     // Add only allowed actions
@@ -2208,7 +2208,7 @@ function sendUnifiedMessageWithText(message) {
         contentDiv.textContent = `Generating specification for: ${selectedApp}\n`;
         
         // Stream from Developer API with SPECIFY action
-        fetch('/api/qchat_developer', {
+        fetch('/api/request_dev_ai_for_app', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -2290,7 +2290,7 @@ function sendUnifiedMessageWithText(message) {
         contentDiv.textContent = `Developer processing: ${selectedApp}\n`;
         
         // Stream from Developer API
-        fetch('/api/qchat_developer', {
+        fetch('/api/request_dev_ai_for_app', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -2383,7 +2383,7 @@ function sendUnifiedMessageWithText(message) {
         
         // Stream from Operations API
         const action_operation = `${selectedAction}`
-        fetch('/api/qchat_operations', {
+        fetch('/api/request_ops_ai_for_app', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -2583,8 +2583,8 @@ function updateUnifiedInputText() {
             text = `{{ get_text("specify_context_request1") }} ${selectedApp}. {{ get_text("specify_context_request2") }}`;
         } else if (selectedAction === 'MODIFY_CODE') {
             text = `{{ get_text("dev_modify_code_request1") }} ${selectedApp}. {{ get_text("dev_modify_code_request2") }}`;
-        } else if (selectedAction === 'MAKE_COMPLIANT') {
-            text = `I need an operations specialist to execute the [[MAKE_COMPLIANT]] action on the application ${selectedApp}`;
+        } else if (selectedAction === 'MAKE_APP_COMPLIANT') {
+            text = `I need an operations specialist to execute the [[MAKE_APP_COMPLIANT]] action on the application ${selectedApp}`;
         } else {
             text = `{{ get_text("ops_exec_request1") }} [[${selectedAction}]] {{ get_text("ops_exec_request2") }} ${selectedApp}`;
         }
@@ -2630,7 +2630,7 @@ function checkApplicationStatusForActions(appName) {
         updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE', 'SPECIFY']);
     } else if (applicationStatus === 'cloned_but_not_compliant') {
         // Cloned but missing deployApp.sh: can make compliant, view logs
-        updateActionDropdown(['MAKE_COMPLIANT', 'LOGS']);
+        updateActionDropdown(['MAKE_APP_COMPLIANT', 'LOGS']);
     } else {
         // Unknown status, empty the dropdown
         updateActionDropdown([]);

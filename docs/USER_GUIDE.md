@@ -66,7 +66,7 @@ The platform provides **two specialized virtual AI agents** with context-aware p
 
 #### 🔌 API Endpoint
 ```
-POST /api/qchat_developer
+POST /api/request_dev_ai_for_app
 ```
 
 **📝 Request Body:**
@@ -94,7 +94,7 @@ POST /api/qchat_developer
 
 #### 🔌 API Endpoint
 ```
-POST /api/qchat_operations
+POST /api/request_ops_ai_for_app
 ```
 
 **📝 Request Body:**
@@ -244,13 +244,13 @@ curl https://www.swautomorph.com/api/billing/activities
 curl https://www.swautomorph.com/api/health/database
 
 # 🧪 Test developer agent
-curl -X POST /api/qchat_developer \
+curl -X POST /api/request_dev_ai_for_app \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"test connection","application_name":"test"}'
 
 # 🧪 Test operations agent
-curl -X POST /api/qchat_operations \
+curl -X POST /api/request_ops_ai_for_app \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"[START] test","application_name":"test"}'
@@ -317,7 +317,7 @@ AI-SwAutoMorph est une **plateforme centralisée de déploiement et de gestion d
 
 #### 🔌 Point de Terminaison API
 ```
-POST /api/qchat_developer
+POST /api/request_dev_ai_for_app
 ```
 
 **📝 Corps de Requête:**
@@ -345,7 +345,7 @@ POST /api/qchat_developer
 
 #### 🔌 Point de Terminaison API
 ```
-POST /api/qchat_operations
+POST /api/request_ops_ai_for_app
 ```
 
 **📝 Corps de Requête:**

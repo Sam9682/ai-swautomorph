@@ -207,13 +207,13 @@ python3 ./scripts/sync_nginx_locations.py
 ### Virtual AI Agents Integration
 ```bash
 # AI Chat Developer Agent (code modifications)
-curl -X POST https://www.swautomorph.com/api/qchat_developer \
+curl -X POST https://www.swautomorph.com/api/request_dev_ai_for_app \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"Add a new API endpoint for user management","application_name":"MyApp","application_folder":"/path/to/app","action_operation":"MODIFY_CODE"}'
 
 # AI Chat Operations Agent (deployment operations)
-curl -X POST https://www.swautomorph.com/api/qchat_operations \
+curl -X POST https://www.swautomorph.com/api/request_ops_ai_for_app \
   -H "Content-Type: application/json" \
   -H "Cookie: session=your-session-cookie" \
   -d '{"message":"[START] Start the application","application_name":"MyApp","application_folder":"/path/to/app","action_operation":"START"}'
