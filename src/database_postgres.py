@@ -272,7 +272,9 @@ def init_db():
                     ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 38, 38, 1, 1),
                     ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 29, 29, 10, 1),
                     ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
-                    ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1)
+                    ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1),
+                    ('ai-costminimizer', 'Cost Optimization for Clouds', 'git@github.com:Sam9682/ai-costminimizer.git', 58, 45, 45, 10, 1)
+                    ('ai-camarguesailing', 'Sailing With Skipper in Camargues', 'git@github.com:Sam9682/ai-camarguesailing.git', 10, 30, 30, 10, 1)
                 ]
                 cursor.executemany('''
                     INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) 
