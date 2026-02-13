@@ -456,25 +456,100 @@ EOF
     
     echo "🔧 Restoring from backup: $SELECTED_BACKUP"
     
-    # Backup current database if it exists
-    if [ -f "softfluid/db/ai_swautomorph.db" ]; then
-        mv "softfluid/db/ai_swautomorph.db" "softfluid/db/ai_swautomorph.db.pre-recovery.$(date +%Y%m%d_%H%M%S)"
-        echo "  💾 Current database backed up"
+    # Get PostgreSQL credentials from environment or use defaults
+    POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
+    POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
+    POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
+    POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
+    POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
+    
+    echo "  🔗 Connection: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
+    
+    # Set password for PostgreSQL commands
+    export PGPASSWORD="$POSTGRES_PASSWORD"
+    
+    # Test PostgreSQL connection
+    echo "  🔍 Testing PostgreSQL connection..."
+    if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+        echo -e "  $ERROR PostgreSQL server is not ready or connection failed"
+        echo "    💡 Check if PostgreSQL is running: sudo systemctl status postgresql"
+        echo "    💡 Check connection: psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DB"
+        unset PGPASSWORD
+        exit 1
+    fi
+    
+    # Create a backup of current database before recovery
+    echo "  💾 Creating backup of current database before recovery..."
+    PRERECOVERY_BACKUP_DIR="$BACKUP_BASE_DIR/pre-recovery-$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$PRERECOVERY_BACKUP_DIR"
+    
+    if pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+        --no-password --verbose --clean --if-exists \
+        > "$PRERECOVERY_BACKUP_DIR/complete_database.sql" 2>"$PRERECOVERY_BACKUP_DIR/backup.log"; then
+        echo -e "  $OK Current database backed up to $PRERECOVERY_BACKUP_DIR"
+    else
+        echo -e "  $WARN Could not backup current database (it may not exist yet)"
     fi
     
     # Restore from complete dump if available
     if [ -f "$BACKUP_DIR/complete_database.sql" ]; then
-        sqlite3 "softfluid/db/ai_swautomorph.db" < "$BACKUP_DIR/complete_database.sql"
-        echo -e "  $OK Database restored from complete dump"
-    elif [ -f "$BACKUP_DIR/ai_swautomorph.db.backup" ]; then
-        cp "$BACKUP_DIR/ai_swautomorph.db.backup" "softfluid/db/ai_swautomorph.db"
-        echo -e "  $OK Database restored from backup file"
+        echo "  📥 Restoring from complete database dump..."
+        
+        # The complete dump contains DROP DATABASE and CREATE DATABASE commands
+        # We need to run it against the 'postgres' database to allow it to manage the target database
+        echo "    � Importing backup data (this will drop and recreate the database)..."
+        
+        # Terminate all connections to the database
+        echo "    🔌 Terminating all connections to database..."
+        psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
+            --no-password -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$POSTGRES_DB' AND pid <> pg_backend_pid();" >/dev/null 2>&1 || true
+        if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
+            --no-password -f "$BACKUP_DIR/complete_database.sql" > "$BACKUP_DIR/restore.log" 2>&1; then
+            echo -e "  $OK Database restored from complete dump"
+        else
+            echo -e "  $ERROR Failed to restore database. Check $BACKUP_DIR/restore.log for details"
+            echo "    Last 20 lines of restore log:"
+            tail -20 "$BACKUP_DIR/restore.log" | sed 's/^/    /'
+            unset PGPASSWORD
+            exit 1
+        fi
+    elif [ -f "$BACKUP_DIR/schema_only.sql" ] && [ -f "$BACKUP_DIR/data_only.sql" ]; then
+        echo "  📥 Restoring from schema and data dumps..."
+        
+        # Drop and recreate database
+        echo "    🗑️ Dropping existing database..."
+        psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
+            --no-password -c "DROP DATABASE IF EXISTS $POSTGRES_DB;" 2>/dev/null || true
+        
+        echo "    🆕 Creating fresh database..."
+        psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
+            --no-password -c "CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;" 2>/dev/null
+        
+        echo "    🏗️ Restoring schema..."
+        psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            --no-password < "$BACKUP_DIR/schema_only.sql" 2>"$BACKUP_DIR/restore_schema.log"
+        
+        echo "    📤 Restoring data..."
+        if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+            --no-password < "$BACKUP_DIR/data_only.sql" 2>"$BACKUP_DIR/restore_data.log"; then
+            echo -e "  $OK Database restored from schema and data dumps"
+        else
+            echo -e "  $ERROR Failed to restore data. Check $BACKUP_DIR/restore_data.log for details"
+            unset PGPASSWORD
+            exit 1
+        fi
     else
         echo -e "  $ERROR No valid backup files found in $BACKUP_DIR"
+        echo "    Expected: complete_database.sql OR (schema_only.sql + data_only.sql)"
+        unset PGPASSWORD
         exit 1
     fi
     
+    # Clean up password
+    unset PGPASSWORD
+    
     echo -e "  $OK Database recovery completed successfully"
+    echo "  💡 Pre-recovery backup saved to: $PRERECOVERY_BACKUP_DIR"
 }
 
 # Stop services
@@ -1473,10 +1548,10 @@ setup_postgresql_database() {
         echo "  ✅ PostgreSQL user '$POSTGRES_USER' already exists"
         # Update password in case it changed
         echo "  🔑 Updating password for user '$POSTGRES_USER'..."
-        sudo -u postgres psql -c "ALTER USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';"
+        sudo -u postgres psql -c "ALTER USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD' CREATEDB;"
     else
         echo "  👤 Creating PostgreSQL user '$POSTGRES_USER'..."
-        sudo -u postgres psql -c "CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD';"
+        sudo -u postgres psql -c "CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD' CREATEDB;"
         echo "  ✅ PostgreSQL user '$POSTGRES_USER' created"
     fi
     
@@ -1629,9 +1704,10 @@ help() {
     echo "              • Nginx error logs (last 20 lines)"
     echo "              • Docker Compose logs (if running)"
     echo ""
-    echo "  --recover_db - Recover database from backup"
+    echo "  --recover_db - Recover PostgreSQL database from backup"
     echo "              • Lists available backup dates for selection"
-    echo "              • Restores softfluid/db/ai_swautomorph.db from selected backup"
+    echo "              • Restores PostgreSQL database from selected backup"
+    echo "              • Creates pre-recovery backup of current database"
     echo "              • Backs up current database before recovery"
     echo ""
     echo "  backup_db    - Create database backup manually"

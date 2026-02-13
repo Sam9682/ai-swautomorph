@@ -20,7 +20,8 @@ sudo systemctl enable postgresql
 
 # Create database user and database
 echo "👤 Creating PostgreSQL user and database..."
-sudo -u postgres psql -c "CREATE USER swautomorph WITH PASSWORD 'swautomorph_secure_password_2024';" 2>/dev/null || echo "   User already exists"
+sudo -u postgres psql -c "CREATE USER swautomorph WITH PASSWORD 'swautomorph_secure_password_2024' CREATEDB;" 2>/dev/null || echo "   User already exists"
+sudo -u postgres psql -c "ALTER USER swautomorph CREATEDB;" 2>/dev/null  # Ensure CREATEDB permission for existing users
 sudo -u postgres psql -c "CREATE DATABASE ai_swautomorph OWNER swautomorph;" 2>/dev/null || echo "   Database already exists"
 sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE ai_swautomorph TO swautomorph;"
 
