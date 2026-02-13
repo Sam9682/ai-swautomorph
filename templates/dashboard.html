@@ -1858,14 +1858,23 @@ function updateApplicationButtonStatus(appName, logs) {
     if (!appCard) return;
     
     // Check if application is not cloned/installed
-    const isNotCloned = logs.toLowerCase().includes(APP_NOT_DEPLOYED_MESSAGE.toLowerCase());
+    // There are two different "not ready" states:
+    // 1. "Application not deployed. Clone it first." = truly not cloned
+    // 2. "deployApp.sh not found" = cloned but missing deployment script (not compliant)
+    const isNotCloned = logs.toLowerCase().includes('application not deployed') || 
+                        logs.toLowerCase().includes('clone it first');
+    const isClonedButNotCompliant = logs.toLowerCase().includes('deployapp.sh not found');
     const selectedApp = document.getElementById('unifiedAppSelect').value;
     
     let isRunning = false;
     let isNotRunning = false;
     let applicationStatus = 'is_not_cloned';
     
-    if (!isNotCloned) {
+    if (isClonedButNotCompliant) {
+        // App is cloned but missing deployApp.sh
+        applicationStatus = 'cloned_but_not_compliant';
+    } else if (!isNotCloned) {
+        // App is cloned and has deployApp.sh - check if running
         try {
             // Extract JSON from logs (from line after STDOUT: to end)
             const lines = logs.split('\n');
@@ -1898,7 +1907,7 @@ function updateApplicationButtonStatus(appName, logs) {
     }
     
     // Remove or add application from list based on status
-    if (isNotCloned) {
+    if (applicationStatus === 'is_not_cloned') {
         // Keep app card visible in main panel but hide from virtual agent dropdown
         appCard.style.display = 'block';
         
@@ -2018,6 +2027,29 @@ function updateApplicationButtonStatus(appName, logs) {
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
 
+        } else if (isClonedButNotCompliant) {
+            // Application is cloned but deployApp.sh is missing (not compliant)
+            if (openBtn) {
+                openBtn.classList.remove('btn-primary', 'btn-success', 'btn-danger');
+                openBtn.classList.add('btn-warning');
+                openBtn.style.pointerEvents = 'none';
+                openBtn.style.opacity = '0.6';
+                openBtn.innerHTML = '⚠️ Not Compliant';
+                openBtn.title = '⚠️ Application needs deployApp.sh';
+            }
+            
+            if (cloneBtn) {
+                cloneBtn.style.display = 'inline-block';
+                cloneBtn.style.pointerEvents = 'auto';
+                cloneBtn.style.opacity = '1';
+                cloneBtn.innerHTML = '🔄 {{ get_text("clone") }}';
+                cloneBtn.title = '🔄 {{ get_text("reclone") }}';
+            }
+            if (startBtn) startBtn.style.display = 'none';
+            if (psBtn) psBtn.style.display = 'none';
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (logsBtn) logsBtn.style.display = 'inline-block';
+            if (restartBtn) restartBtn.style.display = 'none';
         }
     }
 }
@@ -2051,8 +2083,8 @@ function updateActionDropdown(allowedActions) {
         'LOGS': '{{ get_text("display_logs_option") }}',
         'PS': '{{ get_text("display_ps_option") }}',
         'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
-        'SPECIFY':'{{ get_text("specify_context_option") }}'
-
+        'SPECIFY':'{{ get_text("specify_context_option") }}',
+        'MAKE_COMPLIANT': 'MAKE App. Compliant'
     };
     
     // Add only allowed actions
@@ -2551,6 +2583,8 @@ function updateUnifiedInputText() {
             text = `{{ get_text("specify_context_request1") }} ${selectedApp}. {{ get_text("specify_context_request2") }}`;
         } else if (selectedAction === 'MODIFY_CODE') {
             text = `{{ get_text("dev_modify_code_request1") }} ${selectedApp}. {{ get_text("dev_modify_code_request2") }}`;
+        } else if (selectedAction === 'MAKE_COMPLIANT') {
+            text = `I need an operations specialist to execute the [[MAKE_COMPLIANT]] action on the application ${selectedApp}`;
         } else {
             text = `{{ get_text("ops_exec_request1") }} [[${selectedAction}]] {{ get_text("ops_exec_request2") }} ${selectedApp}`;
         }
@@ -2594,6 +2628,9 @@ function checkApplicationStatusForActions(appName) {
     } else if (applicationStatus === 'cloned_but_not_running') {
         // Not running: can modify code, start, view logs
         updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE', 'SPECIFY']);
+    } else if (applicationStatus === 'cloned_but_not_compliant') {
+        // Cloned but missing deployApp.sh: can make compliant, view logs
+        updateActionDropdown(['MAKE_COMPLIANT', 'LOGS']);
     } else {
         // Unknown status, empty the dropdown
         updateActionDropdown([]);
