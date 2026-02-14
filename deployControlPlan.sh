@@ -135,6 +135,25 @@ else:
 EOF
 }
 
+# Get server IP address
+get_server_ip() {
+    # Try to get the primary IP address (prefer public IP)
+    # Method 1: Try to get public IP from external service
+    SERVER_IP=$(curl -s --max-time 2 ifconfig.me 2>/dev/null || curl -s --max-time 2 icanhazip.com 2>/dev/null)
+    
+    # Method 2: If external services fail, get the primary network interface IP
+    if [ -z "$SERVER_IP" ]; then
+        SERVER_IP=$(hostname -I | awk '{print $1}')
+    fi
+    
+    # Method 3: Fallback to localhost if nothing else works
+    if [ -z "$SERVER_IP" ]; then
+        SERVER_IP="127.0.0.1"
+    fi
+    
+    echo "$SERVER_IP"
+}
+
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
 calculate_ports() {
     HTTP_PORT=${RANGE_START_CONTROLPLAN}
@@ -336,9 +355,17 @@ backup_database() {
     echo "    📁 Files created:"
     ls -la "$BACKUP_DIR" | sed 's/^/      /'
     
-    # Sync to S3
+    # Sync to S3 with IP address in path
     echo "  ☁️ Synchronizing to S3..."
-    aws s3 sync ./softfluid s3://softfluid --profile OVH-SWAUTOMORPH || echo "  ⚠️ S3 sync failed or not configured"
+    SERVER_IP=$(get_server_ip)
+    echo "    📍 Server IP: $SERVER_IP"
+    
+    # Sync the specific backup to S3 with IP-based path structure
+    if aws s3 sync "$BACKUP_DIR" "s3://softfluid/db/backup/$SERVER_IP/$DATETIME/" --profile OVH-SWAUTOMORPH; then
+        echo -e "  $OK Backup synced to s3://softfluid/db/backup/$SERVER_IP/$DATETIME/"
+    else
+        echo "  ⚠️ S3 sync failed or not configured"
+    fi
 }
 
 # Logs backup function
@@ -435,19 +462,99 @@ EOF
             exit 1
         fi
         
-        # List S3 backup directories
-        S3_BACKUPS=$(aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
+        # Get current server IP
+        SERVER_IP=$(get_server_ip)
+        echo "  📍 Current Server IP: $SERVER_IP"
+        
+        # Ask user which server's backups to restore from
+        echo ""
+        echo "📡 Select backup server:"
+        
+        # List all available server IPs in S3
+        S3_SERVERS=$(aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort)
+        
+        if [ -z "$S3_SERVERS" ]; then
+            echo -e "  $ERROR No server backups found in S3 bucket"
+            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH"
+            exit 1
+        fi
+        
+        # Convert to array
+        SERVER_IPS=($(echo "$S3_SERVERS"))
+        
+        # Add current server to the top if it exists in the list
+        if echo "$S3_SERVERS" | grep -q "^$SERVER_IP$"; then
+            # Move current server to front
+            SERVER_IPS=("$SERVER_IP (current server)" $(echo "$S3_SERVERS" | grep -v "^$SERVER_IP$"))
+        else
+            SERVER_IPS=($S3_SERVERS)
+        fi
+        
+        # Select server
+        if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+            printf '%s\n' "${SERVER_IPS[@]}" > /tmp/server_ips.txt
+            
+            SELECTED_SERVER=$(python3 << 'EOF'
+from simple_term_menu import TerminalMenu
+
+with open('/tmp/server_ips.txt', 'r') as f:
+    server_ips = [line.strip() for line in f if line.strip()]
+
+terminal_menu = TerminalMenu(
+    server_ips,
+    title="📡 Select server to restore from:",
+    menu_cursor="▶ ",
+    menu_cursor_style=("fg_cyan", "bold"),
+    menu_highlight_style=("bg_cyan", "fg_black"),
+    cycle_cursor=True
+)
+
+menu_entry_index = terminal_menu.show()
+if menu_entry_index is not None:
+    # Remove "(current server)" suffix if present
+    selected = server_ips[menu_entry_index].replace(" (current server)", "")
+    print(selected)
+EOF
+)
+            rm -f /tmp/server_ips.txt
+        else
+            # Fallback to numbered selection
+            echo "Available servers:"
+            for i in "${!SERVER_IPS[@]}"; do
+                echo "  $((i+1))) ${SERVER_IPS[$i]}"
+            done
+            
+            read -p "Select server (1-${#SERVER_IPS[@]}): " choice
+            
+            if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#SERVER_IPS[@]} ]; then
+                echo -e "  $ERROR Invalid selection"
+                exit 1
+            fi
+            
+            SELECTED_SERVER="${SERVER_IPS[$((choice-1))]}"
+            SELECTED_SERVER="${SELECTED_SERVER// (current server)/}"
+        fi
+        
+        if [ -z "$SELECTED_SERVER" ]; then
+            echo -e "  $WARN No server selected - operation cancelled"
+            exit 0
+        fi
+        
+        echo "  ✅ Selected server: $SELECTED_SERVER"
+        
+        # List S3 backup directories for the selected server
+        S3_BACKUPS=$(aws s3 ls "s3://softfluid/db/backup/$SELECTED_SERVER/" --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
         
         if [ -z "$S3_BACKUPS" ]; then
-            echo -e "  $ERROR No backups found in S3 bucket"
-            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH"
+            echo -e "  $ERROR No backups found for server $SELECTED_SERVER in S3 bucket"
+            echo "    💡 Check S3 path: aws s3 ls s3://softfluid/db/backup/$SELECTED_SERVER/ --profile OVH-SWAUTOMORPH"
             exit 1
         fi
         
         # Convert to array
         BACKUP_DATES=($(echo "$S3_BACKUPS"))
         
-        echo "  ✅ Found ${#BACKUP_DATES[@]} backup(s) in S3"
+        echo "  ✅ Found ${#BACKUP_DATES[@]} backup(s) in S3 for server $SELECTED_SERVER"
     else
         # Handle local backup source
         if [ ! -d "$BACKUP_BASE_DIR" ]; then
@@ -517,14 +624,15 @@ EOF
     # Download from S3 if needed
     if [ "$BACKUP_SOURCE" = "s3" ]; then
         echo "☁️ Downloading backup from S3: $SELECTED_BACKUP"
+        echo "  📡 Server: $SELECTED_SERVER"
         
         # Create temporary directory for S3 backup
-        BACKUP_DIR="$BACKUP_BASE_DIR/s3-temp-$SELECTED_BACKUP"
+        BACKUP_DIR="$BACKUP_BASE_DIR/s3-temp-$SELECTED_SERVER-$SELECTED_BACKUP"
         mkdir -p "$BACKUP_DIR"
         
         # Download the selected backup from S3
-        echo "  📥 Syncing from s3://softfluid/db/backup/$SELECTED_BACKUP/ ..."
-        if aws s3 sync "s3://softfluid/db/backup/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
+        echo "  📥 Syncing from s3://softfluid/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/ ..."
+        if aws s3 sync "s3://softfluid/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
             echo -e "  $OK Backup downloaded successfully"
         else
             echo -e "  $ERROR Failed to download backup from S3"
