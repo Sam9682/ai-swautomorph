@@ -479,15 +479,32 @@ EOF
             exit 1
         fi
         
-        # Convert to array
-        SERVER_IPS=($(echo "$S3_SERVERS"))
+        echo "  ✅ Found servers in S3:"
+        echo "$S3_SERVERS" | sed 's/^/    /'
+        
+        # Convert to array using mapfile to handle IPv6 addresses with colons
+        mapfile -t SERVER_IPS <<< "$S3_SERVERS"
+        
+        echo "  📊 Total servers: ${#SERVER_IPS[@]}"
         
         # Add current server to the top if it exists in the list
-        if echo "$S3_SERVERS" | grep -q "^$SERVER_IP$"; then
-            # Move current server to front
-            SERVER_IPS=("$SERVER_IP (current server)" $(echo "$S3_SERVERS" | grep -v "^$SERVER_IP$"))
-        else
-            SERVER_IPS=($S3_SERVERS)
+        CURRENT_SERVER_FOUND=false
+        for ip in "${SERVER_IPS[@]}"; do
+            if [ "$ip" = "$SERVER_IP" ]; then
+                CURRENT_SERVER_FOUND=true
+                break
+            fi
+        done
+        
+        if [ "$CURRENT_SERVER_FOUND" = "true" ]; then
+            # Create new array with current server first
+            NEW_SERVER_IPS=("$SERVER_IP (current server)")
+            for ip in "${SERVER_IPS[@]}"; do
+                if [ "$ip" != "$SERVER_IP" ]; then
+                    NEW_SERVER_IPS+=("$ip")
+                fi
+            done
+            SERVER_IPS=("${NEW_SERVER_IPS[@]}")
         fi
         
         # Select server
@@ -551,8 +568,8 @@ EOF
             exit 1
         fi
         
-        # Convert to array
-        BACKUP_DATES=($(echo "$S3_BACKUPS"))
+        # Convert to array using mapfile to handle special characters
+        mapfile -t BACKUP_DATES <<< "$S3_BACKUPS"
         
         echo "  ✅ Found ${#BACKUP_DATES[@]} backup(s) in S3 for server $SELECTED_SERVER"
     else
