@@ -391,17 +391,79 @@ recover_database() {
     
     BACKUP_BASE_DIR="./softfluid/db/backup"
     
-    if [ ! -d "$BACKUP_BASE_DIR" ]; then
-        echo -e "  $ERROR No backup directory found at $BACKUP_BASE_DIR"
-        exit 1
+    # Ask user to choose backup source (local or S3)
+    echo "📍 Select backup source:"
+    
+    if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
+        BACKUP_SOURCE=$(python3 << 'EOF'
+from simple_term_menu import TerminalMenu
+
+options = ["Local backups (./softfluid/db/backup)", "Remote S3 backups (s3://softfluid/db/backup)"]
+terminal_menu = TerminalMenu(
+    options,
+    title="📍 Select backup source:",
+    menu_cursor="▶ ",
+    menu_cursor_style=("fg_cyan", "bold"),
+    menu_highlight_style=("bg_cyan", "fg_black"),
+    cycle_cursor=True
+)
+
+menu_entry_index = terminal_menu.show()
+print("local" if menu_entry_index == 0 else "s3")
+EOF
+)
+    else
+        # Fallback to numbered selection
+        echo "1) Local backups (./softfluid/db/backup)"
+        echo "2) Remote S3 backups (s3://softfluid/db/backup)"
+        read -p "Select backup source (1-2): " choice
+        case $choice in
+            1) BACKUP_SOURCE="local" ;;
+            2) BACKUP_SOURCE="s3" ;;
+            *) BACKUP_SOURCE="local" ;;
+        esac
     fi
     
-    # List available backup dates
-    BACKUP_DATES=($(ls -1 "$BACKUP_BASE_DIR" | sort -r))
-    
-    if [ ${#BACKUP_DATES[@]} -eq 0 ]; then
-        echo -e "  $ERROR No backup folders found"
-        exit 1
+    # Handle S3 backup source
+    if [ "$BACKUP_SOURCE" = "s3" ]; then
+        echo "☁️ Fetching backup list from S3..."
+        
+        # Check if AWS CLI is available
+        if ! command -v aws &> /dev/null; then
+            echo -e "  $ERROR AWS CLI is not installed"
+            echo "    💡 Install AWS CLI: sudo apt-get install awscli"
+            exit 1
+        fi
+        
+        # List S3 backup directories
+        S3_BACKUPS=$(aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
+        
+        if [ -z "$S3_BACKUPS" ]; then
+            echo -e "  $ERROR No backups found in S3 bucket"
+            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH"
+            exit 1
+        fi
+        
+        # Convert to array
+        BACKUP_DATES=($(echo "$S3_BACKUPS"))
+        
+        echo "  ✅ Found ${#BACKUP_DATES[@]} backup(s) in S3"
+    else
+        # Handle local backup source
+        if [ ! -d "$BACKUP_BASE_DIR" ]; then
+            echo -e "  $ERROR No backup directory found at $BACKUP_BASE_DIR"
+            exit 1
+        fi
+        
+        # List available backup dates
+        BACKUP_DATES=($(ls -1 "$BACKUP_BASE_DIR" | sort -r))
+        
+        if [ ${#BACKUP_DATES[@]} -eq 0 ]; then
+            echo -e "  $ERROR No backup folders found"
+            exit 1
+        fi
+        
+        echo "  ✅ Found ${#BACKUP_DATES[@]} local backup(s)"
     fi
     
     # Use simple-term-menu for backup selection
@@ -452,7 +514,27 @@ EOF
         exit 0
     fi
     
-    BACKUP_DIR="$BACKUP_BASE_DIR/$SELECTED_BACKUP"
+    # Download from S3 if needed
+    if [ "$BACKUP_SOURCE" = "s3" ]; then
+        echo "☁️ Downloading backup from S3: $SELECTED_BACKUP"
+        
+        # Create temporary directory for S3 backup
+        BACKUP_DIR="$BACKUP_BASE_DIR/s3-temp-$SELECTED_BACKUP"
+        mkdir -p "$BACKUP_DIR"
+        
+        # Download the selected backup from S3
+        echo "  📥 Syncing from s3://softfluid/db/backup/$SELECTED_BACKUP/ ..."
+        if aws s3 sync "s3://softfluid/db/backup/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
+            echo -e "  $OK Backup downloaded successfully"
+        else
+            echo -e "  $ERROR Failed to download backup from S3"
+            echo "    💡 Check S3 connection and permissions"
+            rm -rf "$BACKUP_DIR"
+            exit 1
+        fi
+    else
+        BACKUP_DIR="$BACKUP_BASE_DIR/$SELECTED_BACKUP"
+    fi
     
     echo "🔧 Restoring from backup: $SELECTED_BACKUP"
     
@@ -547,6 +629,13 @@ EOF
     
     # Clean up password
     unset PGPASSWORD
+    
+    # Clean up temporary S3 backup directory if it was used
+    if [ "$BACKUP_SOURCE" = "s3" ]; then
+        echo "  🧹 Cleaning up temporary S3 backup directory..."
+        rm -rf "$BACKUP_DIR"
+        echo -e "  $OK Temporary files removed"
+    fi
     
     echo -e "  $OK Database recovery completed successfully"
     echo "  💡 Pre-recovery backup saved to: $PRERECOVERY_BACKUP_DIR"
