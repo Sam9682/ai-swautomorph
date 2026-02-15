@@ -275,6 +275,7 @@ def init_db():
                     ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1),
                     ('ai-costminimizer', 'Cost Optimization for Clouds', 'git@github.com:Sam9682/ai-costminimizer.git', 58, 45, 45, 10, 1),
                     ('ai-camarguesailing', 'Sailing With Skipper in Camargues', 'git@github.com:Sam9682/ai-camarguesailing.git', 10, 30, 30, 10, 1)
+                    ('ai-hypervisia', 'Association pour la promotion de ', 'git@github.com:Sam9682/ai-hypervisia.git', 10, 30, 30, 10, 1)
                 ]
                 cursor.executemany('''
                     INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) 
@@ -313,7 +314,13 @@ def init_db():
                     INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
                     VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
                 ''', ('admin', f'admin@{DOMAIN}', admin_password_hash, 'System', 'Administrator', False))
-                
+
+                demo_password_hash = generate_password_hash('password')
+                cursor.execute('''
+                    INSERT INTO users (username, email, password_hash, first_name, last_name, suspended)
+                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id
+                ''', ('demo', f'demo@{DOMAIN}', demo_password_hash, 'System', 'Demo', False))
+
                 # Get admin user ID and assign all applications with URLs
                 admin_id = cursor.fetchone()[0]
                 cursor.execute('SELECT id, name FROM applications')
