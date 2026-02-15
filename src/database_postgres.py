@@ -274,7 +274,7 @@ def init_db():
                     ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
                     ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1),
                     ('ai-costminimizer', 'Cost Optimization for Clouds', 'git@github.com:Sam9682/ai-costminimizer.git', 58, 45, 45, 10, 1),
-                    ('ai-camarguesailing', 'Sailing With Skipper in Camargues', 'git@github.com:Sam9682/ai-camarguesailing.git', 10, 30, 30, 10, 1)
+                    ('ai-camarguesailing', 'Sailing With Skipper in Camargues', 'git@github.com:Sam9682/ai-camarguesailing.git', 10, 30, 30, 10, 1),
                     ('ai-hypervisia', 'Association pour la promotion de ', 'git@github.com:Sam9682/ai-hypervisia.git', 10, 30, 30, 10, 1)
                 ]
                 cursor.executemany('''
