@@ -217,6 +217,47 @@ def api_applications():
         
         return jsonify({'message': 'Application added successfully'}), 201
 
+@api_bp.route('/applications/pdf-data', methods=['GET'])
+def api_applications_pdf_data():
+    """Endpoint to get application data for PDF generation"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    # Check if user is admin
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        apps_data = db_manager.execute_query(
+            'SELECT id, name, description, git_url, git_repo_size FROM applications ORDER BY name',
+            fetch_all=True
+        )
+        apps = [
+            {
+                'id': row[0], 
+                'name': row[1], 
+                'description': row[2], 
+                'git_url': row[3], 
+                'git_repo_size': row[4] or 50
+            } 
+            for row in apps_data
+        ]
+        
+        from ..config_postgres import DOMAIN
+        
+        return jsonify({
+            'applications': apps,
+            'domain': DOMAIN
+        })
+    except Exception as e:
+        logger.error(f"Error fetching PDF data: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/applications/<int:app_id>', methods=['PUT', 'DELETE'])
 def api_application_actions(app_id):
     if 'user_id' not in session:

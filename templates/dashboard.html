@@ -343,7 +343,10 @@
     <div id="appManagementSection" class="tab-content" style="display: none;">
         <div class="section-header">
             <h2>📱 Application Management</h2>
-            <button class="btn btn-primary" onclick="showAddAppManagementForm()">Add New Application</button>
+            <div>
+                <button class="btn btn-primary" onclick="showAddAppManagementForm()">Add New Application</button>
+                <button class="btn btn-secondary" onclick="downloadApplicationsPDF()" style="margin-left: 10px;">📄 Download PDF</button>
+            </div>
         </div>
         
         <div id="appManagementGrid" class="users-grid">
@@ -5191,6 +5194,127 @@ function deleteAppManagement(appId, appName) {
             alert('Error deleting application: ' + error);
         });
     }
+}
+
+// PDF Generation function
+function downloadApplicationsPDF() {
+    fetch('/api/applications/pdf-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+                return;
+            }
+            
+            // Import jsPDF dynamically
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = function() {
+                generatePDF(data.applications, data.domain);
+            };
+            document.head.appendChild(script);
+        })
+        .catch(error => {
+            alert('Error fetching application data: ' + error);
+        });
+}
+
+function generatePDF(applications, domain) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text('Application Catalog', 148, 15, { align: 'center' });
+    
+    // Date
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    doc.text(`Generated: ${date}`, 148, 22, { align: 'center' });
+    
+    let yPosition = 35;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 15;
+    const lineHeight = 7;
+    
+    applications.forEach((app, index) => {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 40) {
+            doc.addPage();
+            yPosition = 20;
+        }
+        
+        // Application header
+        doc.setFontSize(14);
+        doc.setFont(undefined, 'bold');
+        doc.text(`${index + 1}. ${app.name}`, margin, yPosition);
+        yPosition += lineHeight;
+        
+        // Application details
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'normal');
+        
+        // ID
+        doc.setFont(undefined, 'bold');
+        doc.text('ID:', margin + 5, yPosition);
+        doc.setFont(undefined, 'normal');
+        doc.text(String(app.id), margin + 20, yPosition);
+        yPosition += lineHeight;
+        
+        // Description
+        doc.setFont(undefined, 'bold');
+        doc.text('Description:', margin + 5, yPosition);
+        doc.setFont(undefined, 'normal');
+        const description = app.description || 'N/A';
+        const descLines = doc.splitTextToSize(description, 250);
+        doc.text(descLines, margin + 35, yPosition);
+        yPosition += lineHeight * Math.max(1, descLines.length);
+        
+        // Git URL
+        doc.setFont(undefined, 'bold');
+        doc.text('Git URL:', margin + 5, yPosition);
+        doc.setFont(undefined, 'normal');
+        const gitUrl = app.git_url || 'N/A';
+        doc.text(gitUrl, margin + 25, yPosition);
+        yPosition += lineHeight;
+        
+        // Size
+        doc.setFont(undefined, 'bold');
+        doc.text('Size:', margin + 5, yPosition);
+        doc.setFont(undefined, 'normal');
+        doc.text(`${app.git_repo_size || 50} MB`, margin + 20, yPosition);
+        yPosition += lineHeight;
+        
+        // Demo Link
+        doc.setFont(undefined, 'bold');
+        doc.text('Demo Link:', margin + 5, yPosition);
+        doc.setFont(undefined, 'normal');
+        const demoLink = `https://${domain}/demo/${app.name}`;
+        doc.setTextColor(0, 0, 255);
+        doc.textWithLink(demoLink, margin + 30, yPosition, { url: demoLink });
+        doc.setTextColor(0, 0, 0);
+        yPosition += lineHeight + 3;
+        
+        // Separator line
+        doc.setDrawColor(200, 200, 200);
+        doc.line(margin, yPosition, 297 - margin, yPosition);
+        yPosition += 8;
+    });
+    
+    // Footer on each page
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128);
+        doc.text(`Page ${i} of ${pageCount}`, 148, pageHeight - 10, { align: 'center' });
+    }
+    
+    // Save the PDF
+    const filename = `applications_catalog_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
 }
 </script>
 {% endblock %}
