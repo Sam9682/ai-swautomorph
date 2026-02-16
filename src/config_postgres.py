@@ -376,7 +376,9 @@ TRANSLATIONS = {
         'gitea_branch': 'Gitea Branch',
         'local_active_version': 'Local Active Version',
         'orchestrator': 'Applications Orchestrator',
-        'confirm_password': 'Confirm password'
+        'confirm_password': 'Confirm password',
+        'password_match': '✓ password match',
+        'password_do_not_match': '✗ password do not match'
     },
     'fr': {
         'login': 'Connexion',
@@ -604,6 +606,8 @@ TRANSLATIONS = {
         'gitea_branch': 'Branche Gitea',
         'local_active_version': 'Version Active Locale',
         'orchestrator': 'Applications Orchestrateur',
-        'confirm_password': 'Confirmation du mot de passe'
+        'confirm_password': 'Confirmation du mot de passe',
+        'password_match': '✓ le mot de passe correspond',
+        'password_do_not_match': '✗ le mot de passe ne correspond pas'
     }
 }
