@@ -228,6 +228,41 @@ def api_applications_pdf_data():
         'SELECT username FROM users WHERE id = %s', 
         (session['user_id'],), fetch_one=True
     )
+
+@api_bp.route('/applications/available', methods=['GET'])
+def api_available_applications():
+    """Get applications that are NOT assigned to the current user"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # Get all applications that are NOT in user_applications for this user
+        available_apps_data = db_manager.execute_query('''
+            SELECT a.id, a.name, a.description, a.git_url, a.git_repo_size
+            FROM applications a
+            WHERE a.id NOT IN (
+                SELECT application_id 
+                FROM user_applications 
+                WHERE user_id = %s
+            )
+            ORDER BY a.name
+        ''', (session['user_id'],), fetch_all=True)
+        
+        available_apps = [
+            {
+                'id': row[0],
+                'name': row[1],
+                'description': row[2] or 'No description',
+                'git_url': row[3],
+                'git_repo_size': row[4] or 50
+            }
+            for row in available_apps_data
+        ]
+        
+        return jsonify(available_apps)
+    except Exception as e:
+        logger.error(f"Error fetching available applications: {str(e)}")
+        return jsonify({'error': str(e)}), 500
     
     if not user or user[0] != 'admin':
         return jsonify({'error': 'Admin access required'}), 403

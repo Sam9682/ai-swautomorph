@@ -10,7 +10,7 @@
     
     <div id="appsSection" class="tab-content">
         <div class="section-header">
-            <h2>{{ get_text('available_applications') }}</h2>
+            <h2>{{ get_text('used_applications') }}</h2>
             {% if username == 'admin' %}
             <button class="btn btn-primary" onclick="showAddAppForm()">{{ get_text('add_new_application') }}</button>
             {% endif %}
@@ -69,6 +69,22 @@
     {% if not applications %}
     <div class="no-apps">
         <p>{{ get_text('no_apps') }}</p>
+    </div>
+    {% endif %}
+    
+    <!-- Available Applications Section (for non-admin users) -->
+    {% if username != 'admin' %}
+    <div class="section-header" style="margin-top: 40px;">
+        <h2>{{ get_text('available_applications') }}</h2>
+        <p style="font-size: 14px; color: #666; margin-top: 5px;">Applications that can be requested from your administrator</p>
+    </div>
+    
+    <div id="availableAppsGrid" class="applications-grid">
+        <div class="loading">Loading available applications...</div>
+    </div>
+    
+    <div id="noAvailableApps" class="no-apps" style="display: none;">
+        <p>All available applications have been assigned to you.</p>
     </div>
     {% endif %}
     
@@ -325,7 +341,7 @@
             <h3>{{ get_text('manage_applications_for') }} <span id="selectedUsername"></span></h3>
             <div class="apps-management">
                 <div class="available-apps">
-                    <h4>{{ get_text('available_applications') }}</h4>
+                    <h4>{{ get_text('used_applications') }}</h4>
                     <div id="availableAppsList"></div>
                 </div>
                 <div class="assigned-apps">
@@ -1768,7 +1784,131 @@ document.addEventListener('DOMContentLoaded', function() {
     checkAllApplicationStatus();
     setInterval(checkAllApplicationStatus, 3000);
     loadAllGiteaInfo();
+    
+    // Load available applications for non-admin users
+    const username = '{{ username }}';
+    if (username !== 'admin') {
+        loadAvailableApplications();
+    }
 });
+
+// Load available applications (not assigned to current user)
+function loadAvailableApplications() {
+    const availableAppsGrid = document.getElementById('availableAppsGrid');
+    const noAvailableApps = document.getElementById('noAvailableApps');
+    
+    if (!availableAppsGrid) return;
+    
+    // Translations
+    const translations = {
+        loading: '{{ get_text("loading_available_apps") }}',
+        error: '{{ get_text("error_loading_apps") }}',
+        failed: '{{ get_text("failed_load_available_apps") }}',
+        allAssigned: '{{ get_text("all_apps_assigned") }}',
+        notAssigned: '{{ get_text("not_assigned_contact_admin") }}',
+        noDescription: '{{ get_text("no_description_available") }}',
+        viewDetails: '{{ get_text("view_details") }}'
+    };
+    
+    fetch('/api/applications/available')
+        .then(response => response.json())
+        .then(apps => {
+            if (apps.error) {
+                availableAppsGrid.innerHTML = `<div class="error-message">${translations.error}: ${apps.error}</div>`;
+                return;
+            }
+            
+            if (apps.length === 0) {
+                availableAppsGrid.style.display = 'none';
+                if (noAvailableApps) {
+                    noAvailableApps.innerHTML = `<p>${translations.allAssigned}</p>`;
+                    noAvailableApps.style.display = 'block';
+                }
+                return;
+            }
+            
+            // Display available applications
+            availableAppsGrid.innerHTML = apps.map(app => `
+                <div class="app-card" style="opacity: 0.8; border: 2px dashed #ddd;">
+                    <div class="app-actions">
+                        <button onclick="viewAvailableApp(${app.id}, '${app.name.replace(/'/g, "\\'")}', '${(app.description || '').replace(/'/g, "\\'")}', '${(app.git_url || '').replace(/'/g, "\\'")}', ${app.git_repo_size})" class="btn-icon" title="${translations.viewDetails}">
+                            👁️
+                        </button>
+                    </div>
+                    <h3>🔒 ${app.name}</h3>
+                    <p>${app.description || translations.noDescription}</p>
+                    <div style="margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 4px; text-align: center;">
+                        <small style="color: #666;">${translations.notAssigned}</small>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(error => {
+            console.error('Error loading available applications:', error);
+            availableAppsGrid.innerHTML = `<div class="error-message">${translations.failed}</div>`;
+        });
+}
+
+// View details of an available application
+function viewAvailableApp(appId, appName, description, gitUrl, gitRepoSize) {
+    // Translations
+    const translations = {
+        description: '{{ get_text("description") }}',
+        noDescription: '{{ get_text("no_description_available") }}',
+        repository: '{{ get_text("repository") }}',
+        accessRequired: '{{ get_text("access_required") }}',
+        accessRequiredMessage: '{{ get_text("access_required_message") }}',
+        close: '{{ get_text("close") }}'
+    };
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    `;
+    
+    modal.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h2 style="margin-top: 0; color: #333;">📋 ${appName}</h2>
+            <div style="margin: 20px 0;">
+                <p><strong>${translations.description}:</strong></p>
+                <p style="color: #666;">${description || translations.noDescription}</p>
+            </div>
+            ${gitUrl ? `
+                <div style="margin: 20px 0;">
+                    <p><strong>${translations.repository}:</strong></p>
+                    <p style="color: #666; word-break: break-all;">${gitUrl}</p>
+                </div>
+            ` : ''}
+            <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">
+                <p style="margin: 0; color: #856404;">
+                    <strong>⚠️ ${translations.accessRequired}</strong><br>
+                    ${translations.accessRequiredMessage}
+                </p>
+            </div>
+            <div style="text-align: right; margin-top: 20px;">
+                <button onclick="this.closest('div[style*=fixed]').remove()" class="btn btn-secondary">${translations.close}</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on background click
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
 function loadAllGiteaInfo() {
     const appCards = document.querySelectorAll('.app-card');
