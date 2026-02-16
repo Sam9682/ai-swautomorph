@@ -375,7 +375,8 @@ TRANSLATIONS = {
         'replication_queue': 'Replication Synchronization Queue between servers PRIMARY and SECONDARY',
         'gitea_branch': 'Gitea Branch',
         'local_active_version': 'Local Active Version',
-        'orchestrator': 'Applications Orchestrator'
+        'orchestrator': 'Applications Orchestrator',
+        'confirm_password': 'Confirm password'
     },
     'fr': {
         'login': 'Connexion',
@@ -603,5 +604,6 @@ TRANSLATIONS = {
         'gitea_branch': 'Branche Gitea',
         'local_active_version': 'Version Active Locale',
         'orchestrator': 'Applications Orchestrateur'
+        'confirm_password': 'Confirmation du mot de passe'
     }
 }
