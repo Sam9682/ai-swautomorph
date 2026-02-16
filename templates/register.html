@@ -53,12 +53,12 @@
                 }
                 
                 if (password.value === confirmPassword.value) {
-                    matchMessage.textContent = {{ get_text('password_match') }};
+                    matchMessage.textContent = "{{ get_text('password_match') }}";
                     matchMessage.style.color = '#28a745';
                     matchMessage.style.display = 'block';
                     confirmPassword.style.borderColor = '#28a745';
                 } else {
-                    matchMessage.textContent = {{ get_text('password_do_not_match') }};
+                    matchMessage.textContent = "{{ get_text('password_do_not_match') }}";
                     matchMessage.style.color = '#dc3545';
                     matchMessage.style.display = 'block';
                     confirmPassword.style.borderColor = '#dc3545';
