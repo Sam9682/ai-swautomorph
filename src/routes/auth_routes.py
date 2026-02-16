@@ -49,36 +49,59 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    from ..config_postgres import TRANSLATIONS
+    
     data = request.get_json() if request.is_json else request.form
     username = data.get('username')
     password = data.get('password')
     
     if not all([username, password]):
-        return jsonify({'error': 'Missing credentials'}), 400
+        lang = session.get('language', 'en')
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Missing credentials')
+        return jsonify({'error': error_msg}), 400
     
     user = db_manager.execute_query(
         'SELECT id, password_hash, suspended FROM users WHERE username = %s', 
         (username,), fetch_one=True
     )
     
-    if user and not user[2] and check_password_hash(user[1], password):
-        session['user_id'] = user[0]
-        
-        # Generate SSO token
-        token = generate_sso_token(user[0])
-        session['sso_token'] = token
-        
-        # Log login event
-        db_manager.execute_query(
-            'INSERT INTO users_logs (user_id, username, action) VALUES (%s, %s, %s)',
-            (user[0], username, 'login')
-        )
-        
-        if request.is_json:
-            return jsonify({'message': 'Login successful', 'sso_token': token}), 200
-        return redirect(url_for('main.dashboard'))
+    if not user:
+        # User doesn't exist
+        lang = session.get('language', 'en')
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Invalid credentials')
+        return jsonify({'error': error_msg}), 401
     
-    return jsonify({'error': 'Invalid credentials'}), 401
+    # Check if password is correct
+    if not check_password_hash(user[1], password):
+        # Wrong password
+        lang = session.get('language', 'en')
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Invalid credentials')
+        return jsonify({'error': error_msg}), 401
+    
+    # Check if user is suspended
+    if user[2]:
+        # User is suspended
+        lang = session.get('language', 'en')
+        error_msg = TRANSLATIONS.get(lang, {}).get('account_pending_activation', 
+            'Your account is pending activation. Please wait for the administration team to activate your account and try again later.')
+        return jsonify({'error': error_msg}), 403
+    
+    # User exists, password is correct, and not suspended - allow login
+    session['user_id'] = user[0]
+    
+    # Generate SSO token
+    token = generate_sso_token(user[0])
+    session['sso_token'] = token
+    
+    # Log login event
+    db_manager.execute_query(
+        'INSERT INTO users_logs (user_id, username, action) VALUES (%s, %s, %s)',
+        (user[0], username, 'login')
+    )
+    
+    if request.is_json:
+        return jsonify({'message': 'Login successful', 'sso_token': token}), 200
+    return redirect(url_for('main.dashboard'))
 
 @auth_bp.route('/logout')
 def logout():

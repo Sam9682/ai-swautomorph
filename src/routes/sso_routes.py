@@ -113,13 +113,17 @@ def sso_login_page():
 @sso_bp.route('/authenticate', methods=['POST'])
 def sso_authenticate():
     """SSO authentication handler"""
+    from ..config_postgres import TRANSLATIONS
+    
     username = request.form.get('username')
     password = request.form.get('password')
     redirect_uri = session.get('sso_redirect_uri')
+    lang = session.get('language', 'en')
     
     if not all([username, password, redirect_uri]):
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Missing credentials')
         return render_template('sso_login.html', 
-                             error='Missing credentials', 
+                             error=error_msg, 
                              redirect_uri=redirect_uri)
     
     # Authenticate user
@@ -128,19 +132,39 @@ def sso_authenticate():
         (username,), fetch_one=True
     )
     
-    if user and not user[2] and check_password_hash(user[1], password):
-        # Generate SSO token
-        session['user_id'] = user[0]
-        token = generate_sso_token(user[0])
-        session['sso_token'] = token
-        
-        # Clear SSO session data
-        session.pop('sso_redirect_uri', None)
-        session.pop('sso_client_id', None)
-        
-        # Redirect back to client with token
-        return redirect(f"{redirect_uri}?token={token}&state=success")
-    else:
+    if not user:
+        # User doesn't exist
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Invalid credentials')
         return render_template('sso_login.html', 
-                             error='Invalid credentials', 
+                             error=error_msg, 
                              redirect_uri=redirect_uri)
+    
+    # Check if password is correct
+    if not check_password_hash(user[1], password):
+        # Wrong password
+        error_msg = TRANSLATIONS.get(lang, {}).get('invalid_credentials', 'Invalid credentials')
+        return render_template('sso_login.html', 
+                             error=error_msg, 
+                             redirect_uri=redirect_uri)
+    
+    # Check if user is suspended
+    if user[2]:
+        # User is suspended
+        error_msg = TRANSLATIONS.get(lang, {}).get('account_pending_activation', 
+            'Your account is pending activation. Please wait for the administration team to activate your account and try again later.')
+        return render_template('sso_login.html', 
+                             error=error_msg, 
+                             redirect_uri=redirect_uri)
+    
+    # User exists, password is correct, and not suspended - allow login
+    # Generate SSO token
+    session['user_id'] = user[0]
+    token = generate_sso_token(user[0])
+    session['sso_token'] = token
+    
+    # Clear SSO session data
+    session.pop('sso_redirect_uri', None)
+    session.pop('sso_client_id', None)
+    
+    # Redirect back to client with token
+    return redirect(f"{redirect_uri}?token={token}&state=success")

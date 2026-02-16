@@ -378,7 +378,9 @@ TRANSLATIONS = {
         'orchestrator': 'Applications Orchestrator',
         'confirm_password': 'Confirm password',
         'password_match': '✓ password match',
-        'password_do_not_match': '✗ password do not match'
+        'password_do_not_match': '✗ password do not match',
+        'account_pending_activation': 'Your account is pending activation. Please wait for the administration team to activate your account and try again later.',
+        'invalid_credentials': 'Invalid username or password.'
     },
     'fr': {
         'login': 'Connexion',
@@ -608,6 +610,8 @@ TRANSLATIONS = {
         'orchestrator': 'Applications Orchestrateur',
         'confirm_password': 'Confirmation du mot de passe',
         'password_match': '✓ le mot de passe correspond',
-        'password_do_not_match': '✗ le mot de passe ne correspond pas'
+        'password_do_not_match': '✗ le mot de passe ne correspond pas',
+        'account_pending_activation': "Votre compte est en attente d'activation. Veuillez attendre que l'équipe d'administration active votre compte et réessayez plus tard.",
+        'invalid_credentials': "Nom d'utilisateur ou mot de passe invalide."
     }
 }
