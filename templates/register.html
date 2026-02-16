@@ -31,8 +31,52 @@
                 <label for="password">{{ get_text('password') }}:</label>
                 <input type="password" id="password" name="password" required>
             </div>
+            <div class="form-group">
+                <label for="confirm_password">{{ get_text('confirm_password') }}:</label>
+                <input type="password" id="confirm_password" name="confirm_password" required>
+                <small id="passwordMatchMessage" style="display: none; margin-top: 5px;"></small>
+            </div>
             <button type="submit" class="btn btn-primary">{{ get_text('register') }}</button>
         </form>
+        <script>
+            // Password confirmation validation
+            const registerForm = document.getElementById('registerForm');
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+            const matchMessage = document.getElementById('passwordMatchMessage');
+            
+            function checkPasswordMatch() {
+                if (confirmPassword.value === '') {
+                    matchMessage.style.display = 'none';
+                    confirmPassword.style.borderColor = '';
+                    return;
+                }
+                
+                if (password.value === confirmPassword.value) {
+                    matchMessage.textContent = '✓ Passwords match';
+                    matchMessage.style.color = '#28a745';
+                    matchMessage.style.display = 'block';
+                    confirmPassword.style.borderColor = '#28a745';
+                } else {
+                    matchMessage.textContent = '✗ Passwords do not match';
+                    matchMessage.style.color = '#dc3545';
+                    matchMessage.style.display = 'block';
+                    confirmPassword.style.borderColor = '#dc3545';
+                }
+            }
+            
+            password.addEventListener('input', checkPasswordMatch);
+            confirmPassword.addEventListener('input', checkPasswordMatch);
+            
+            registerForm.addEventListener('submit', function(e) {
+                if (password.value !== confirmPassword.value) {
+                    e.preventDefault();
+                    alert('Passwords do not match. Please make sure both password fields are identical.');
+                    confirmPassword.focus();
+                    return false;
+                }
+            });
+        </script>
         <p class="auth-link">
             {{ get_text('already_account') }} <a href="/">{{ get_text('login_here') }}</a>
         </p>
