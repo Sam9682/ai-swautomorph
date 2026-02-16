@@ -603,7 +603,7 @@ TRANSLATIONS = {
         'replication_queue': "Queue/Liste pour la synchronisation entre le serveur PRIMAIRE et les SECONDAIRES",
         'gitea_branch': 'Branche Gitea',
         'local_active_version': 'Version Active Locale',
-        'orchestrator': 'Applications Orchestrateur'
+        'orchestrator': 'Applications Orchestrateur',
         'confirm_password': 'Confirmation du mot de passe'
     }
 }
