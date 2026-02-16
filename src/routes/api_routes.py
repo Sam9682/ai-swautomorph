@@ -441,18 +441,18 @@ def api_user_applications(user_id):
     try:
         if request.method == 'GET':
             # Get assigned applications for user
-            assigned_data = db_manager.execute_query('''SELECT a.id, a.name FROM applications a
+            assigned_data = db_manager.execute_query('''SELECT a.id, a.name, a.git_url, a.git_repo_size FROM applications a
                 JOIN user_applications ua ON a.id = ua.application_id
                 WHERE ua.user_id = %s
             ''', (user_id,), fetch_all=True)
-            assigned = [{'id': row[0], 'name': row[1]} for row in assigned_data]
+            assigned = [{'id': row[0], 'name': row[1], 'git_url': row[2], 'git_repo_size': row[3]} for row in assigned_data]
             
-            # Get all applications
+            # Get all applications with git_url and git_repo_size
             all_apps_data = db_manager.execute_query(
-                'SELECT id, name FROM applications ORDER BY name',
+                'SELECT id, name, git_url, git_repo_size FROM applications ORDER BY name',
                 fetch_all=True
             )
-            all_apps = [{'id': row[0], 'name': row[1]} for row in all_apps_data]
+            all_apps = [{'id': row[0], 'name': row[1], 'git_url': row[2], 'git_repo_size': row[3]} for row in all_apps_data]
             
             return jsonify({'assigned': assigned, 'all': all_apps})
         
@@ -1269,6 +1269,13 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
     if result.returncode == 0:
         status = 'cloned'
         
+        # Get username for nginx location and swautomorph_url
+        user_result = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = %s',
+            (user_id,), fetch_one=True
+        )
+        user_name = user_result[0] if user_result else f'user_{user_id}'
+        
         # Update nginx configuration after successful clone
         try:
             user_app = db_manager.execute_query(
@@ -1276,12 +1283,6 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
                 (user_id, app_name), fetch_one=True
             )
             if user_app and user_app[0]:
-                # Get username for nginx location
-                user_result = db_manager.execute_query(
-                    'SELECT username FROM users WHERE id = %s',
-                    (user_id,), fetch_one=True
-                )
-                user_name = user_result[0] if user_result else f'user_{user_id}'
                 insert_location_block(user_name, app_name, user_app[0])
                 logger.info(f"Nginx location updated for user {user_name} app {app_name}")
         except Exception as e:
@@ -1317,12 +1318,12 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
         if existing_record:
             db_manager.execute_query(
                 'UPDATE deployments SET status = %s, deployment_path = %s, git_url = %s, gitea_branch_url = %s, swautomorph_url = %s, application_id = %s, updated_at = CURRENT_TIMESTAMP WHERE user_id = %s AND application_name = %s AND server_id = %s',
-                (status, deployment_path, git_url, git_url, swautomorph_url, application_id, session['user_id'], app_name, server_id)
+                (status, deployment_path, git_url, git_url, swautomorph_url, application_id, user_id, app_name, server_id)
             )
         else:
             db_manager.execute_query(
                 'INSERT INTO deployments (user_id, application_id, application_name, status, deployment_path, git_url, gitea_branch_url, server_id, swautomorph_url) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)',
-                (session['user_id'], application_id, app_name, status, deployment_path, git_url, git_url, server_id, swautomorph_url)
+                (user_id, application_id, app_name, status, deployment_path, git_url, git_url, server_id, swautomorph_url)
             )
         
         if data.get('stream', False):
@@ -1464,6 +1465,7 @@ def api_deployments():
         app_name = data.get('application_name')
         git_url = data.get('git_url')
         server_id = data.get('server_id')
+        target_user_id = data.get('target_user_id')  # Optional: for admin to deploy for other users
         
         # log_with_timestamp(f"[DEPLOYMENT API] POST - User {user_id} requesting action '{action}' for app '{app_name}'")
         
@@ -1471,19 +1473,43 @@ def api_deployments():
             logger.error(f"[DEPLOYMENT API] POST - FAILED - Missing action or app_name for user {user_id}")
             return jsonify({'error': 'Action and application name required'}), 400
         
-        # Get username for deployment path
-        user = db_manager.execute_query(
-            'SELECT username FROM users WHERE id = %s', 
-            (session['user_id'],), fetch_one=True
-        )
-        username = user[0] if user else f'user_{session["user_id"]}'
+        # Determine the target user for deployment
+        # If target_user_id is provided, verify admin privileges
+        if target_user_id:
+            admin_user = db_manager.execute_query(
+                'SELECT username FROM users WHERE id = %s', 
+                (session['user_id'],), fetch_one=True
+            )
+            if not admin_user or admin_user[0] != 'admin':
+                logger.error(f"[DEPLOYMENT API] POST - FAILED - Non-admin user {user_id} tried to deploy for user {target_user_id}")
+                return jsonify({'error': 'Admin access required to deploy for other users'}), 403
+            
+            # Use target user for deployment
+            deployment_user_id = target_user_id
+            user = db_manager.execute_query(
+                'SELECT username FROM users WHERE id = %s', 
+                (target_user_id,), fetch_one=True
+            )
+            if not user:
+                return jsonify({'error': f'Target user {target_user_id} not found'}), 404
+            username = user[0]
+            logger.info(f"[DEPLOYMENT API] POST - Admin {session['user_id']} deploying for user {target_user_id} ({username})")
+        else:
+            # Use current session user for deployment
+            deployment_user_id = session['user_id']
+            user = db_manager.execute_query(
+                'SELECT username FROM users WHERE id = %s', 
+                (session['user_id'],), fetch_one=True
+            )
+            username = user[0] if user else f'user_{session["user_id"]}'
+        
         deployment_path = f'/home/ubuntu/deployments/{username}/{app_name.lower().replace(" ", "-")}'
         
         try:
             if action == 'clone':
-                return _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path, data)
+                return _handle_clone_action(deployment_user_id, app_name, git_url, server_id, deployment_path, data)
             elif action.upper() in ['START', 'STOP', 'RESTART', 'PS', 'LOGS']:
-                return _handle_app_action(user_id, app_name, action, data)
+                return _handle_app_action(deployment_user_id, app_name, action, data)
             else:
                 return jsonify({'error': f'Unknown action: {action}'}), 400
                 

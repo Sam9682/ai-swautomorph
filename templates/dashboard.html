@@ -1278,6 +1278,16 @@ function loadUserApplications(userId) {
             const availableList = document.getElementById('availableAppsList');
             const assignedList = document.getElementById('assignedAppsList');
             
+            // Store application details globally for use in assignApp
+            window.applicationDetails = {};
+            data.all.forEach(app => {
+                window.applicationDetails[app.id] = {
+                    name: app.name,
+                    git_url: app.git_url,
+                    git_repo_size: app.git_repo_size || 50
+                };
+            });
+            
             // Show available applications (not assigned)
             const available = data.all.filter(app => 
                 !data.assigned.some(assigned => assigned.id === app.id)
@@ -1301,12 +1311,89 @@ function loadUserApplications(userId) {
 }
 
 function assignApp(userId, appId) {
+    // Get application details
+    const appDetails = window.applicationDetails && window.applicationDetails[appId];
+    
+    if (!appDetails) {
+        alert('Application details not found. Please refresh and try again.');
+        return;
+    }
+    
+    if (!appDetails.git_url) {
+        // If no git_url, just assign without cloning
+        fetch(`/api/users/${userId}/applications`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({application_id: appId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert(`Error assigning application: ${data.error}`);
+            } else {
+                alert(`Application "${appDetails.name}" assigned successfully (no repository to clone).`);
+                loadUserApplications(userId);
+            }
+        })
+        .catch(error => {
+            alert(`Error: ${error.message}`);
+        });
+        return;
+    }
+    
+    // First, assign the application
     fetch(`/api/users/${userId}/applications`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({application_id: appId})
     })
-    .then(() => loadUserApplications(userId));
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(`Error assigning application: ${data.error}`);
+            return;
+        }
+        
+        // Application assigned successfully, now trigger clone
+        alert(`Application "${appDetails.name}" assigned successfully. Starting automatic clone...`);
+        
+        // Trigger the clone operation for the target user
+        const cloneData = {
+            action: 'clone',
+            application_name: appDetails.name,
+            git_url: appDetails.git_url,
+            server_id: 1, // Default server
+            stream: false,
+            target_user_id: userId  // Pass the target user ID for admin deployment
+        };
+        
+        return fetch('/api/deployments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(cloneData)
+        });
+    })
+    .then(response => {
+        if (!response) return; // Assignment failed, already handled
+        
+        return response.json();
+    })
+    .then(cloneResult => {
+        if (!cloneResult) return; // Assignment failed, already handled
+        
+        if (cloneResult.error) {
+            alert(`Application assigned but clone failed: ${cloneResult.error}`);
+        } else {
+            alert(`Application "${appDetails.name}" cloned successfully to user environment!`);
+        }
+        
+        // Reload the applications list
+        loadUserApplications(userId);
+    })
+    .catch(error => {
+        alert(`Error during assignment/clone: ${error.message}`);
+        loadUserApplications(userId);
+    });
 }
 
 function unassignApp(userId, appId) {
