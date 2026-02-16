@@ -527,7 +527,7 @@ def api_user_applications(user_id):
                         (user_id,), fetch_one=True
                     )
                     user_name = user_result[0] if user_result else f'user_{user_id}'
-                    insert_location_block(user_name, app_name, url)
+                    insert_location_block(user_name, app_name, url, url)
                     logger.info(f"Nginx location added for user {user_name} app {app_name}")
                 except Exception as e:
                     logger.warning(f"Failed to update nginx config: {e}")
@@ -1318,7 +1318,7 @@ def _handle_clone_action(user_id, app_name, git_url, server_id, deployment_path,
                 (user_id, app_name), fetch_one=True
             )
             if user_app and user_app[0]:
-                insert_location_block(user_name, app_name, user_app[0])
+                insert_location_block(user_name, app_name, user_app[0], user_app[0])
                 logger.info(f"Nginx location updated for user {user_name} app {app_name}")
         except Exception as e:
             logger.warning(f"Failed to update nginx after clone: {e}")
@@ -1817,18 +1817,24 @@ def api_nginx_update_deployment():
     
     try:
         data = request.get_json()
-        user_name = data.get('user_name')
+        user_id = data.get('user_id')
         app_name = data.get('app_name')
-        target_url = data.get('target_url')
+        deployment_url = data.get('deployment_url')
+        user_appli_url = data.get('user_appli_url')
+
+        user_name = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = %s', 
+            (user_id,), fetch_one=True
+        )
+
+        logger.info(f"[NGINX_UPDATE] Request for user_name={user_name}, app={app_name}, url={deployment_url}")
         
-        logger.info(f"[NGINX_UPDATE] Request for user_name={user_name}, app={app_name}, url={target_url}")
-        
-        if not all([user_name, app_name, target_url]):
-            logger.error(f"[NGINX_UPDATE] Missing parameters: user_name={user_name}, app={app_name}, url={target_url}")
-            return jsonify({'error': 'user_name, app_name, and target_url are required'}), 400
+        if not all([user_name, app_name, deployment_url]):
+            logger.error(f"[NGINX_UPDATE] Missing parameters: user_name={user_name}, app={app_name}, url={deployment_url}")
+            return jsonify({'error': 'user_name, app_name, and deployment_url are required'}), 400
         
         # Check if nginx location already exists and update/insert
-        if insert_location_block(user_name, app_name, target_url):
+        if insert_location_block(user_name, app_name, deployment_url, user_appli_url):
             logger.info(f"[NGINX_UPDATE] SUCCESS - Nginx updated for user {user_name}, app {app_name}")
             return jsonify({'message': f'Nginx configuration updated for {app_name}'})
         else:

@@ -5181,7 +5181,7 @@ function loadDeploymentsTable() {
                 
                 // Actions
                 html += '<td>';
-                html += `<button class="btn-small" onclick="updateNginxForDeployment(${dep.user_id}, '${dep.application_name}', '${dep.swautomorph_url || ''}')">Update Nginx</button>`;
+                html += `<button class="btn-small" onclick="updateNginxForDeployment(${dep.user_id}, '${dep.application_name}', '${dep.deployment_url || ''}', '${dep.user_appli_url || ''}')">Update Nginx</button>`;
                 html += '</td>';
                 html += '</tr>';
             });
@@ -5208,7 +5208,7 @@ function copyToClipboard(text) {
     });
 }
 
-function updateNginxForDeployment(userId, appName, targetUrl) {
+function updateNginxForDeployment(userId, appName, targetDeploymentUrl, targetUser_appliUrl) {
     if (!targetUrl || targetUrl === 'N/A') {
         alert('No SwAutoMorph URL available for this deployment');
         return;
@@ -5221,7 +5221,8 @@ function updateNginxForDeployment(userId, appName, targetUrl) {
             body: JSON.stringify({
                 user_id: userId,
                 app_name: appName,
-                target_url: targetUrl
+                deployment_url: targetDeploymentUrl,
+                user_appli_url: targetUser_appliUrl
             })
         })
         .then(response => response.json())

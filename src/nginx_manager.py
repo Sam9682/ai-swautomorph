@@ -10,21 +10,21 @@ NGINX_CONF_DIR = "/etc/nginx/sites-available"
 NGINX_ENABLED_DIR = "/etc/nginx/sites-enabled"
 NGINX_CONF_FILE = "ai-swautomorph"
 
-def generate_location_block(user_name: str, app_name: str, target_url: str) -> str:
+def generate_location_block(user_name: str, app_name: str, deployment_url: str, user_appli_url: str) -> str:
     """Generate nginx location block for user application"""
     location_path = f"/{user_name}/{app_name}/"
 
     return f"""
     # Dynamic location for user {user_name} - {app_name}
     location {location_path} {{
-        proxy_pass {target_url}/;
+        proxy_pass {user_appli_url}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
         # Redirect rewriting to preserve context path
-        proxy_redirect {target_url}/ {location_path};
+        proxy_redirect {user_appli_url}/ {location_path};
         proxy_redirect / {location_path};
 
         # WebSocket support
@@ -89,11 +89,11 @@ def write_nginx_config(config: str) -> bool:
         logger.error(f"Failed to write nginx config: {e}")
         return False
 
-def insert_location_block(user_name: str, app_name: str, target_url: str) -> bool:
+def insert_location_block(user_name: str, app_name: str, deployment_url: str, user_appli_url: str) -> bool:
     """Insert or update location block in nginx configuration"""
     try:
         config = read_nginx_config()
-        location_block = generate_location_block(user_name, app_name, target_url)
+        location_block = generate_location_block(user_name, app_name, deployment_url, user_appli_url)
         
         # Remove existing location block for this user/app if exists
         marker_start = f"# Dynamic location for user {user_name} - {app_name}"
@@ -229,7 +229,7 @@ def sync_all_locations(db_manager) -> bool:
         location_blocks = []
         for app in apps:
             user_name, app_name, url = app
-            location_blocks.append(generate_location_block(user_name, app_name, url))
+            location_blocks.append(generate_location_block(user_name, app_name, url, url))
         
         # Insert before location / in the 443 server
         location_root_idx = config.find('    location / {')

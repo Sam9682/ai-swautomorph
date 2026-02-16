@@ -39,10 +39,10 @@ def dashboard():
     # Use URLs directly from the database table user_applications
     applications = []
     for app in applications_raw:
-        app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, swautomorph_url = app
+        app_id, app_name, user_appli_url, description, git_url, git_local_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, deployment_url = app
         
         # Use the URL stored in the database instead of calculating it
-        applications.append((app_id, app_name, db_url, description, git_url, git_local_url, git_repo_size or 50, docker_build_duration, docker_start_duration or 30, docker_stop_duration or 10, docker_ps_duration, swautomorph_url or 'Not yet deployed'))
+        applications.append((app_id, app_name, user_appli_url, description, git_url, git_local_url, git_repo_size or 50, docker_build_duration, docker_start_duration or 30, docker_stop_duration or 10, docker_ps_duration, deployment_url or 'Not yet deployed'))
     
     # Get SSO token for the user
     sso_token = session.get('sso_token', '')

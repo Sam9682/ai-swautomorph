@@ -16,7 +16,7 @@ from src.nginx_manager import (
 def test_generate_location():
     """Test location block generation"""
     print("Testing location block generation...")
-    block = generate_location_block(2, "ai-staticwebsite", "https://www.swautomorph.com:6217")
+    block = generate_location_block(2, "ai-staticwebsite", "https://www.swautomorph.com:6217", "https://www.swautomorph.com:6217")
     
     assert "/2/ai-staticwebsite" in block
     assert "https://www.swautomorph.com:6217" in block
@@ -31,7 +31,7 @@ def test_insert_location():
     print("\nTesting location block insertion...")
     
     # Test with sample data
-    result = insert_location_block(2, "ai-staticwebsite", "https://www.swautomorph.com:6217")
+    result = insert_location_block(2, "ai-staticwebsite", "https://www.swautomorph.com:6217",  "https://www.swautomorph.com:6217")
     
     if result:
         print("✓ Location block inserted successfully")
