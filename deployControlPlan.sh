@@ -1569,6 +1569,24 @@ create_nginx_config() {
     # Create base configuration
     cat > /tmp/ai-swautomorph-site << EOF
 server {
+    listen 443 ssl;
+    server_name hypervisia.fr www.hypervisia.fr;
+    
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/hypervisia.fr/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/hypervisia.fr/privateKey_domain.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    location / {
+        proxy_pass https://softfluid.fr:6137;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
     listen 80;
     server_name localhost www.softfluid.fr;
     return 301 https://\$host\$request_uri;

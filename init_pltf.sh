@@ -55,6 +55,14 @@ sudo ./aws/install > /dev/null 2>&1
 rm -rf aws awscliv2.zip
 print_success "AWS CLI installed"
 
+# Install Terraform
+print_step "Installing Terraform..."
+curl -s "https://releases.hashicorp.com/terraform/1.14.5/terraform_1.14.5_linux_amd64.zip" -o "terraform.zip"
+unzip -q terraform.zip
+sudo mv terraform /usr/local/bin/
+rm -f terraform.zip
+print_success "Terraform installed"
+
 # Configure network interface priorities
 print_step "Configuring network interface priorities..."
 if [ -f /etc/netplan/*.yaml ]; then
