@@ -360,7 +360,7 @@
     {% if username == 'admin' %}
     <div id="appManagementSection" class="tab-content" style="display: none;">
         <div class="section-header">
-            <h2>📱 Application Management</h2>
+            <h2>📱 {{ get_text('applications_management') }}</h2>
             <div>
                 <button class="btn btn-primary" onclick="showAddAppManagementForm()">Add New Application</button>
                 <button class="btn btn-secondary" onclick="downloadApplicationsPDF()" style="margin-left: 10px;">📄 Download PDF</button>
@@ -634,7 +634,7 @@
                 <option value="applications">{{ get_text('applications') }}</option>
                 <option value="auth_tokens">{{ get_text('auth_tokens') }}</option>
                 <option value="user_applications">{{ get_text('user_applications_ports') }}</option>
-                <option value="deployments">{{ get_text('deployments') }}</option>
+                <option value="deployments">{{ get_text('deployments_management') }}</option>
                 <option value="servers">{{ get_text('servers') }}</option>
                 <option value="instances">Instances</option>
                 <option value="services">Services</option>
