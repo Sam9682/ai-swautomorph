@@ -1795,6 +1795,48 @@ def api_deployments_all():
         logger.error(f"[DEPLOYMENTS_ALL] Error for user {user_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+@api_bp.route('/deployments/<int:deployment_id>', methods=['DELETE'])
+def api_deployment_delete(deployment_id):
+    """Delete a deployment (admin only)"""
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    
+    logger.info(f"[DEPLOYMENT_DELETE] DELETE request for deployment {deployment_id} from user {user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        logger.warning(f"[DEPLOYMENT_DELETE] Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    user = db_manager.execute_query(
+        'SELECT username FROM users WHERE id = %s', 
+        (session['user_id'],), fetch_one=True
+    )
+    
+    if not user or user[0] != 'admin':
+        logger.warning(f"[DEPLOYMENT_DELETE] Admin access denied for user {user_id}")
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        # Check if deployment exists
+        deployment = db_manager.execute_query(
+            'SELECT application_name FROM deployments WHERE id = %s',
+            (deployment_id,), fetch_one=True
+        )
+        
+        if not deployment:
+            logger.warning(f"[DEPLOYMENT_DELETE] Deployment {deployment_id} not found")
+            return jsonify({'error': 'Deployment not found'}), 404
+        
+        # Delete the deployment
+        db_manager.execute_query('DELETE FROM deployments WHERE id = %s', (deployment_id,))
+        
+        logger.info(f"[DEPLOYMENT_DELETE] Successfully deleted deployment {deployment_id} ({deployment[0]}) by user {user_id}")
+        return jsonify({'message': f'Deployment deleted successfully'}), 200
+        
+    except Exception as e:
+        logger.error(f"[DEPLOYMENT_DELETE] Error deleting deployment {deployment_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 @api_bp.route('/nginx/update-deployment', methods=['POST'])
 def api_nginx_update_deployment():
     """Update nginx configuration for a specific deployment"""
