@@ -20,6 +20,7 @@ CREATE TABLE users (
 CREATE TABLE applications (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
+    url TEXT,
     description TEXT,
     git_url TEXT,
     git_remote_url TEXT,
@@ -212,6 +213,7 @@ CREATE INDEX idx_instances_status ON instances(status);
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_auth_tokens_user_id ON auth_tokens(user_id);
 CREATE INDEX idx_auth_tokens_expires_at ON auth_tokens(expires_at);
+CREATE INDEX idx_applications_url ON applications(url);
 CREATE INDEX idx_user_applications_user_id ON user_applications(user_id);
 CREATE INDEX idx_user_applications_application_id ON user_applications(application_id);
 CREATE INDEX idx_deployments_user_id ON deployments(user_id);
