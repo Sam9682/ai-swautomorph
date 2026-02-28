@@ -171,11 +171,23 @@ def database_health():
 def api_applications():
     if request.method == 'GET':
         apps_data = db_manager.execute_query(
-            'SELECT id, name, description, git_url, git_repo_size FROM applications ORDER BY name',
+            '''SELECT id, name, url, description, git_url, git_repo_size, 
+                      docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration 
+               FROM applications ORDER BY name''',
             fetch_all=True
         )
-        apps = [{'id': row[0], 'name': row[1], 'description': row[2], 'git_url': row[3], 'git_repo_size': row[4] or 50} 
-                for row in apps_data]
+        apps = [{
+            'id': row[0], 
+            'name': row[1], 
+            'url': row[2],
+            'description': row[3], 
+            'git_url': row[4], 
+            'git_repo_size': row[5] or 50,
+            'docker_build_duration': row[6],
+            'docker_start_duration': row[7],
+            'docker_stop_duration': row[8],
+            'docker_ps_duration': row[9]
+        } for row in apps_data]
         return jsonify(apps)
     
     elif request.method == 'POST':
