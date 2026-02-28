@@ -135,21 +135,34 @@ EOF
 
 # Get server IP address
 get_server_ip() {
-    # Try to get the primary IP address (prefer public IP)
-    # Method 1: Try to get public IP from external service
-    SERVER_IP=$(curl -s --max-time 2 ifconfig.me 2>/dev/null || curl -s --max-time 2 icanhazip.com 2>/dev/null)
+    # Try to get the primary IPv4 address (prefer public IP)
+    # Method 1: Try to get public IPv4 from external service (force IPv4)
+    SERVER_IP=$(curl -4 -s --max-time 2 ifconfig.me 2>/dev/null || curl -4 -s --max-time 2 icanhazip.com 2>/dev/null)
     
-    # Method 2: If external services fail, get the primary network interface IP
-    if [ -z "$SERVER_IP" ]; then
-        SERVER_IP=$(hostname -I | awk '{print $1}')
+    # Validate it's IPv4 (not IPv6)
+    if [ -n "$SERVER_IP" ] && [[ ! "$SERVER_IP" =~ : ]]; then
+        echo "$SERVER_IP"
+        return
     fi
     
-    # Method 3: Fallback to localhost if nothing else works
-    if [ -z "$SERVER_IP" ]; then
-        SERVER_IP="127.0.0.1"
+    # Method 2: Get the primary IPv4 from network interfaces (filter out IPv6)
+    SERVER_IP=$(hostname -I | tr ' ' '\n' | grep -v ':' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+    
+    if [ -n "$SERVER_IP" ]; then
+        echo "$SERVER_IP"
+        return
     fi
     
-    echo "$SERVER_IP"
+    # Method 3: Try ip command to get IPv4 address
+    SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)
+    
+    if [ -n "$SERVER_IP" ]; then
+        echo "$SERVER_IP"
+        return
+    fi
+    
+    # Method 4: Fallback to localhost if nothing else works
+    echo "127.0.0.1"
 }
 
 # Calculate ports (convert alphanumeric USER_ID to numeric for port calculation)
