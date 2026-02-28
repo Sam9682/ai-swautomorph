@@ -31,6 +31,13 @@ load_config() {
 # Load configuration first
 load_config
 
+# Activate virtual environment if it exists
+if [ -d ".venv" ]; then
+    echo "🐍 Activating virtual environment..."
+    source .venv/bin/activate
+    echo "  ✅ Virtual environment activated"
+fi
+
 # Color definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
