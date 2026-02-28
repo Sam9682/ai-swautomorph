@@ -416,7 +416,7 @@
                 </div>
                 <div class="form-group">
                     <label for="editAppMgmtUrl">URL:</label>
-                    <input type="url" id="editAppMgmtUrl" placeholder="http://example.swautomorph.com" required>
+                    <input type="url" id="editAppMgmtUrl" placeholder="http://example.swautomorph.com">
                 </div>
                 <div class="form-group">
                     <label for="editAppMgmtSwautomorphUrl">SwAutoMorph URL:</label>
@@ -5351,7 +5351,9 @@ function loadAppManagement() {
             }
             
             let html = '<table class="users-table"><thead><tr>';
-            html += '<th>ID</th><th>Name</th><th>URL</th><th>Description</th><th>Git URL</th><th>Git Size (MB)</th><th>SwAutoMorph URL</th><th>Actions</th>';
+            html += '<th>ID</th><th>Name</th><th>URL</th><th>Description</th><th>Git URL</th><th>Git Size (MB)</th>';
+            html += '<th>Build (s)</th><th>Start (s)</th><th>Stop (s)</th><th>PS (s)</th>';
+            html += '<th>SwAutoMorph URL</th><th>Actions</th>';
             html += '</tr></thead><tbody>';
             
             apps.forEach(app => {
@@ -5362,6 +5364,10 @@ function loadAppManagement() {
                     <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis;">${app.description || 'N/A'}</td>
                     <td style="font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${app.git_url || 'N/A'}</td>
                     <td>${app.git_repo_size || 50}</td>
+                    <td>${app.docker_build_duration || 'N/A'}</td>
+                    <td>${app.docker_start_duration || 'N/A'}</td>
+                    <td>${app.docker_stop_duration || 'N/A'}</td>
+                    <td>${app.docker_ps_duration || 'N/A'}</td>
                     <td style="font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${app.swautomorph_url || 'Not yet deployed'}</td>
                     <td>
                         <button class="btn-small" onclick="editAppManagement(${app.id})">Edit</button>

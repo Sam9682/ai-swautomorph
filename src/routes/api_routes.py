@@ -311,6 +311,7 @@ def api_application_actions(app_id):
         if request.method == 'PUT':
             data = request.get_json()
             name = data.get('name')
+            url = data.get('url', '')
             description = data.get('description', '')
             
             if not name:
@@ -323,10 +324,10 @@ def api_application_actions(app_id):
             docker_stop_duration = data.get('docker_stop_duration')
             docker_ps_duration = data.get('docker_ps_duration')
             
-            db_manager.execute_query('''UPDATE applications SET name = %s, description = %s, git_url = %s, git_repo_size = %s,
+            db_manager.execute_query('''UPDATE applications SET name = %s, url = %s, description = %s, git_url = %s, git_repo_size = %s,
                        docker_build_duration = %s, docker_start_duration = %s, docker_stop_duration = %s, docker_ps_duration = %s
                 WHERE id = %s
-            ''', (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
+            ''', (name, url, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration, app_id))
             
             return jsonify({'message': 'Application updated successfully'})
         
