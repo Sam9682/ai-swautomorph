@@ -58,6 +58,8 @@
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restart')" class="btn btn-warning btn-small" id="restartBtn-{{ app[1] | replace(' ', '-') | lower }}">🔄 {{ get_text('restart') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'ps')" class="btn btn-info btn-small" id="psBtn-{{ app[1] | replace(' ', '-') | lower }}">📊 {{ get_text('status') }}</button>
                     <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'logs')" class="btn btn-secondary btn-small" id="logsBtn-{{ app[1] | replace(' ', '-') | lower }}">📋 {{ get_text('logs') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'backup_database')" class="btn btn-secondary btn-small" id="backupDbBtn-{{ app[1] | replace(' ', '-') | lower }}" style="display: none;">💾 {{ get_text('backup_db') }}</button>
+                    <button onclick="deploy_sh_executionCmdInApp('{{ app[1] }}', '', 'restore_database')" class="btn btn-secondary btn-small" id="restoreDbBtn-{{ app[1] | replace(' ', '-') | lower }}" style="display: none;">♻️ {{ get_text('restore_db') }}</button>
                     {% endif %}
                 </div>
                 {% endif %}
@@ -2152,6 +2154,8 @@ function updateApplicationButtonStatus(appName, logs) {
         const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const backupDbBtn = document.getElementById(`backupDbBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const restoreDbBtn = document.getElementById(`restoreDbBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         
         if (openBtn) {
             openBtn.classList.remove('btn-primary', 'btn-success', 'btn-danger');
@@ -2175,6 +2179,8 @@ function updateApplicationButtonStatus(appName, logs) {
         if (restartBtn) restartBtn.style.display = 'none';
         if (psBtn) psBtn.style.display = 'none';
         if (logsBtn) logsBtn.style.display = 'none';
+        if (backupDbBtn) backupDbBtn.style.display = 'none';
+        if (restoreDbBtn) restoreDbBtn.style.display = 'none';
 
     } else {
         // Show the app card for cloned applications
@@ -2198,6 +2204,8 @@ function updateApplicationButtonStatus(appName, logs) {
         const restartBtn = document.getElementById(`restartBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         const psBtn = document.getElementById(`psBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         const logsBtn = document.getElementById(`logsBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const backupDbBtn = document.getElementById(`backupDbBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
+        const restoreDbBtn = document.getElementById(`restoreDbBtn-${appName.replace(/\s+/g, '-').toLowerCase()}`);
         const virtualAgentAction = document.getElementById('unifiedAction');
         
         if (isRunning) {
@@ -2222,6 +2230,8 @@ function updateApplicationButtonStatus(appName, logs) {
             }
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
+            if (backupDbBtn) backupDbBtn.style.display = 'inline-block';
+            if (restoreDbBtn) restoreDbBtn.style.display = 'none';
 
         } else if (isNotRunning) {
             // Application is cloned but not running
@@ -2253,6 +2263,8 @@ function updateApplicationButtonStatus(appName, logs) {
             if (stopBtn) stopBtn.style.display = 'none';
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
+            if (backupDbBtn) backupDbBtn.style.display = 'none';
+            if (restoreDbBtn) restoreDbBtn.style.display = 'inline-block';
 
         } else if (isClonedButNotCompliant) {
             // Application is cloned but deployApp.sh is missing (not compliant)
@@ -2277,6 +2289,8 @@ function updateApplicationButtonStatus(appName, logs) {
             if (stopBtn) stopBtn.style.display = 'none';
             if (logsBtn) logsBtn.style.display = 'inline-block';
             if (restartBtn) restartBtn.style.display = 'none';
+            if (backupDbBtn) backupDbBtn.style.display = 'none';
+            if (restoreDbBtn) restoreDbBtn.style.display = 'none';
         }
     }
 }
@@ -2311,7 +2325,9 @@ function updateActionDropdown(allowedActions) {
         'PS': '{{ get_text("display_ps_option") }}',
         'MODIFY_CODE': '{{ get_text("modify_code_option") }}',
         'SPECIFY':'{{ get_text("specify_context_option") }}',
-        'MAKE_APP_COMPLIANT': 'MAKE App. Compliant'
+        'MAKE_APP_COMPLIANT': 'MAKE App. Compliant',
+        'BACKUP_DATABASE': '💾 BACKUP Database',
+        'RESTORE_DATABASE': '♻️ RESTORE Database'
     };
     
     // Add only allowed actions
@@ -2850,11 +2866,11 @@ function checkApplicationStatusForActions(appName) {
         // Application is not cloned - empty the action dropdown
         updateActionDropdown([]);
     } else if (applicationStatus === 'cloned_and_running') {
-        // Running: can stop, check status, view logs, modify code, specify context
-        updateActionDropdown(['STOP', 'PS', 'LOGS', 'MODIFY_CODE', 'SPECIFY']);
+        // Running: can stop, check status, view logs, modify code, specify context, backup database
+        updateActionDropdown(['STOP', 'PS', 'LOGS', 'MODIFY_CODE', 'SPECIFY', 'BACKUP_DATABASE']);
     } else if (applicationStatus === 'cloned_but_not_running') {
-        // Not running: can modify code, start, view logs
-        updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE', 'SPECIFY']);
+        // Not running: can modify code, start, view logs, restore database
+        updateActionDropdown(['START', 'LOGS', 'MODIFY_CODE', 'SPECIFY', 'RESTORE_DATABASE']);
     } else if (applicationStatus === 'cloned_but_not_compliant') {
         // Cloned but missing deployApp.sh: can make compliant, view logs
         updateActionDropdown(['MAKE_APP_COMPLIANT', 'LOGS']);
