@@ -5162,7 +5162,7 @@ function loadDeploymentsTable() {
             let html = '<table class="database-table"><thead><tr>';
             html += '<th>ID</th><th>User ID</th><th>App ID</th><th>App Name</th><th>Status</th>';
             html += '<th>Path</th><th>Git URL</th><th>Server ID</th><th>SwAutoMorph URL</th>';
-            html += '<th>Modification History</th><th>Actions</th>';
+            html += '<th>Modification History</th><th>Backups History</th><th>Actions</th>';
             html += '</tr></thead><tbody>';
             
             filtered.forEach(dep => {
@@ -5195,9 +5195,29 @@ function loadDeploymentsTable() {
                     html += '<td>No history</td>';
                 }
                 
+                // Backups history as listbox
+                let backups = dep.backups_history;
+                if (typeof backups === 'string') {
+                    try { backups = JSON.parse(backups); } catch(e) { backups = []; }
+                }
+                
+                if (Array.isArray(backups) && backups.length > 0) {
+                    html += '<td><select size="3" style="width: 250px; font-size: 11px;" onclick="copyToClipboard(this.value)">';
+                    backups.forEach((item, idx) => {
+                        const displayText = `${item.backup_date || 'Unknown'} (${item.backup_size || 'N/A'})`;
+                        const value = item.s3_location || item.backup_file || JSON.stringify(item);
+                        html += `<option value="${value}" title="${item.s3_location || ''}">${displayText}</option>`;
+                    });
+                    html += '</select></td>';
+                } else {
+                    html += '<td>No backups</td>';
+                }
+                
                 // Actions
-                html += '<td>';
-                html += `<button class="btn-small" onclick="updateNginxForDeployment(${dep.user_id}, '${dep.application_name}', '${dep.deployment_url || ''}', '${dep.user_appli_url || ''}')">Update Nginx</button>`;
+                html += '<td style="white-space: nowrap;">';
+                html += `<button class="btn-small" onclick="editDeployment(${dep.id}, ${dep.user_id}, ${dep.application_id || 'null'}, '${dep.application_name}', '${dep.status}', '${dep.deployment_path || ''}', '${dep.git_url || ''}', ${dep.server_id || 'null'}, '${dep.swautomorph_url || ''}')" title="Edit">✏️</button> `;
+                html += `<button class="btn-small" onclick="deleteDeployment(${dep.id}, '${dep.application_name}')" title="Delete">🗑️</button> `;
+                html += `<button class="btn-small" onclick="updateNginxForDeployment(${dep.user_id}, '${dep.application_name}', '${dep.deployment_url || ''}', '${dep.user_appli_url || ''}')" title="Update Nginx">🔄</button>`;
                 html += '</td>';
                 html += '</tr>';
             });
@@ -5253,6 +5273,70 @@ function updateNginxForDeployment(userId, appName, targetDeploymentUrl, targetUs
             alert('Failed to update nginx configuration: ' + error);
         });
     }
+}
+
+function editDeployment(id, userId, appId, appName, status, deploymentPath, gitUrl, serverId, swautomorphUrl) {
+    const newStatus = prompt(`Edit deployment status for "${appName}":`, status);
+    if (newStatus === null) return;
+    
+    const newPath = prompt(`Edit deployment path:`, deploymentPath);
+    if (newPath === null) return;
+    
+    const newGitUrl = prompt(`Edit Git URL:`, gitUrl);
+    if (newGitUrl === null) return;
+    
+    const newServerId = prompt(`Edit Server ID:`, serverId || '');
+    if (newServerId === null) return;
+    
+    const newSwautomorphUrl = prompt(`Edit SwAutoMorph URL:`, swautomorphUrl);
+    if (newSwautomorphUrl === null) return;
+    
+    fetch(`/api/deployments/${id}`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            status: newStatus,
+            deployment_path: newPath,
+            git_url: newGitUrl,
+            server_id: newServerId ? parseInt(newServerId) : null,
+            swautomorph_url: newSwautomorphUrl
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message || 'Deployment updated successfully');
+            loadDeploymentsTable();
+        }
+    })
+    .catch(error => {
+        alert('Failed to update deployment: ' + error);
+    });
+}
+
+function deleteDeployment(id, appName) {
+    if (!confirm(`Are you sure you want to delete deployment for "${appName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch(`/api/deployments/${id}`, {
+        method: 'DELETE',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+        } else {
+            alert(data.message || 'Deployment deleted successfully');
+            loadDeploymentsTable();
+        }
+    })
+    .catch(error => {
+        alert('Failed to delete deployment: ' + error);
+    });
 }
 
 // Application Management functions

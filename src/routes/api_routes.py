@@ -1778,14 +1778,15 @@ def api_deployments_all():
     
     try:
         deployments_data = db_manager.execute_query('''SELECT id, user_id, application_id, application_name, status, deployment_path, 
-                   git_url, server_id, swautomorph_url, modification_history, created_at, updated_at
+                   git_url, server_id, swautomorph_url, modification_history, backups_history, created_at, updated_at
             FROM deployments ORDER BY updated_at DESC
         ''', fetch_all=True)
         
         deployments = [{
             'id': row[0], 'user_id': row[1], 'application_id': row[2], 'application_name': row[3],
             'status': row[4], 'deployment_path': row[5], 'git_url': row[6], 'server_id': row[7],
-            'swautomorph_url': row[8], 'modification_history': row[9], 'created_at': row[10], 'updated_at': row[11]
+            'swautomorph_url': row[8], 'modification_history': row[9], 'backups_history': row[10],
+            'created_at': row[11], 'updated_at': row[12]
         } for row in deployments_data]
         
         logger.info(f"[DEPLOYMENTS_ALL] Returning {len(deployments)} deployments to user {user_id}")
@@ -1886,4 +1887,110 @@ def api_deployment_gitea_branch(app_name):
         
         return jsonify({'message': 'Gitea branch updated successfully'})
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/deployments/<int:deployment_id>/backup', methods=['POST'])
+def api_deployment_add_backup(deployment_id):
+    """Add a backup entry to deployment's backups_history"""
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    
+    logger.info(f"[DEPLOYMENT_BACKUP] POST request for deployment {deployment_id} from user {user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        logger.warning(f"[DEPLOYMENT_BACKUP] Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        data = request.get_json()
+        backup_file = data.get('backup_file')
+        s3_location = data.get('s3_location')
+        backup_size = data.get('backup_size')
+        backup_date = data.get('backup_date')
+        server_ip = data.get('server_ip')
+        
+        if not backup_file or not s3_location:
+            return jsonify({'error': 'backup_file and s3_location are required'}), 400
+        
+        # Verify deployment belongs to user or user is admin
+        deployment = db_manager.execute_query(
+            'SELECT user_id FROM deployments WHERE id = %s',
+            (deployment_id,), fetch_one=True
+        )
+        
+        if not deployment:
+            return jsonify({'error': 'Deployment not found'}), 404
+        
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = %s',
+            (session['user_id'],), fetch_one=True
+        )
+        
+        if deployment[0] != session['user_id'] and (not user or user[0] != 'admin'):
+            logger.warning(f"[DEPLOYMENT_BACKUP] Access denied for user {user_id} to deployment {deployment_id}")
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Create backup entry
+        backup_entry = {
+            'backup_file': backup_file,
+            's3_location': s3_location,
+            'backup_size': backup_size,
+            'backup_date': backup_date or datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'server_ip': server_ip,
+            'created_by': user_id
+        }
+        
+        # Append to backups_history using PostgreSQL JSONB operations
+        db_manager.execute_query('''
+            UPDATE deployments 
+            SET backups_history = COALESCE(backups_history, '[]'::jsonb) || %s::jsonb,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s
+        ''', (json.dumps(backup_entry), deployment_id))
+        
+        logger.info(f"[DEPLOYMENT_BACKUP] Added backup entry to deployment {deployment_id} by user {user_id}")
+        return jsonify({'message': 'Backup entry added successfully', 'backup_entry': backup_entry})
+    
+    except Exception as e:
+        logger.error(f"[DEPLOYMENT_BACKUP] Error for deployment {deployment_id} by user {user_id}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@api_bp.route('/deployments/<int:deployment_id>/backups', methods=['GET'])
+def api_deployment_get_backups(deployment_id):
+    """Get backups history for a deployment"""
+    user_id = session.get('user_id', 'anonymous')
+    remote_ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+    
+    logger.info(f"[DEPLOYMENT_BACKUPS] GET request for deployment {deployment_id} from user {user_id}, IP: {remote_ip}")
+    
+    if 'user_id' not in session:
+        logger.warning(f"[DEPLOYMENT_BACKUPS] Authentication required from {remote_ip}")
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    try:
+        # Verify deployment belongs to user or user is admin
+        deployment = db_manager.execute_query(
+            'SELECT user_id, backups_history FROM deployments WHERE id = %s',
+            (deployment_id,), fetch_one=True
+        )
+        
+        if not deployment:
+            return jsonify({'error': 'Deployment not found'}), 404
+        
+        user = db_manager.execute_query(
+            'SELECT username FROM users WHERE id = %s',
+            (session['user_id'],), fetch_one=True
+        )
+        
+        if deployment[0] != session['user_id'] and (not user or user[0] != 'admin'):
+            logger.warning(f"[DEPLOYMENT_BACKUPS] Access denied for user {user_id} to deployment {deployment_id}")
+            return jsonify({'error': 'Access denied'}), 403
+        
+        backups_history = deployment[1] if deployment[1] else []
+        
+        logger.info(f"[DEPLOYMENT_BACKUPS] Returning {len(backups_history) if isinstance(backups_history, list) else 0} backups for deployment {deployment_id}")
+        return jsonify({'backups_history': backups_history})
+    
+    except Exception as e:
+        logger.error(f"[DEPLOYMENT_BACKUPS] Error for deployment {deployment_id} by user {user_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500

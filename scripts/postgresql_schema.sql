@@ -84,6 +84,7 @@ CREATE TABLE deployments (
     swautomorph_url TEXT,
     gitea_branch_url TEXT,
     modification_history JSONB DEFAULT '[]'::jsonb,
+    backups_history JSONB DEFAULT '[]'::jsonb,
     server_id BIGINT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -91,6 +92,10 @@ CREATE TABLE deployments (
     FOREIGN KEY (application_id) REFERENCES applications (id) ON DELETE SET NULL,
     FOREIGN KEY (server_id) REFERENCES servers (id) ON DELETE SET NULL
 );
+
+-- Add comments to document JSONB columns
+COMMENT ON COLUMN deployments.modification_history IS 'JSON array containing modification history with branch names and Gitea URLs';
+COMMENT ON COLUMN deployments.backups_history IS 'JSON array containing backup history with links to PostgreSQL database backups in S3';
 
 -- Application costs table
 CREATE TABLE application_costs (
@@ -213,6 +218,7 @@ CREATE INDEX idx_deployments_user_id ON deployments(user_id);
 CREATE INDEX idx_deployments_application_id ON deployments(application_id);
 CREATE INDEX idx_deployments_server_id ON deployments(server_id);
 CREATE INDEX idx_deployments_status ON deployments(status);
+CREATE INDEX idx_deployments_backups_history ON deployments USING GIN (backups_history);
 CREATE INDEX idx_billing_activities_user_id ON billing_activities(user_id);
 CREATE INDEX idx_billing_activities_application_id ON billing_activities(application_id);
 CREATE INDEX idx_billing_activities_created_at ON billing_activities(created_at);
