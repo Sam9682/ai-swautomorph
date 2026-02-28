@@ -64,8 +64,6 @@ DESCRIPTION=${6:-${DEFAULT_DESCRIPTION:-"Basic Admin user for Control Plan"}}
 DOMAIN=${DOMAIN:-"softfluid.fr"}
 EMAIL=${EMAIL:-"admin@softfluid.fr"}
 ENV_FILE=${ENV_FILE:-".env.prod"}
-SSL_CERT_PATH=${SSL_CERT_PATH:-"/home/ubuntu/ai-swautomorph/ssl/fullchain_domain.crt"}
-SSL_KEY_PATH=${SSL_KEY_PATH:-"/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key"}
 GITEA_VERSION=${GITEA_VERSION:-"1.21.3"}
 GITEA_ADMIN_USER=${GITEA_ADMIN_USER:-"gitadmin"}
 GITEA_ADMIN_PASSWORD=${GITEA_ADMIN_PASSWORD:-"password"}
@@ -1566,38 +1564,63 @@ enable_modsecurity_module() {
 }
 
 create_nginx_config() {
-    # Create base configuration
-    cat > /tmp/ai-swautomorph-site << EOF
+    # Start with empty config
+    > /tmp/ai-swautomorph-site
+    
+    # Process secondary domains first
+    if [ -n "${SECONDARY_DOMAINS:-}" ]; then
+        IFS=',' read -ra DOMAIN_CONFIGS <<< "$SECONDARY_DOMAINS"
+        for domain_config in "${DOMAIN_CONFIGS[@]}"; do
+            IFS=':' read -r domain server_names proxy_pass <<< "$domain_config"
+            
+            # Trim whitespace
+            domain=$(echo "$domain" | xargs)
+            server_names=$(echo "$server_names" | xargs)
+            proxy_pass=$(echo "$proxy_pass" | xargs)
+            
+            if [ -n "$domain" ] && [ -n "$server_names" ]; then
+                cat >> /tmp/ai-swautomorph-site << EOF
 server {
     listen 443 ssl;
-    server_name hypervisia.fr www.hypervisia.fr;
+    server_name ${server_names};
     
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/hypervisia.fr/fullchain_domain.crt;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/hypervisia.fr/privateKey_domain.key;
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/${domain}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/${domain}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
     location / {
-        proxy_pass https://softfluid.fr:6137;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass ${proxy_pass};
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
     }
 }
 
+EOF
+            fi
+        done
+    fi
+    
+    # HTTP redirect for main domain
+    cat >> /tmp/ai-swautomorph-site << EOF
 server {
     listen 80;
-    server_name localhost www.softfluid.fr;
+    server_name ${DOMAIN} www.${DOMAIN};
     return 301 https://\$host\$request_uri;
 }
 
+EOF
+    
+    # Main domain HTTPS server block
+    cat >> /tmp/ai-swautomorph-site << EOF
 server {
     listen 443 ssl;
-    server_name localhost www.softfluid.fr;
+    server_name ${DOMAIN} www.${DOMAIN};
     
-    ssl_certificate ${SSL_CERT_PATH:-/home/ubuntu/ai-swautomorph/ssl/fullchain_domain.crt};
-    ssl_certificate_key ${SSL_KEY_PATH:-/home/ubuntu/ai-swautomorph/ssl/privateKey_domain.key};
+    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/${DOMAIN}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/${DOMAIN}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 EOF
@@ -1615,7 +1638,7 @@ EOF
         echo "  ⚠️ Using basic reverse proxy without WAF protection"
     fi
 
-    # Add location blocks
+    # Add location blocks for main domain
     cat >> /tmp/ai-swautomorph-site << EOF
     
     location / {
