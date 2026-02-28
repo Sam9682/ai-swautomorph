@@ -359,8 +359,8 @@ backup_database() {
     echo "    📍 Server IP: $SERVER_IP"
     
     # Sync the specific backup to S3 with IP-based path structure
-    if aws s3 sync "$BACKUP_DIR" "s3://softfluid/db/backup/$SERVER_IP/$DATETIME/" --profile OVH-SWAUTOMORPH; then
-        echo -e "  $OK Backup synced to s3://softfluid/db/backup/$SERVER_IP/$DATETIME/"
+    if aws s3 sync "$BACKUP_DIR" "s3://softfluid/ai-swautomorph/db/backup/$SERVER_IP/$DATETIME/" --profile OVH-SWAUTOMORPH; then
+        echo -e "  $OK Backup synced to s3://softfluid/ai-swautomorph/db/backup/$SERVER_IP/$DATETIME/"
     else
         echo "  ⚠️ S3 sync failed or not configured"
     fi
@@ -372,7 +372,7 @@ backup_logs() {
     
     if [ -d "logs" ] && [ "$(ls -A logs 2>/dev/null)" ]; then
         echo "  📄 Synchronizing logs to S3..."
-        aws s3 sync ./logs s3://softfluid/logs --profile OVH-SWAUTOMORPH
+        aws s3 sync ./logs s3://softfluid/ai-swautomorph/logs --profile OVH-SWAUTOMORPH
         echo -e "  $OK Logs backup completed"
     else
         echo -e "  $WARN No logs directory or logs found - skipping backup"
@@ -423,7 +423,7 @@ recover_database() {
         BACKUP_SOURCE=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
-options = ["Local backups (./softfluid/db/backup)", "Remote S3 backups (s3://softfluid/db/backup)"]
+options = ["Local backups (./softfluid/db/backup)", "Remote S3 backups (s3://softfluid/ai-swautomorph/db/backup)"]
 terminal_menu = TerminalMenu(
     options,
     title="📍 Select backup source:",
@@ -440,7 +440,7 @@ EOF
     else
         # Fallback to numbered selection
         echo "1) Local backups (./softfluid/db/backup)"
-        echo "2) Remote S3 backups (s3://softfluid/db/backup)"
+        echo "2) Remote S3 backups (s3://softfluid/ai-swautomorph/db/backup)"
         read -p "Select backup source (1-2): " choice
         case $choice in
             1) BACKUP_SOURCE="local" ;;
@@ -469,11 +469,11 @@ EOF
         echo "📡 Select backup server:"
         
         # List all available server IPs in S3
-        S3_SERVERS=$(aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort)
+        S3_SERVERS=$(aws s3 ls s3://softfluid/ai-swautomorph/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort)
         
         if [ -z "$S3_SERVERS" ]; then
             echo -e "  $ERROR No server backups found in S3 bucket"
-            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/db/backup/ --profile OVH-SWAUTOMORPH"
+            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/ai-swautomorph/db/backup/ --profile OVH-SWAUTOMORPH"
             exit 1
         fi
         
@@ -558,11 +558,11 @@ EOF
         echo "  ✅ Selected server: $SELECTED_SERVER"
         
         # List S3 backup directories for the selected server
-        S3_BACKUPS=$(aws s3 ls "s3://softfluid/db/backup/$SELECTED_SERVER/" --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
+        S3_BACKUPS=$(aws s3 ls "s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/" --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
         
         if [ -z "$S3_BACKUPS" ]; then
             echo -e "  $ERROR No backups found for server $SELECTED_SERVER in S3 bucket"
-            echo "    💡 Check S3 path: aws s3 ls s3://softfluid/db/backup/$SELECTED_SERVER/ --profile OVH-SWAUTOMORPH"
+            echo "    💡 Check S3 path: aws s3 ls s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/ --profile OVH-SWAUTOMORPH"
             exit 1
         fi
         
@@ -646,8 +646,8 @@ EOF
         mkdir -p "$BACKUP_DIR"
         
         # Download the selected backup from S3
-        echo "  📥 Syncing from s3://softfluid/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/ ..."
-        if aws s3 sync "s3://softfluid/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
+        echo "  📥 Syncing from s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/ ..."
+        if aws s3 sync "s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
             echo -e "  $OK Backup downloaded successfully"
         else
             echo -e "  $ERROR Failed to download backup from S3"
