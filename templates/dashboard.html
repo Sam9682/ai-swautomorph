@@ -304,6 +304,73 @@
         {% endif %}
     </div>
     
+    <!-- Account Security Section (available for all logged-in users) -->
+    <div id="securitySection" class="tab-content" style="display: none;">
+        <h2>🔐 {{ get_text('account_security') }}</h2>
+        
+        <!-- Change Password -->
+        <div class="user-form" style="display: block; margin-bottom: 30px;">
+            <h3>{{ get_text('change_password') }}</h3>
+            <p style="color: #666; margin-bottom: 15px;">{{ get_text('change_password_desc') }}</p>
+            <form id="changePasswordForm" style="max-width: 400px;">
+                <div class="form-group">
+                    <label for="currentPassword">{{ get_text('current_password') }}:</label>
+                    <input type="password" id="currentPassword" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPasswordSelf">{{ get_text('new_password') }}:</label>
+                    <input type="password" id="newPasswordSelf" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirmNewPassword">{{ get_text('confirm_password') }}:</label>
+                    <input type="password" id="confirmNewPassword" required minlength="6">
+                    <small id="selfPasswordMatchMsg" style="display: none; margin-top: 5px;"></small>
+                </div>
+                <button type="submit" class="btn btn-primary">{{ get_text('change_password') }}</button>
+                <button type="button" class="btn btn-secondary" onclick="requestOwnPasswordReset()" style="margin-left: 10px;">📧 {{ get_text('reset_via_email') }}</button>
+            </form>
+        </div>
+        
+        <!-- Two-Factor Authentication -->
+        <div class="user-form" style="display: block;">
+            <h3>🛡️ {{ get_text('two_factor_auth') }}</h3>
+            <p style="color: #666; margin-bottom: 15px;">{{ get_text('two_factor_auth_desc') }}</p>
+            
+            <div id="2faStatus" style="margin-bottom: 20px;">
+                <p>{{ get_text('loading') }}</p>
+            </div>
+            
+            <!-- TOTP Setup -->
+            <div id="2faTotpSection" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                <h4>📱 {{ get_text('authenticator_app') }}</h4>
+                <p style="font-size: 14px; color: #666;">{{ get_text('authenticator_app_desc') }}</p>
+                <div id="2faTotpSetup"></div>
+                <button id="btnSetupTotp" class="btn btn-primary" onclick="setup2FA_TOTP()" style="margin-top: 10px;">
+                    {{ get_text('setup_authenticator') }}
+                </button>
+            </div>
+            
+            <!-- Email 2FA -->
+            <div id="2faEmailSection" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px;">
+                <h4>📧 {{ get_text('email_verification') }}</h4>
+                <p style="font-size: 14px; color: #666;">{{ get_text('email_verification_desc') }}</p>
+                <button id="btnEnableEmail2FA" class="btn btn-primary" onclick="enable2FA_Email()" style="margin-top: 10px;">
+                    {{ get_text('enable_email_2fa') }}
+                </button>
+            </div>
+            
+            <!-- Disable 2FA -->
+            <div id="2faDisableSection" style="display: none; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; background: #fff5f5;">
+                <h4>⚠️ {{ get_text('disable_2fa') }}</h4>
+                <p style="font-size: 14px; color: #666;">{{ get_text('disable_2fa_desc') }}</p>
+                <div style="margin-top: 10px;">
+                    <input type="password" id="disable2faPassword" placeholder="{{ get_text('enter_password') }}" style="margin-right: 10px;">
+                    <button class="btn btn-danger" onclick="disable2FA()">{{ get_text('disable_2fa') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     {% if username == 'admin' %}
     <div id="usersSection" class="tab-content" style="display: none;">
         <h2>{{ get_text('users') }}</h2>
@@ -872,6 +939,9 @@ function showTab(tab) {
     document.getElementById('appsSection').style.display = 'none';
     document.getElementById('billingSection').style.display = 'none';
     
+    const securitySection = document.getElementById('securitySection');
+    if (securitySection) securitySection.style.display = 'none';
+    
     const usersSection = document.getElementById('usersSection');
     if (usersSection) usersSection.style.display = 'none';
     
@@ -909,6 +979,11 @@ function showTab(tab) {
     } else if (tab === 'billing') {
         document.getElementById('billingSection').style.display = 'block';
         showBillingTab('overview'); // Show overview tab by default
+    } else if (tab === 'security') {
+        if (securitySection) {
+            securitySection.style.display = 'block';
+            load2FAStatus();
+        }
     } else if (tab === 'users') {
         if (usersSection) {
             usersSection.style.display = 'block';
@@ -957,7 +1032,7 @@ function showTab(tab) {
     
     // Only close dropdowns if we're actually switching tabs within the dashboard
     // Don't close dropdowns for Help menu navigation since those are external links
-    if (tab === 'apps' || tab === 'billing' || tab === 'users' || tab === 'appManagement' || tab === 'servers' || tab === 'orchestrator' || tab === 'deployments' || tab === 'database') {
+    if (tab === 'apps' || tab === 'billing' || tab === 'security' || tab === 'users' || tab === 'appManagement' || tab === 'servers' || tab === 'orchestrator' || tab === 'deployments' || tab === 'database') {
         const configDropdown = document.getElementById('navConfigDropdown');
         const helpDropdown = document.getElementById('navHelpDropdown');
         if (configDropdown) configDropdown.style.display = 'none';
@@ -975,10 +1050,11 @@ function loadUsers() {
                 return;
             }
             
-            let html = '<table class="users-table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>First Name</th><th>Last Name</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+            let html = '<table class="users-table"><thead><tr><th>ID</th><th>Username</th><th>Email</th><th>First Name</th><th>Last Name</th><th>Status</th><th>2FA</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
             users.forEach(user => {
                 const status = user.suspended ? 'Suspended' : 'Active';
                 const statusClass = user.suspended ? 'status-suspended' : 'status-active';
+                const twofa = user.totp_enabled ? '🔒 TOTP' : (user.email_2fa_enabled ? '📧 Email' : '❌ Off');
                 html += `<tr>
                     <td>${user.id}</td>
                     <td>${user.username}</td>
@@ -986,11 +1062,14 @@ function loadUsers() {
                     <td>${user.first_name || ''}</td>
                     <td>${user.last_name || ''}</td>
                     <td><span class="${statusClass}">${status}</span></td>
+                    <td>${twofa}</td>
                     <td>${new Date(user.created_at).toLocaleDateString()}</td>
                     <td class="actions">
                         <button onclick="editUser(${user.id})" class="btn-small">Edit</button>
                         <button onclick="manageUserApps(${user.id}, '${user.username}')" class="btn-small">Apps</button>
+                        <button onclick="resetUserPassword(${user.id}, '${user.username}', '${user.email}')" class="btn-small" style="background:#e67e22;color:white;">Reset Password</button>
                         <button onclick="${user.suspended ? 'unsuspendUser' : 'suspendUser'}(${user.id})" class="btn-small">${user.suspended ? 'Unsuspend' : 'Suspend'}</button>
+                        ${(user.totp_enabled || user.email_2fa_enabled) ? `<button onclick="adminDisable2FA(${user.id}, '${user.username}')" class="btn-small" style="background:#8e44ad;color:white;">Disable 2FA</button>` : ''}
                         <button onclick="deleteUser(${user.id})" class="btn-small btn-danger">Delete</button>
                     </td>
                 </tr>`;
@@ -1073,6 +1152,314 @@ function deleteUser(userId) {
         fetch(`/api/users/${userId}`, {method: 'DELETE'})
         .then(() => loadUsers());
     }
+}
+
+function resetUserPassword(userId, username, email) {
+    if (confirm(`Send a password reset email to ${username} (${email})?`)) {
+        fetch('/security/password-reset/request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user_id: userId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                let msg = data.message;
+                if (data.reset_url && !data.email_sent) {
+                    msg += '\n\nDirect reset link (SMTP not configured):\n' + data.reset_url;
+                }
+                alert(msg);
+            }
+        })
+        .catch(error => {
+            alert('Error sending password reset: ' + error.message);
+        });
+    }
+}
+
+function adminDisable2FA(userId, username) {
+    if (confirm(`Disable two-factor authentication for user "${username}"?`)) {
+        fetch('/security/2fa/disable', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({user_id: userId})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                loadUsers();
+            }
+        })
+        .catch(error => {
+            alert('Error disabling 2FA: ' + error.message);
+        });
+    }
+}
+
+// ============================================================
+// ACCOUNT SECURITY FUNCTIONS (Password Change & 2FA)
+// ============================================================
+
+function load2FAStatus() {
+    fetch('/security/2fa/status')
+        .then(response => response.json())
+        .then(data => {
+            const statusDiv = document.getElementById('2faStatus');
+            const disableSection = document.getElementById('2faDisableSection');
+            const btnSetupTotp = document.getElementById('btnSetupTotp');
+            const btnEnableEmail2FA = document.getElementById('btnEnableEmail2FA');
+            
+            let statusHtml = '<div style="padding: 10px; border-radius: 5px; ';
+            if (data.any_enabled) {
+                statusHtml += 'background: #d4edda; border: 1px solid #c3e6cb;">';
+                statusHtml += '<strong>✅ Two-factor authentication is ENABLED</strong><ul style="margin: 10px 0 0 20px;">';
+                if (data.totp_enabled) statusHtml += '<li>📱 Authenticator App (TOTP) - Active</li>';
+                if (data.email_enabled) statusHtml += '<li>📧 Email Verification - Active</li>';
+                statusHtml += '</ul>';
+                disableSection.style.display = 'block';
+                if (btnSetupTotp) btnSetupTotp.textContent = '✅ Authenticator Configured';
+                if (btnSetupTotp) btnSetupTotp.disabled = data.totp_enabled;
+                if (btnEnableEmail2FA) btnEnableEmail2FA.textContent = data.email_enabled ? '✅ Email 2FA Active' : 'Enable Email 2FA';
+                if (btnEnableEmail2FA) btnEnableEmail2FA.disabled = data.email_enabled;
+            } else {
+                statusHtml += 'background: #fff3cd; border: 1px solid #ffc107;">';
+                statusHtml += '<strong>⚠️ Two-factor authentication is DISABLED</strong>';
+                statusHtml += '<p style="margin-top: 5px; font-size: 14px;">Enable 2FA below to add an extra layer of security to your account.</p>';
+                disableSection.style.display = 'none';
+                if (btnSetupTotp) btnSetupTotp.textContent = 'Setup Authenticator App';
+                if (btnSetupTotp) btnSetupTotp.disabled = false;
+                if (btnEnableEmail2FA) btnEnableEmail2FA.textContent = 'Enable Email 2FA';
+                if (btnEnableEmail2FA) btnEnableEmail2FA.disabled = false;
+            }
+            statusHtml += '</div>';
+            statusDiv.innerHTML = statusHtml;
+        })
+        .catch(error => {
+            document.getElementById('2faStatus').innerHTML = '<p style="color: red;">Error loading 2FA status</p>';
+        });
+}
+
+function setup2FA_TOTP() {
+    fetch('/security/2fa/setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'}
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        
+        const setupDiv = document.getElementById('2faTotpSetup');
+        setupDiv.innerHTML = `
+            <div style="margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
+                <p><strong>Step 1:</strong> Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.):</p>
+                <div style="text-align: center; margin: 15px 0;">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data.provisioning_uri)}" 
+                         alt="QR Code" style="border: 2px solid #ddd; border-radius: 5px;">
+                </div>
+                <p style="font-size: 12px; color: #666;">Or manually enter this secret key: <code style="background: #e9ecef; padding: 2px 6px; border-radius: 3px;">${data.secret}</code></p>
+                <hr style="margin: 15px 0;">
+                <p><strong>Step 2:</strong> Enter the 6-digit code from your authenticator app:</p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <input type="text" id="totpVerifyCode" placeholder="000000" maxlength="6" 
+                           style="width: 120px; font-size: 18px; text-align: center; letter-spacing: 4px;">
+                    <button class="btn btn-primary" onclick="verify2FA_TOTP()">Verify & Enable</button>
+                </div>
+            </div>
+        `;
+    })
+    .catch(error => {
+        alert('Error setting up 2FA: ' + error.message);
+    });
+}
+
+function verify2FA_TOTP() {
+    const code = document.getElementById('totpVerifyCode').value;
+    if (!code || code.length !== 6) {
+        alert('Please enter a valid 6-digit code');
+        return;
+    }
+    
+    fetch('/security/2fa/verify-setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({code: code})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert('Error: ' + data.error);
+            return;
+        }
+        
+        // Show backup codes
+        const setupDiv = document.getElementById('2faTotpSetup');
+        let backupHtml = `
+            <div style="margin-top: 15px; padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px;">
+                <h4>✅ 2FA Enabled Successfully!</h4>
+                <p style="margin-top: 10px;"><strong>⚠️ Save these backup codes in a safe place:</strong></p>
+                <p style="font-size: 12px; color: #666;">Use these codes if you lose access to your authenticator app.</p>
+                <div style="background: #fff; padding: 10px; border-radius: 3px; margin-top: 10px; font-family: monospace;">
+        `;
+        data.backup_codes.forEach(code => {
+            backupHtml += `<span style="display: inline-block; margin: 3px 8px; padding: 2px 6px; background: #e9ecef; border-radius: 3px;">${code}</span>`;
+        });
+        backupHtml += `
+                </div>
+            </div>
+        `;
+        setupDiv.innerHTML = backupHtml;
+        load2FAStatus();
+    })
+    .catch(error => {
+        alert('Error verifying 2FA: ' + error.message);
+    });
+}
+
+function enable2FA_Email() {
+    if (confirm('Enable email-based two-factor authentication? A verification code will be sent to your email each time you log in.')) {
+        fetch('/security/2fa/enable-email', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                load2FAStatus();
+            }
+        })
+        .catch(error => {
+            alert('Error enabling email 2FA: ' + error.message);
+        });
+    }
+}
+
+function disable2FA() {
+    const password = document.getElementById('disable2faPassword').value;
+    if (!password) {
+        alert('Please enter your password to disable 2FA');
+        return;
+    }
+    
+    if (confirm('Are you sure you want to disable two-factor authentication? This will make your account less secure.')) {
+        fetch('/security/2fa/disable', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({password: password})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                document.getElementById('disable2faPassword').value = '';
+                document.getElementById('2faTotpSetup').innerHTML = '';
+                load2FAStatus();
+            }
+        })
+        .catch(error => {
+            alert('Error disabling 2FA: ' + error.message);
+        });
+    }
+}
+
+function requestOwnPasswordReset() {
+    if (confirm('Send a password reset link to your email address?')) {
+        fetch('/security/password-reset/request', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error: ' + error.message);
+        });
+    }
+}
+
+// Change password form handler
+const changePasswordForm = document.getElementById('changePasswordForm');
+if (changePasswordForm) {
+    const newPwdSelf = document.getElementById('newPasswordSelf');
+    const confirmNewPwd = document.getElementById('confirmNewPassword');
+    const selfMatchMsg = document.getElementById('selfPasswordMatchMsg');
+    
+    function checkSelfPasswordMatch() {
+        if (confirmNewPwd.value === '') {
+            selfMatchMsg.style.display = 'none';
+            return;
+        }
+        if (newPwdSelf.value === confirmNewPwd.value) {
+            selfMatchMsg.textContent = '✓ Passwords match';
+            selfMatchMsg.style.color = '#28a745';
+            selfMatchMsg.style.display = 'block';
+        } else {
+            selfMatchMsg.textContent = '✗ Passwords do not match';
+            selfMatchMsg.style.color = '#dc3545';
+            selfMatchMsg.style.display = 'block';
+        }
+    }
+    
+    newPwdSelf.addEventListener('input', checkSelfPasswordMatch);
+    confirmNewPwd.addEventListener('input', checkSelfPasswordMatch);
+    
+    changePasswordForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = newPwdSelf.value;
+        const confirmPassword = confirmNewPwd.value;
+        
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            alert('New password must be at least 6 characters');
+            return;
+        }
+        
+        fetch('/security/change-password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                alert('Error: ' + data.error);
+            } else {
+                alert(data.message);
+                changePasswordForm.reset();
+                selfMatchMsg.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            alert('Error changing password: ' + error.message);
+        });
+    });
 }
 
 const newUserForm = document.getElementById('newUserForm');

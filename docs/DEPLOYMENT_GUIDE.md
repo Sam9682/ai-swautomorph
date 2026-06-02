@@ -256,7 +256,7 @@ GET /api/billing/invoices
 POST /api/billing/invoices/generate
 Content-Type: application/json
 {
-  "month": "2024-01",
+  "month": "2026-01",
   "user": "username"
 }
 

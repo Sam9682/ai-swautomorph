@@ -196,7 +196,7 @@ Both agents support advanced real-time streaming responses using Server-Sent Eve
 ```
 data: {"chunk": "Starting AI Chat Developer session with enhanced logging..."}
 
-data: {"chunk": "Found AI Chat at: /home/ubuntu/.local/bin/qchat", "timestamp": "2024-01-15T10:30:00Z"}
+data: {"chunk": "Found AI Chat at: /home/ubuntu/.local/bin/qchat", "timestamp": "2026-01-15T10:30:00Z"}
 
 data: {"chunk": "Loading context from MODIFY_CODE_context.md", "context_size": 2048}
 
@@ -327,7 +327,7 @@ CREATE TABLE billing_activities (
   "error": "Authentication required",
   "code": 401,
   "details": "User session not found or expired",
-  "timestamp": "2024-01-15T10:30:00Z",
+  "timestamp": "2026-01-15T10:30:00Z",
   "request_id": "req_123456789",
   "suggestions": [
     "Please log in again",

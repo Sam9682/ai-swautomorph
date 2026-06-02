@@ -1,9 +1,18 @@
 #!/bin/bash
 
-# AI-SwAutoMorph Production Deployment Script
+# OPCP-CloudStore-Docker-AI Production Deployment Script
 # Organized with functions for better maintainability
 
 set -e
+
+# Version (read from conf/deploy.ini, fallback to default)
+VERSION="0.0.1"
+if [ -f "./conf/deploy.ini" ]; then
+    INI_VERSION=$(grep -E "^VERSION=" ./conf/deploy.ini 2>/dev/null | cut -d'=' -f2 | xargs)
+    if [ -n "$INI_VERSION" ]; then
+        VERSION="$INI_VERSION"
+    fi
+fi
 
 # Load configuration from deploy.ini
 load_config() {
@@ -54,10 +63,11 @@ WARN="${YELLOW}[WARN]${NC}"
 INFO="${BLUE}[INFO]${NC}"
 
 # Global Variables (with fallback defaults)
-NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"ai-swautomorph"}
+NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"opcp-cloudstore-docker-ai"}
 APPLICATION_IDENTITY_NUMBER=${APPLICATION_IDENTITY_NUMBER:-0}
 RANGE_START_CONTROLPLAN=${RANGE_START_CONTROLPLAN:-80}
 RANGE_RESERVED_CONTROLPLAN=${RANGE_RESERVED_CONTROLPLAN:-0}
+S3_BUCKET_NAME=${S3_BUCKET_NAME:-"opcp-psmc-s3"}
 
 # Global Parameters (command line args override config)
 COMMAND=${1:-help}
@@ -114,7 +124,7 @@ show_deployment_menu() {
             return
         }
     fi
-    
+
     # Use Python simple-term-menu for interactive selection
     python3 << 'EOF'
 from simple_term_menu import TerminalMenu
@@ -145,29 +155,29 @@ get_server_ip() {
     # Try to get the primary IPv4 address (prefer public IP)
     # Method 1: Try to get public IPv4 from external service (force IPv4)
     SERVER_IP=$(curl -4 -s --max-time 2 ifconfig.me 2>/dev/null || curl -4 -s --max-time 2 icanhazip.com 2>/dev/null)
-    
+
     # Validate it's IPv4 (not IPv6)
     if [ -n "$SERVER_IP" ] && [[ ! "$SERVER_IP" =~ : ]]; then
         echo "$SERVER_IP"
         return
     fi
-    
+
     # Method 2: Get the primary IPv4 from network interfaces (filter out IPv6)
     SERVER_IP=$(hostname -I | tr ' ' '\n' | grep -v ':' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
-    
+
     if [ -n "$SERVER_IP" ]; then
         echo "$SERVER_IP"
         return
     fi
-    
+
     # Method 3: Try ip command to get IPv4 address
     SERVER_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -n 1)
-    
+
     if [ -n "$SERVER_IP" ]; then
         echo "$SERVER_IP"
         return
     fi
-    
+
     # Method 4: Fallback to localhost if nothing else works
     echo "127.0.0.1"
 }
@@ -235,7 +245,7 @@ check_flask_status() {
     else
         echo -e "  $ERROR Flask application: Not running (no PID file)"
     fi
-    
+
     # Check for Gunicorn processes
     GUNICORN_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
     if [ -n "$GUNICORN_PIDS" ]; then
@@ -246,7 +256,7 @@ check_flask_status() {
             echo -e "    PID: $pid, Owner: $OWNER, Type: $PROCESS_TYPE"
         done
     fi
-    
+
     # Check for any old Flask development server processes
     OTHER_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
     if [ -n "$OTHER_PIDS" ]; then
@@ -261,7 +271,7 @@ check_flask_status() {
 check_nginx_status() {
     if systemctl is-active --quiet nginx; then
         echo -e "  $OK Nginx: Running"
-        if [ -f "${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}/${NGINX_SITE_NAME:-ai-swautomorph}" ]; then
+        if [ -f "${NGINX_SITES_ENABLED:-/etc/nginx/sites-enabled}/${NGINX_SITE_NAME:-${NAME_OF_APPLICATION}}" ]; then
             echo -e "  $OK $NAME_OF_APPLICATION site: Configured"
         else
             echo -e "  $WARN $NAME_OF_APPLICATION site: Not configured"
@@ -303,31 +313,31 @@ provide_cleanup_guidance() {
 # Database backup function
 backup_database() {
     echo "💾 Creating PostgreSQL database backup..."
-    
+
     # Load environment variables from .env file if it exists
     if [ -f ".env" ]; then
         echo "  📋 Loading PostgreSQL credentials from .env file..."
         export $(grep -v '^#' .env | grep -v '^$' | xargs)
     fi
-    
+
     # Create backup directory with timestamp
     DATETIME=$(date +"%Y%m%d_%H%M%S")
     BACKUP_DIR="./softfluid/db/backup/$DATETIME"
     mkdir -p "$BACKUP_DIR"
-    
+
     # PostgreSQL connection parameters from environment or defaults
     POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
     POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
     POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
     POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
     POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
-    
+
     # Set PGPASSWORD environment variable for non-interactive backup
     export PGPASSWORD="$POSTGRES_PASSWORD"
-    
+
     echo "  📋 Backing up PostgreSQL database..."
     echo "    🔗 Connection: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
-    
+
     # Test connection first
     echo "    🔍 Testing PostgreSQL connection..."
     if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
@@ -337,7 +347,7 @@ backup_database() {
         unset PGPASSWORD
         return 1
     fi
-    
+
     # Create complete database dump using pg_dump
     echo "    💿 Creating complete database dump..."
     if pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
@@ -354,33 +364,33 @@ backup_database() {
         unset PGPASSWORD
         return 1
     fi
-    
+
     # Create data-only dump (without schema)
     echo "    📄 Creating data-only dump..."
     pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
         --no-password --data-only --verbose \
         > "$BACKUP_DIR/data_only.sql" 2>>"$BACKUP_DIR/backup.log" || true
-    
+
     # Create schema-only dump
     echo "    🏗️ Creating schema-only dump..."
     pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
         --no-password --schema-only --verbose \
         > "$BACKUP_DIR/schema_only.sql" 2>>"$BACKUP_DIR/backup.log" || true
-    
+
     # Unset PGPASSWORD for security
     unset PGPASSWORD
-    
+
     echo "    📁 Files created:"
     ls -la "$BACKUP_DIR" | sed 's/^/      /'
-    
+
     # Sync to S3 with IP address in path
     echo "  ☁️ Synchronizing to S3..."
     SERVER_IP=$(get_server_ip)
     echo "    📍 Server IP: $SERVER_IP"
-    
+
     # Sync the specific backup to S3 with IP-based path structure
-    if aws s3 sync "$BACKUP_DIR" "s3://softfluid/ai-swautomorph/db/backup/$SERVER_IP/$DATETIME/" --profile OVH-SWAUTOMORPH; then
-        echo -e "  $OK Backup synced to s3://softfluid/ai-swautomorph/db/backup/$SERVER_IP/$DATETIME/"
+    if aws s3 sync "$BACKUP_DIR" "s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SERVER_IP/$DATETIME/" --profile OVH-SWAUTOMORPH; then
+        echo -e "  $OK Backup synced to s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SERVER_IP/$DATETIME/"
     else
         echo "  ⚠️ S3 sync failed or not configured"
     fi
@@ -389,10 +399,10 @@ backup_database() {
 # Logs backup function
 backup_logs() {
     echo "📋 Creating logs backup..."
-    
+
     if [ -d "logs" ] && [ "$(ls -A logs 2>/dev/null)" ]; then
         echo "  📄 Synchronizing logs to S3..."
-        aws s3 sync ./logs s3://softfluid/ai-swautomorph/logs --profile OVH-SWAUTOMORPH
+        aws s3 sync ./logs s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/logs --profile OVH-SWAUTOMORPH
         echo -e "  $OK Logs backup completed"
     else
         echo -e "  $WARN No logs directory or logs found - skipping backup"
@@ -402,19 +412,19 @@ backup_logs() {
 # Database migration function
 migrate_database() {
     echo "🔄 Migrating data from SQLite to PostgreSQL..."
-    
+
     # Check if SQLite database exists
     if [ ! -f "softfluid/db/ai_swautomorph.db" ]; then
         echo -e "  $WARN No SQLite database found, skipping migration"
         return
     fi
-    
+
     # Install PostgreSQL client if needed
     if ! command -v psycopg2 &> /dev/null; then
         echo "📦 Installing PostgreSQL dependencies..."
         pip3 install psycopg2-binary --break-system-packages
     fi
-    
+
     # Wait for PostgreSQL to be ready
     echo "  ⏳ Waiting for PostgreSQL to be ready..."
     for i in {1..30}; do
@@ -424,7 +434,7 @@ migrate_database() {
         fi
         sleep 2
     done
-    
+
     # Run migration script
     python3 migration/migrate_sqlite_to_postgres.py
     echo -e "  $OK Data migration completed"
@@ -433,17 +443,19 @@ migrate_database() {
 
 recover_database() {
     echo "🔄 Database Recovery Tool"
-    
+
     BACKUP_BASE_DIR="./softfluid/db/backup"
-    
+
     # Ask user to choose backup source (local or S3)
     echo "📍 Select backup source:"
-    
+
     if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
-        BACKUP_SOURCE=$(python3 << 'EOF'
+        BACKUP_SOURCE=$(S3_BUCKET_NAME="$S3_BUCKET_NAME" python3 << 'EOF'
+import os
 from simple_term_menu import TerminalMenu
 
-options = ["Local backups (./softfluid/db/backup)", "Remote S3 backups (s3://softfluid/ai-swautomorph/db/backup)"]
+s3_bucket = os.environ.get('S3_BUCKET_NAME', 'opcp-psmc-s3')
+options = ["Local backups (./softfluid/db/backup)", f"Remote S3 backups (s3://{s3_bucket}/${NAME_OF_APPLICATION}/db/backup)"]
 terminal_menu = TerminalMenu(
     options,
     title="📍 Select backup source:",
@@ -460,7 +472,7 @@ EOF
     else
         # Fallback to numbered selection
         echo "1) Local backups (./softfluid/db/backup)"
-        echo "2) Remote S3 backups (s3://softfluid/ai-swautomorph/db/backup)"
+        echo "2) Remote S3 backups (s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup)"
         read -p "Select backup source (1-2): " choice
         case $choice in
             1) BACKUP_SOURCE="local" ;;
@@ -468,43 +480,43 @@ EOF
             *) BACKUP_SOURCE="local" ;;
         esac
     fi
-    
+
     # Handle S3 backup source
     if [ "$BACKUP_SOURCE" = "s3" ]; then
         echo "☁️ Fetching backup list from S3..."
-        
+
         # Check if AWS CLI is available
         if ! command -v aws &> /dev/null; then
             echo -e "  $ERROR AWS CLI is not installed"
             echo "    💡 Install AWS CLI: sudo apt-get install awscli"
             exit 1
         fi
-        
+
         # Get current server IP
         SERVER_IP=$(get_server_ip)
         echo "  📍 Current Server IP: $SERVER_IP"
-        
+
         # Ask user which server's backups to restore from
         echo ""
         echo "📡 Select backup server:"
-        
+
         # List all available server IPs in S3
-        S3_SERVERS=$(aws s3 ls s3://softfluid/ai-swautomorph/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort)
-        
+        S3_SERVERS=$(aws s3 ls s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/ --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort)
+
         if [ -z "$S3_SERVERS" ]; then
             echo -e "  $ERROR No server backups found in S3 bucket"
-            echo "    💡 Check S3 connection: aws s3 ls s3://softfluid/ai-swautomorph/db/backup/ --profile OVH-SWAUTOMORPH"
+            echo "    💡 Check S3 connection: aws s3 ls s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/ --profile OVH-SWAUTOMORPH"
             exit 1
         fi
-        
+
         echo "  ✅ Found servers in S3:"
         echo "$S3_SERVERS" | sed 's/^/    /'
-        
+
         # Convert to array using mapfile to handle IPv6 addresses with colons
         mapfile -t SERVER_IPS <<< "$S3_SERVERS"
-        
+
         echo "  📊 Total servers: ${#SERVER_IPS[@]}"
-        
+
         # Add current server to the top if it exists in the list
         CURRENT_SERVER_FOUND=false
         for ip in "${SERVER_IPS[@]}"; do
@@ -513,7 +525,7 @@ EOF
                 break
             fi
         done
-        
+
         if [ "$CURRENT_SERVER_FOUND" = "true" ]; then
             # Create new array with current server first
             NEW_SERVER_IPS=("$SERVER_IP (current server)")
@@ -524,11 +536,11 @@ EOF
             done
             SERVER_IPS=("${NEW_SERVER_IPS[@]}")
         fi
-        
+
         # Select server
         if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
             printf '%s\n' "${SERVER_IPS[@]}" > /tmp/server_ips.txt
-            
+
             SELECTED_SERVER=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
@@ -558,37 +570,37 @@ EOF
             for i in "${!SERVER_IPS[@]}"; do
                 echo "  $((i+1))) ${SERVER_IPS[$i]}"
             done
-            
+
             read -p "Select server (1-${#SERVER_IPS[@]}): " choice
-            
+
             if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#SERVER_IPS[@]} ]; then
                 echo -e "  $ERROR Invalid selection"
                 exit 1
             fi
-            
+
             SELECTED_SERVER="${SERVER_IPS[$((choice-1))]}"
             SELECTED_SERVER="${SELECTED_SERVER// (current server)/}"
         fi
-        
+
         if [ -z "$SELECTED_SERVER" ]; then
             echo -e "  $WARN No server selected - operation cancelled"
             exit 0
         fi
-        
+
         echo "  ✅ Selected server: $SELECTED_SERVER"
-        
+
         # List S3 backup directories for the selected server
-        S3_BACKUPS=$(aws s3 ls "s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/" --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
-        
+        S3_BACKUPS=$(aws s3 ls "s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SELECTED_SERVER/" --profile OVH-SWAUTOMORPH 2>/dev/null | grep "PRE" | awk '{print $2}' | sed 's/\///' | sort -r)
+
         if [ -z "$S3_BACKUPS" ]; then
             echo -e "  $ERROR No backups found for server $SELECTED_SERVER in S3 bucket"
-            echo "    💡 Check S3 path: aws s3 ls s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/ --profile OVH-SWAUTOMORPH"
+            echo "    💡 Check S3 path: aws s3 ls s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SELECTED_SERVER/ --profile OVH-SWAUTOMORPH"
             exit 1
         fi
-        
+
         # Convert to array using mapfile to handle special characters
         mapfile -t BACKUP_DATES <<< "$S3_BACKUPS"
-        
+
         echo "  ✅ Found ${#BACKUP_DATES[@]} backup(s) in S3 for server $SELECTED_SERVER"
     else
         # Handle local backup source
@@ -596,23 +608,23 @@ EOF
             echo -e "  $ERROR No backup directory found at $BACKUP_BASE_DIR"
             exit 1
         fi
-        
+
         # List available backup dates
         BACKUP_DATES=($(ls -1 "$BACKUP_BASE_DIR" | sort -r))
-        
+
         if [ ${#BACKUP_DATES[@]} -eq 0 ]; then
             echo -e "  $ERROR No backup folders found"
             exit 1
         fi
-        
+
         echo "  ✅ Found ${#BACKUP_DATES[@]} local backup(s)"
     fi
-    
+
     # Use simple-term-menu for backup selection
     if python3 -c "from simple_term_menu import TerminalMenu" 2>/dev/null; then
         # Create temporary file with backup dates
         printf '%s\n' "${BACKUP_DATES[@]}" > /tmp/backup_dates.txt
-        
+
         SELECTED_BACKUP=$(python3 << 'EOF'
 from simple_term_menu import TerminalMenu
 
@@ -640,34 +652,34 @@ EOF
         for i in "${!BACKUP_DATES[@]}"; do
             echo "  $((i+1))) ${BACKUP_DATES[$i]}"
         done
-        
+
         read -p "Select backup to restore (1-${#BACKUP_DATES[@]}): " choice
-        
+
         if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt ${#BACKUP_DATES[@]} ]; then
             echo -e "  $ERROR Invalid selection"
             exit 1
         fi
-        
+
         SELECTED_BACKUP="${BACKUP_DATES[$((choice-1))]}"
     fi
-    
+
     if [ -z "$SELECTED_BACKUP" ]; then
         echo -e "  $WARN No backup selected - operation cancelled"
         exit 0
     fi
-    
+
     # Download from S3 if needed
     if [ "$BACKUP_SOURCE" = "s3" ]; then
         echo "☁️ Downloading backup from S3: $SELECTED_BACKUP"
         echo "  📡 Server: $SELECTED_SERVER"
-        
+
         # Create temporary directory for S3 backup
         BACKUP_DIR="$BACKUP_BASE_DIR/s3-temp-$SELECTED_SERVER-$SELECTED_BACKUP"
         mkdir -p "$BACKUP_DIR"
-        
+
         # Download the selected backup from S3
-        echo "  📥 Syncing from s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/ ..."
-        if aws s3 sync "s3://softfluid/ai-swautomorph/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
+        echo "  📥 Syncing from s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/ ..."
+        if aws s3 sync "s3://${S3_BUCKET_NAME}/${NAME_OF_APPLICATION}/db/backup/$SELECTED_SERVER/$SELECTED_BACKUP/" "$BACKUP_DIR/" --profile OVH-SWAUTOMORPH; then
             echo -e "  $OK Backup downloaded successfully"
         else
             echo -e "  $ERROR Failed to download backup from S3"
@@ -678,21 +690,21 @@ EOF
     else
         BACKUP_DIR="$BACKUP_BASE_DIR/$SELECTED_BACKUP"
     fi
-    
+
     echo "🔧 Restoring from backup: $SELECTED_BACKUP"
-    
+
     # Get PostgreSQL credentials from environment or use defaults
     POSTGRES_HOST=${POSTGRES_HOST:-"localhost"}
     POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
     POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
     POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
     POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
-    
+
     echo "  🔗 Connection: $POSTGRES_USER@$POSTGRES_HOST:$POSTGRES_PORT/$POSTGRES_DB"
-    
+
     # Set password for PostgreSQL commands
     export PGPASSWORD="$POSTGRES_PASSWORD"
-    
+
     # Test PostgreSQL connection
     echo "  🔍 Testing PostgreSQL connection..."
     if ! pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
@@ -702,12 +714,12 @@ EOF
         unset PGPASSWORD
         exit 1
     fi
-    
+
     # Create a backup of current database before recovery
     echo "  💾 Creating backup of current database before recovery..."
     PRERECOVERY_BACKUP_DIR="$BACKUP_BASE_DIR/pre-recovery-$(date +%Y%m%d_%H%M%S)"
     mkdir -p "$PRERECOVERY_BACKUP_DIR"
-    
+
     if pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
         --no-password --verbose --clean --if-exists \
         > "$PRERECOVERY_BACKUP_DIR/complete_database.sql" 2>"$PRERECOVERY_BACKUP_DIR/backup.log"; then
@@ -715,15 +727,15 @@ EOF
     else
         echo -e "  $WARN Could not backup current database (it may not exist yet)"
     fi
-    
+
     # Restore from complete dump if available
     if [ -f "$BACKUP_DIR/complete_database.sql" ]; then
         echo "  📥 Restoring from complete database dump..."
-        
+
         # The complete dump contains DROP DATABASE and CREATE DATABASE commands
         # We need to run it against the 'postgres' database to allow it to manage the target database
         echo "    � Importing backup data (this will drop and recreate the database)..."
-        
+
         # Terminate all connections to the database
         echo "    🔌 Terminating all connections to database..."
         psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
@@ -740,20 +752,20 @@ EOF
         fi
     elif [ -f "$BACKUP_DIR/schema_only.sql" ] && [ -f "$BACKUP_DIR/data_only.sql" ]; then
         echo "  📥 Restoring from schema and data dumps..."
-        
+
         # Drop and recreate database
         echo "    🗑️ Dropping existing database..."
         psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
             --no-password -c "DROP DATABASE IF EXISTS $POSTGRES_DB;" 2>/dev/null || true
-        
+
         echo "    🆕 Creating fresh database..."
         psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d postgres \
             --no-password -c "CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;" 2>/dev/null
-        
+
         echo "    🏗️ Restoring schema..."
         psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             --no-password < "$BACKUP_DIR/schema_only.sql" 2>"$BACKUP_DIR/restore_schema.log"
-        
+
         echo "    📤 Restoring data..."
         if psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
             --no-password < "$BACKUP_DIR/data_only.sql" 2>"$BACKUP_DIR/restore_data.log"; then
@@ -769,17 +781,17 @@ EOF
         unset PGPASSWORD
         exit 1
     fi
-    
+
     # Clean up password
     unset PGPASSWORD
-    
+
     # Clean up temporary S3 backup directory if it was used
     if [ "$BACKUP_SOURCE" = "s3" ]; then
         echo "  🧹 Cleaning up temporary S3 backup directory..."
         rm -rf "$BACKUP_DIR"
         echo -e "  $OK Temporary files removed"
     fi
-    
+
     echo -e "  $OK Database recovery completed successfully"
     echo "  💡 Pre-recovery backup saved to: $PRERECOVERY_BACKUP_DIR"
 }
@@ -787,18 +799,18 @@ EOF
 # Stop services
 stop_services() {
     echo "🛑 Stopping $NAME_OF_APPLICATION services..."
-    
+
     # Remove backup cron job
     remove_backup_cron
-    
+
     # Create database backup before stopping services
     backup_database
-    
+
     # Create logs backup before stopping services
     backup_logs
-    
+
     CLEANUP_NEEDED=false
-    
+
     if [ "$LOCAL_MODE" = "locally" ]; then
         stop_flask_service || CLEANUP_NEEDED=true
         remove_nginx_config
@@ -813,11 +825,11 @@ stop_services() {
         confirm_gitea_stop
         stop_docker_services
     fi
-    
+
     if [ "$CLEANUP_NEEDED" = "true" ]; then
         provide_cleanup_guidance
     fi
-    
+
     echo -e "  $OK Services stop process completed"
 }
 
@@ -825,7 +837,7 @@ stop_services() {
 confirm_gitea_stop() {
     if systemctl is-active --quiet gitea 2>/dev/null; then
         echo "⚠️ Gitea is currently running"
-        
+
         # Auto-select "No" when --keep-gitea-running parameter is set
         if [ "$KEEP_GITEA_RUNNING" = "true" ]; then
             echo "  🔧 Auto-selecting: No, keep Gitea configuration (--keep-gitea-running parameter set)"
@@ -861,7 +873,7 @@ EOF
                 *) CHOICE="no" ;;
             esac
         fi
-        
+
         if [ "$CHOICE" = "yes" ]; then
             remove_gitea
         else
@@ -875,33 +887,33 @@ EOF
 # Remove Gitea installation
 remove_gitea() {
     echo "🗑️ Stopping and removing Gitea installation..."
-    
+
     # Stop and disable Gitea service
     sudo systemctl stop gitea 2>/dev/null || true
     sudo systemctl disable gitea 2>/dev/null || true
-    
+
     # Remove systemd service file
     sudo rm -f /etc/systemd/system/gitea.service
     sudo systemctl daemon-reload
-    
+
     # Remove Gitea binary
     sudo rm -f /usr/local/bin/gitea
-    
+
     # Remove configuration and data
     sudo rm -rf /etc/gitea
     sudo rm -rf /var/lib/gitea
     sudo rm -rf /home/ubuntu/admin
-    
+
     # Remove git user
     sudo userdel git 2>/dev/null || true
     sudo groupdel git 2>/dev/null || true
-    
+
     echo "  ✅ Gitea stopped and removed successfully"
 }
 
 stop_flask_service() {
     local success=true
-    
+
     # Try to stop using Gunicorn PID file first
     if [ -f "./conf/gunicorn.pid" ]; then
         PID=$(cat ./conf/gunicorn.pid)
@@ -955,7 +967,7 @@ stop_flask_service() {
     else
         echo "  ⚠️ No PID file found (./conf/gunicorn.pid or ./conf/app.pid)"
     fi
-    
+
     # Force kill any remaining Gunicorn processes
     GUNICORN_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
     if [ -n "$GUNICORN_PIDS" ]; then
@@ -981,14 +993,14 @@ stop_flask_service() {
             success=false
         fi
     fi
-    
+
     # Also check for old Flask development server processes
     FLASK_PIDS=$(pgrep -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true)
     if [ -n "$FLASK_PIDS" ]; then
         echo "  🔥 Found old Flask development server processes: $FLASK_PIDS"
         pkill -9 -f "python3 ControlPlanFlaskApp_postgres.py" 2>/dev/null || true
     fi
-    
+
     # Return appropriate exit code
     if [ "$success" = "false" ]; then
         return 1
@@ -997,8 +1009,8 @@ stop_flask_service() {
 }
 
 remove_nginx_config() {
-    if [ -f "/etc/nginx/sites-enabled/ai-swautomorph" ]; then
-        sudo rm -f /etc/nginx/sites-enabled/ai-swautomorph
+    if [ -f "/etc/nginx/sites-enabled/${NAME_OF_APPLICATION}" ]; then
+        sudo rm -f /etc/nginx/sites-enabled/${NAME_OF_APPLICATION}
         # Only reload nginx if it's running
         if systemctl is-active --quiet nginx; then
             sudo nginx -t && sudo systemctl reload nginx
@@ -1030,20 +1042,20 @@ show_logs() {
 
 show_flask_logs() {
     echo "  🐍 Flask Application Logs:"
-    
+
     # Show Gunicorn logs
     if [ -f "logs/gunicorn_error.log" ]; then
         echo "    📋 Gunicorn Error Log (last 20 lines):"
         tail -n 20 logs/gunicorn_error.log
         echo ""
     fi
-    
+
     if [ -f "logs/gunicorn_access.log" ]; then
         echo "    📋 Gunicorn Access Log (last 10 lines):"
         tail -n 10 logs/gunicorn_access.log
         echo ""
     fi
-    
+
     # Show legacy Flask logs if they exist
     LOG_FILE="logs/app_logs_$(date +%Y%m%d).log"
     if [ -f "$LOG_FILE" ]; then
@@ -1056,7 +1068,7 @@ show_flask_logs() {
             ls -la logs/app_logs_*.log
         fi
     fi
-    
+
     # Show available log files
     if ls logs/*.log 1> /dev/null 2>&1; then
         echo "    📁 All available log files:"
@@ -1077,7 +1089,7 @@ show_docker_logs() {
 # Restart services
 restart_services() {
     echo "🔄 Restarting $NAME_OF_APPLICATION services..."
-    
+
     if [ "$LOCAL_MODE" = "locally" ]; then
         restart_flask_service
         reload_nginx_config
@@ -1088,27 +1100,94 @@ restart_services() {
         reload_nginx_config
         restart_docker_services
     fi
-    
+
     echo "✅ Services restarted"
+}
+
+# Upgrade the application by fetching and merging latest changes from git
+upgrade() {
+    echo "⬆️  Upgrading $NAME_OF_APPLICATION..."
+
+    # Check if we are in a git repository
+    if [ ! -d ".git" ]; then
+        echo -e "  $ERROR Not a git repository. Cannot upgrade."
+        exit 1
+    fi
+
+    # Show current branch and commit
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
+    echo "  📍 Current branch: $CURRENT_BRANCH"
+    echo "  📍 Current commit: $CURRENT_COMMIT"
+
+    # Check for uncommitted changes
+    if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+        echo -e "  $WARN Uncommitted changes detected. Stashing before upgrade..."
+        git stash
+        STASHED=true
+    else
+        STASHED=false
+    fi
+
+    # Fetch latest changes from remote
+    echo "  📥 Fetching latest changes from remote..."
+    if git fetch --all; then
+        echo -e "  $OK Fetch completed"
+    else
+        echo -e "  $ERROR Failed to fetch from remote"
+        if [ "$STASHED" = true ]; then
+            echo "  🔄 Restoring stashed changes..."
+            git stash pop
+        fi
+        exit 1
+    fi
+
+    # Merge changes
+    echo "  🔀 Merging changes from origin/$CURRENT_BRANCH..."
+    if git merge "origin/$CURRENT_BRANCH"; then
+        NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null)
+        echo -e "  $OK Merge completed"
+        echo "  📍 New commit: $NEW_COMMIT"
+    else
+        echo -e "  $ERROR Merge failed (conflicts detected)"
+        echo "    💡 Resolve conflicts manually, then run: git merge --continue"
+        if [ "$STASHED" = true ]; then
+            echo "    💡 Stashed changes will need to be restored manually: git stash pop"
+        fi
+        exit 1
+    fi
+
+    # Restore stashed changes if any
+    if [ "$STASHED" = true ]; then
+        echo "  🔄 Restoring stashed changes..."
+        if git stash pop; then
+            echo -e "  $OK Stashed changes restored"
+        else
+            echo -e "  $WARN Conflict while restoring stashed changes"
+            echo "    💡 Resolve conflicts manually"
+        fi
+    fi
+
+    echo "✅ Upgrade completed successfully ($CURRENT_COMMIT → $NEW_COMMIT)"
 }
 
 restart_flask_service() {
     echo "  🔄 Restarting Flask application..."
-    
+
     # Use the improved stop function
     if ! stop_flask_service; then
         echo "  ⚠️ Some processes could not be stopped, but continuing with restart..."
     fi
-    
+
     echo "  🚀 Starting Flask application with Gunicorn..."
     # Create required directories
     mkdir -p logs conf
-    
+
     # Activate virtual environment if available
     if [ -d ".venv" ]; then
         source .venv/bin/activate
     fi
-    
+
     # Find gunicorn executable
     GUNICORN_CMD=""
     if [ -d ".venv" ] && [ -f ".venv/bin/gunicorn" ]; then
@@ -1119,7 +1198,7 @@ restart_flask_service() {
         echo "  ❌ Gunicorn not found"
         return 1
     fi
-    
+
     # Start Gunicorn (daemon mode is configured in gunicorn.conf.py)
     if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application; then
         # Wait for daemon to start and get PID from pidfile
@@ -1158,7 +1237,7 @@ restart_docker_services() {
 # Start services
 start_services() {
     echo "🚀 Starting $NAME_OF_APPLICATION deployment..."
-    
+
     if [ "$LOCAL_MODE" = "locally" ]; then
         start_local_deployment
     elif [ "$LOCAL_MODE" = "docker" ]; then
@@ -1169,29 +1248,29 @@ start_services() {
 start_local_deployment() {
     echo "💻 Starting local deployment..."
     install_python_dependencies
-    
+
     # Setup Gitea (will skip if already configured) - non-blocking
     setup_gitea || echo "  ⚠️ Gitea setup failed - continuing with core services"
-    
+
     # Always start Flask and Nginx regardless of Gitea status
     echo "🚀 Starting core services..."
     start_flask_application
     configure_nginx
     configure_firewall
-    
+
     echo "✅ Local deployment completed successfully!"
 }
 
 # Setup Gitea for local development
 setup_gitea() {
     echo "🔧 Checking Gitea installation..."
-    
+
     # Check if Gitea is already running
     if systemctl is-active --quiet gitea 2>/dev/null; then
         echo "  ✅ Gitea is already running - skipping setup"
         return 0
     fi
-    
+
     # Check if already configured
     if [ -f "/etc/gitea/app.ini" ]; then
         echo "  ✅ Gitea is already configured - starting service"
@@ -1201,24 +1280,24 @@ setup_gitea() {
         fi
         return 0
     fi
-    
+
     # Check if Gitea is installed
     if ! command -v gitea &> /dev/null; then
         echo "  📦 Installing Gitea..."
-        
+
         # Download and install Gitea
         wget -O /tmp/gitea https://dl.gitea.io/gitea/1.21.3/gitea-1.21.3-linux-amd64
         sudo mv /tmp/gitea /usr/local/bin/gitea
         sudo chmod +x /usr/local/bin/gitea
-        
+
         # Create gitea user
         sudo adduser --system --shell /bin/bash --gecos 'Git Version Control' --group --disabled-password --home /home/git git || true
-        
+
         # Create directories
         sudo mkdir -p /var/lib/gitea/{custom,data,log}
         sudo chown -R git:git /var/lib/gitea/
         sudo chmod -R 750 /var/lib/gitea/
-        
+
         # Create systemd service
         sudo tee /etc/systemd/system/gitea.service > /dev/null << 'EOF'
 [Unit]
@@ -1239,12 +1318,12 @@ Environment=USER=git HOME=/home/git GITEA_WORK_DIR=/var/lib/gitea
 [Install]
 WantedBy=multi-user.target
 EOF
-        
+
         # Create config directory
         sudo mkdir -p /etc/gitea
         sudo chown root:git /etc/gitea
         sudo chmod 770 /etc/gitea
-        
+
         echo "  ✅ Gitea installed successfully"
         configure_gitea
     fi
@@ -1253,13 +1332,13 @@ EOF
     if systemctl is-active --quiet gitea; then
         create_gitea_admin_user
     fi
-    
+
     # Start Gitea service
     echo "🚀 Starting Gitea service..."
     sudo systemctl daemon-reload
     sudo systemctl enable gitea
     sudo systemctl start gitea
-    
+
     # Wait for Gitea to start with timeout
     echo "  ⏳ Waiting for Gitea to start..."
     for i in {1..20}; do
@@ -1269,7 +1348,7 @@ EOF
         fi
         sleep 1
     done
-    
+
     if systemctl is-active --quiet gitea; then
         echo "  ✅ Gitea is running on http://localhost:3000"
         # Create admin user after Gitea is confirmed running
@@ -1283,7 +1362,7 @@ EOF
 # Configure Gitea with predefined settings
 configure_gitea() {
     echo "  ⚙️ Configuring Gitea..."
-    
+
     # Create required directories
     sudo mkdir -p /home/ubuntu/admin
     sudo mkdir -p /home/ubuntu/admin/db
@@ -1291,9 +1370,9 @@ configure_gitea() {
     sudo mkdir -p /home/ubuntu/admin/data/gitea-repositories
     sudo chown -R git:git /home/ubuntu/admin
     sudo chmod a+w /home/ubuntu/admin/db/gitea.db
-    
+
     # Create Gitea configuration
-    sudo tee /etc/gitea/app.ini > /dev/null << 'EOF'
+    sudo tee /etc/gitea/app.ini > /dev/null << EOF
 [database]
 DB_TYPE = sqlite3
 PATH = /home/ubuntu/admin/db/gitea.db
@@ -1302,10 +1381,10 @@ PATH = /home/ubuntu/admin/db/gitea.db
 ROOT = /home/ubuntu/admin/data/gitea-repositories
 
 [server]
-DOMAIN = www.softfluid.fr
+DOMAIN = www.${S3_BUCKET_NAME}.com
 HTTP_ADDR = 0.0.0.0
 HTTP_PORT = 3000
-ROOT_URL = https://www.softfluid.fr/gitea/
+ROOT_URL = https://www.${S3_BUCKET_NAME}.com/gitea/
 
 [mailer]
 ENABLED = false
@@ -1331,17 +1410,17 @@ CONTENT_PATH = /home/ubuntu/admin
 ENABLE_PUSH_CREATE_USER = true
 ENABLE_PUSH_CREATE_ORG = true
 EOF
-    
+
     sudo chown git:git /etc/gitea/app.ini
     sudo chmod 640 /etc/gitea/app.ini
-    
+
     echo "  ✅ Gitea configured successfully"
 }
 
 # Setup Gitea admin user and API token
 create_gitea_admin_user() {
     echo "👤 Setting up Gitea admin access..."
-    
+
     # Wait for Gitea to be ready with timeout
     echo "  ⏳ Waiting for Gitea to be ready..."
     for i in {1..30}; do
@@ -1351,18 +1430,18 @@ create_gitea_admin_user() {
         fi
         sleep 1
     done
-    
+
     # Set environment variables for Gitea CLI
     export GITEA_WORK_DIR=/var/lib/gitea
     export USER=git
     export HOME=/home/git
-    
+
     # Create gitadmin user with timeout
     echo "👤 Creating gitadmin user..."
     if timeout 10 sudo -u git -E /usr/local/bin/gitea admin user create \
         --username gitadmin \
         --password password \
-        --email admin@softfluid.fr \
+        --email admin@${S3_BUCKET_NAME}.fr \
         --admin \
         --config /etc/gitea/app.ini \
         --work-path /var/lib/gitea 2>/dev/null; then
@@ -1373,17 +1452,17 @@ create_gitea_admin_user() {
         sudo -u git -E /usr/local/bin/gitea admin user create \
             --username gitadmin \
             --password password \
-            --email admin@softfluid.fr \
+            --email admin@${S3_BUCKET_NAME}.fr \
             --admin \
             --config /etc/gitea/app.ini \
             --work-path /var/lib/gitea || echo "  ❌ Manual user creation also failed"
     fi
-    
+
     echo "  🔑 Gitea Admin Credentials:"
     echo "      Username: gitadmin"
     echo "      Password: password"
-    echo "      URL: http://www.softfluid.fr/gitea"
-    
+    echo "      URL: http://www.${S3_BUCKET_NAME}.com/gitea"
+
     # Try to generate API token with timeout
     setup_api_token
 }
@@ -1391,7 +1470,7 @@ create_gitea_admin_user() {
 # Setup API token for admin user
 setup_api_token() {
     echo "  🔑 Setting up API token..."
-    
+
     # Try to generate API token with timeout
     timeout 10 sudo -u git -E /usr/local/bin/gitea admin user generate-access-token \
         --username gitadmin \
@@ -1399,7 +1478,7 @@ setup_api_token() {
         --scopes "write:admin,write:user,write:repository" \
         --config /etc/gitea/app.ini \
         --work-path /var/lib/gitea 2>/dev/null | grep -o '[a-f0-9]\{40\}' > /tmp/gitea_token_temp 2>/dev/null || true
-    
+
     if [ -f "/tmp/gitea_token_temp" ] && [ -s "/tmp/gitea_token_temp" ]; then
         TOKEN=$(cat /tmp/gitea_token_temp)
         echo "$TOKEN" > /tmp/gitea_admin_token
@@ -1417,32 +1496,32 @@ start_docker_deployment() {
     echo "🐳 Starting Docker deployment..."
     cleanup_docker
     docker-compose up -d --build
-    
+
     # Wait and migrate if needed
     if [ "$USE_POSTGRES" = "true" ] && [ -f "softfluid/db/ai_swautomorph.db" ]; then
         sleep 10
         migrate_database
     fi
-    
+
     echo "  ✅ Docker services started"
 }
 
 install_python_dependencies() {
     if [ -f "requirements.txt" ]; then
         echo "  📦 Installing Python dependencies..."
-        
+
         # Create and activate virtual environment if it doesn't exist
         if [ ! -d ".venv" ]; then
             echo "  🔧 Creating virtual environment..."
             python3 -m venv .venv
         fi
-        
+
         # Activate virtual environment
         source .venv/bin/activate
-        
+
         # Upgrade pip first
         pip install --upgrade pip
-        
+
         # Install dependencies
         if pip install -r requirements.txt; then
             echo "  ✅ Python dependencies installed successfully"
@@ -1450,13 +1529,13 @@ install_python_dependencies() {
             echo "  ⚠️ Failed to install some dependencies, trying alternative method..."
             pip install --user -r requirements.txt
         fi
-        
+
         # Verify gunicorn installation
         if ! command -v gunicorn >/dev/null 2>&1 && ! python3 -c "import gunicorn" >/dev/null 2>&1; then
             echo "  ⚠️ Gunicorn not found, installing separately..."
             pip install gunicorn
         fi
-        
+
         # Verify dotenv installation
         if ! python3 -c "import dotenv" >/dev/null 2>&1; then
             echo "  ⚠️ python-dotenv not found, installing separately..."
@@ -1467,16 +1546,16 @@ install_python_dependencies() {
 
 start_flask_application() {
     echo "  🚀 Starting Flask application with Gunicorn..."
-    
+
     # Install dependencies first
     install_python_dependencies
-    
+
     # Activate virtual environment
     if [ -d ".venv" ]; then
         source .venv/bin/activate
         echo "  ✅ Virtual environment activated"
     fi
-    
+
     # Stop any existing Flask/Gunicorn processes
     EXISTING_PIDS=$(pgrep -f "gunicorn.*wsgi:application" 2>/dev/null || true)
     if [ -n "$EXISTING_PIDS" ]; then
@@ -1485,10 +1564,10 @@ start_flask_application() {
         pkill -f "gunicorn.*wsgi:application" 2>/dev/null || true
         sleep 2
     fi
-    
+
     # Create required directories
     mkdir -p logs conf
-    
+
     # Initialize database if PostgreSQL is enabled
     if [ "${USE_POSTGRES:-true}" = "true" ]; then
         echo "  💾 Initializing PostgreSQL database..."
@@ -1497,18 +1576,18 @@ start_flask_application() {
         export POSTGRES_USER=${POSTGRES_USER:-swautomorph}
         export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-swautomorph_password}
         export USE_POSTGRES=true
-        export PYTHONPATH=/home/ubuntu/ai-swautomorph
-        
-        if python3 ./scripts/sf_cli.py init-db; then
+        export PYTHONPATH=/home/ubuntu/${NAME_OF_APPLICATION}
+
+        if python3 ./scripts/cloudstore_cli.py init-db; then
             echo "  ✅ Database initialized successfully"
         else
             echo "  ⚠️ Database initialization failed - continuing anyway"
         fi
     fi
-    
+
     # Start Gunicorn with production configuration
     echo "  🚀 Starting Gunicorn server..."
-    
+
     # Find gunicorn executable
     GUNICORN_CMD=""
     if [ -d ".venv" ] && [ -f ".venv/bin/gunicorn" ]; then
@@ -1524,7 +1603,7 @@ start_flask_application() {
         pip install gunicorn
         GUNICORN_CMD="gunicorn"
     fi
-    
+
     # Start Gunicorn in daemon mode
     if $GUNICORN_CMD --config gunicorn.conf.py wsgi:application; then
         # Wait for daemon to start and get PID from pidfile
@@ -1561,7 +1640,7 @@ configure_nginx() {
 }
 
 setup_modsecurity_config() {
-    source ./setup_modsecurity_config.sh
+    source "$(dirname "${BASH_SOURCE[0]}")/setup_modsecurity_config.sh"
 }
 
 check_and_enable_modsecurity() {
@@ -1585,27 +1664,27 @@ enable_modsecurity_module() {
 
 create_nginx_config() {
     # Start with empty config
-    > /tmp/ai-swautomorph-site
-    
+    > /tmp/${NAME_OF_APPLICATION}-site
+
     # Process secondary domains first
     if [ -n "${SECONDARY_DOMAINS:-}" ]; then
         IFS=',' read -ra DOMAIN_CONFIGS <<< "$SECONDARY_DOMAINS"
         for domain_config in "${DOMAIN_CONFIGS[@]}"; do
             IFS=':' read -r domain server_names proxy_pass <<< "$domain_config"
-            
+
             # Trim whitespace
             domain=$(echo "$domain" | xargs)
             server_names=$(echo "$server_names" | xargs)
             proxy_pass=$(echo "$proxy_pass" | xargs)
-            
+
             if [ -n "$domain" ] && [ -n "$server_names" ]; then
-                cat >> /tmp/ai-swautomorph-site << EOF
+                cat >> /tmp/${NAME_OF_APPLICATION}-site << EOF
 server {
     listen 443 ssl;
     server_name ${server_names};
-    
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/${domain}/fullchain_domain.crt;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/${domain}/privateKey_domain.key;
+
+    ssl_certificate /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${domain}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${domain}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
@@ -1622,9 +1701,9 @@ EOF
             fi
         done
     fi
-    
+
     # HTTP redirect for main domain
-    cat >> /tmp/ai-swautomorph-site << EOF
+    cat >> /tmp/${NAME_OF_APPLICATION}-site << EOF
 server {
     listen 80;
     server_name ${DOMAIN} www.${DOMAIN};
@@ -1632,23 +1711,23 @@ server {
 }
 
 EOF
-    
+
     # Main domain HTTPS server block
-    cat >> /tmp/ai-swautomorph-site << EOF
+    cat >> /tmp/${NAME_OF_APPLICATION}-site << EOF
 server {
     listen 443 ssl;
     server_name ${DOMAIN} www.${DOMAIN};
-    
-    ssl_certificate /home/ubuntu/ai-swautomorph/ssl/${DOMAIN}/fullchain_domain.crt;
-    ssl_certificate_key /home/ubuntu/ai-swautomorph/ssl/${DOMAIN}/privateKey_domain.key;
+
+    ssl_certificate /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${DOMAIN}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${DOMAIN}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 EOF
 
     # Add ModSecurity configuration only if available
     if [ "${MODSECURITY_AVAILABLE:-false}" = "true" ]; then
-        cat >> /tmp/ai-swautomorph-site << EOF
-    
+        cat >> /tmp/${NAME_OF_APPLICATION}-site << EOF
+
     # WAF Protection
     modsecurity on;
     modsecurity_rules_file ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}/main.conf;
@@ -1659,8 +1738,8 @@ EOF
     fi
 
     # Add location blocks for main domain
-    cat >> /tmp/ai-swautomorph-site << EOF
-    
+    cat >> /tmp/${NAME_OF_APPLICATION}-site << EOF
+
     location / {
         proxy_pass http://localhost:${FLASK_PORT:-5000};
         proxy_set_header Host \$host;
@@ -1668,7 +1747,7 @@ EOF
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto \$scheme;
     }
-    
+
     location /gitea/ {
         proxy_pass http://localhost:${GITEA_PORT:-3000}/;
         proxy_set_header Host \$host;
@@ -1677,12 +1756,12 @@ EOF
         proxy_set_header X-Forwarded-Proto \$scheme;
         proxy_set_header X-Forwarded-Host \$host;
         proxy_buffering off;
-        
+
         # WebSocket support for Gitea
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Increase timeouts for large operations
         proxy_connect_timeout 60s;
         proxy_send_timeout 300s;
@@ -1693,8 +1772,8 @@ EOF
 }
 
 enable_nginx_site() {
-    sudo mv /tmp/ai-swautomorph-site /etc/nginx/sites-available/ai-swautomorph
-    sudo ln -sf /etc/nginx/sites-available/ai-swautomorph /etc/nginx/sites-enabled/
+    sudo mv /tmp/${NAME_OF_APPLICATION}-site /etc/nginx/sites-available/${NAME_OF_APPLICATION}
+    sudo ln -sf /etc/nginx/sites-available/${NAME_OF_APPLICATION} /etc/nginx/sites-enabled/
 }
 
 test_and_reload_nginx() {
@@ -1746,19 +1825,51 @@ check_local_requirements() {
         # install python3 and python3-dev
         sudo apt install python3 python3-dev python3-psycopg2
     fi
-    
-    # Check for PostgreSQL development packages if PostgreSQL is available
-    if ! command -v psql &> /dev/null; then
-        echo "❌ PostgreSQL is not installed. 📦 Installing PostgreSQL development packages..."
-        sudo apt update
-        sudo apt install -y postgresql-server-dev-all libpq-dev build-essential
-        sudo apt install -y postgresql-17 postgresql-contrib-17
-        echo "✅ PostgreSQL development packages installed"
-        
+
+    # Detect available PostgreSQL major version
+    PG_VERSION=$(apt-cache search "^postgresql-[0-9]" 2>/dev/null | grep -oP "^postgresql-\K[0-9]+" | sort -n | tail -1)
+    PG_VERSION=${PG_VERSION:-18}
+
+    # Check for PostgreSQL server (not just client) and ensure cluster is running
+    if ! pg_isready -q 2>/dev/null; then
+        echo "❌ PostgreSQL server is not accepting connections."
+
+        if ! command -v psql &> /dev/null; then
+            echo "📦 Installing PostgreSQL ${PG_VERSION} server and development packages..."
+            sudo apt update
+            sudo apt install -y postgresql-server-dev-all libpq-dev build-essential
+            sudo apt install -y postgresql-${PG_VERSION}
+            echo "✅ PostgreSQL ${PG_VERSION} installed"
+        else
+            echo "📦 PostgreSQL client found but server not running. Installing server..."
+            sudo apt update
+            sudo apt install -y postgresql-${PG_VERSION}
+            echo "✅ PostgreSQL ${PG_VERSION} server installed"
+        fi
+
+        # Ensure PostgreSQL service is started
+        sudo systemctl start postgresql
+        sudo systemctl enable postgresql
+
+        # Wait for PostgreSQL to be ready
+        echo "  ⏳ Waiting for PostgreSQL to accept connections..."
+        for i in {1..30}; do
+            if pg_isready -q 2>/dev/null; then
+                echo "  ✅ PostgreSQL is accepting connections"
+                break
+            fi
+            sleep 1
+        done
+
+        if ! pg_isready -q 2>/dev/null; then
+            echo "  ❌ PostgreSQL failed to start. Check: sudo journalctl -u postgresql"
+            exit 1
+        fi
+
         # Setup PostgreSQL database and user for the application
         setup_postgresql_database
     fi
-    
+
     if ! command -v nginx &> /dev/null; then
         echo "📦 Installing Nginx with ModSecurity..."
         install_nginx_with_modsecurity
@@ -1768,56 +1879,56 @@ check_local_requirements() {
 
 install_nginx_with_modsecurity() {
     sudo apt update
-    
+
     # Install nginx and ModSecurity components
     sudo apt install -y nginx wget git
-    
+
     # Try to install nginx-module-security (may not be available on all systems)
     sudo apt install -y libmodsecurity3 2>/dev/null || {
         echo "  ⚠️ libmodsecurity3 not available, installing alternative packages"
         sudo apt install -y libmodsecurity-dev modsecurity-crs 2>/dev/null || true
     }
-    
+
     # Create ModSecurity directories
     sudo mkdir -p ${MODSECURITY_CONF_DIR:-/etc/nginx/modsec}
-    
+
     # Download OWASP CRS rules if not available via package
     if [ ! -d "${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}" ]; then
         sudo git clone https://github.com/coreruleset/coreruleset.git ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
         cd ${MODSECURITY_RULES_DIR:-/usr/share/modsecurity-crs}
         sudo git checkout ${OWASP_CRS_VERSION:-v3.3.5}
     fi
-    
+
     # Configure ModSecurity
     setup_modsecurity_config
-    
+
     # Check if ModSecurity module is available before enabling
     check_and_enable_modsecurity
-    
+
     sudo systemctl enable nginx
 }
 
 # Setup PostgreSQL database and user for the application
 setup_postgresql_database() {
     echo "💾 Setting up PostgreSQL database and user..."
-    
+
     # Load environment variables from .env file if it exists
     if [ -f ".env" ]; then
         echo "  📋 Loading PostgreSQL credentials from .env file..."
         export $(grep -v '^#' .env | grep -v '^$' | xargs)
     fi
-    
+
     # Start PostgreSQL service
     sudo systemctl start postgresql
     sudo systemctl enable postgresql
-    
+
     # Get PostgreSQL credentials from environment or use defaults
     POSTGRES_DB=${POSTGRES_DB:-"ai_swautomorph"}
     POSTGRES_USER=${POSTGRES_USER:-"swautomorph"}
     POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-"swautomorph_password"}
-    
+
     echo "  🔗 Using credentials: $POSTGRES_USER@localhost:5432/$POSTGRES_DB"
-    
+
     # Check if user already exists
     if sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='$POSTGRES_USER'" | grep -q 1; then
         echo "  ✅ PostgreSQL user '$POSTGRES_USER' already exists"
@@ -1829,7 +1940,7 @@ setup_postgresql_database() {
         sudo -u postgres psql -c "CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD' CREATEDB;"
         echo "  ✅ PostgreSQL user '$POSTGRES_USER' created"
     fi
-    
+
     # Check if database already exists
     if sudo -u postgres psql -lqt | cut -d \| -f 1 | grep -qw "$POSTGRES_DB"; then
         echo "  ✅ PostgreSQL database '$POSTGRES_DB' already exists"
@@ -1838,12 +1949,12 @@ setup_postgresql_database() {
         sudo -u postgres psql -c "CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;"
         echo "  ✅ PostgreSQL database '$POSTGRES_DB' created"
     fi
-    
+
     # Grant privileges
     echo "  🔑 Granting privileges to user '$POSTGRES_USER'..."
     sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $POSTGRES_DB TO $POSTGRES_USER;"
     sudo -u postgres psql -c "GRANT CREATE ON SCHEMA public TO $POSTGRES_USER;" -d "$POSTGRES_DB"
-    
+
     # Test connection
     echo "  🔍 Testing PostgreSQL connection..."
     if PGPASSWORD="$POSTGRES_PASSWORD" psql -h localhost -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT version();" >/dev/null 2>&1; then
@@ -1852,7 +1963,7 @@ setup_postgresql_database() {
         echo "  ⚠️ PostgreSQL connection test failed - check configuration"
         echo "    💡 Try manual connection: PGPASSWORD='$POSTGRES_PASSWORD' psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB"
     fi
-    
+
     echo "  ✅ PostgreSQL database setup completed"
 }
 
@@ -1861,7 +1972,7 @@ check_docker_requirements() {
         echo "  ❌ Docker is not installed. Please install Docker first."
         exit 1
     fi
-    
+
     if ! command -v docker-compose &> /dev/null; then
         echo "  ❌ Docker Compose is not installed. Please install Docker Compose first."
         exit 1
@@ -1894,14 +2005,14 @@ generate_environment_file() {
     if [ ! -f .env ]; then
         echo "🔑 Generating environment configuration..."
         SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-        
+
         # Load existing password from .env if it exists, otherwise use default
         if [ -f ".env" ] && grep -q "POSTGRES_PASSWORD=" .env; then
             POSTGRES_PASSWORD=$(grep "POSTGRES_PASSWORD=" .env | cut -d'=' -f2)
         else
             POSTGRES_PASSWORD="swautomorph_password"
         fi
-        
+
         cat > .env << EOF
 # PostgreSQL Configuration (when USE_POSTGRES=true)
 POSTGRES_HOST=localhost
@@ -1936,7 +2047,7 @@ EOF
 
 # Show usage information
 help() {
-    echo "🚀 AI-SwAutoMorph Deployment Script"
+    echo "🚀 OPCP-CloudStore-Docker-AI Deployment Script v${VERSION}"
     echo "Usage: $0 [COMMAND] [MODE] [USER_ID] [USER_NAME] [USER_EMAIL] [DESCRIPTION] [OPTIONS]"
     echo ""
     echo "COMMANDS:"
@@ -1963,6 +2074,13 @@ help() {
     echo "              • Restarts Flask application with new PID"
     echo "              • Reloads Nginx configuration"
     echo "              • Restarts Docker containers if in Docker mode"
+    echo ""
+    echo "  upgrade   - Upgrade application from git remote"
+    echo "  --upgrade - Upgrade application from git remote (alias for upgrade)"
+    echo "              • Stashes uncommitted changes if any"
+    echo "              • Fetches latest changes from remote (git fetch --all)"
+    echo "              • Merges changes from origin into current branch"
+    echo "              • Restores stashed changes after merge"
     echo ""
     echo "  ps        - Show status of all services"
     echo "  -p        - Show status of all services (alias for ps)"
@@ -1996,6 +2114,10 @@ help() {
     echo "  --help    - Show this help menu (alias for help)"
     echo "  -h        - Show this help menu (short alias for help)"
     echo ""
+    echo "  version   - Display the current installed version"
+    echo "  --version - Display the current installed version (alias for version)"
+    echo "  -v        - Display the current installed version (short alias for version)"
+    echo ""
     echo "OPTIONS:"
     echo "  --keep-gitea-running  - Automatically answer 'no' to Gitea stop question"
     echo "                          Keeps Gitea service running during stop operations"
@@ -2022,26 +2144,29 @@ help() {
     echo "  USER_NAME    - Display name for the user (default: 'admin')"
     echo "                 Used in configuration and logging"
     echo ""
-    echo "  USER_EMAIL   - User email address (default: 'admin@softfluid.fr')"
+    echo "  USER_EMAIL   - User email address (default: 'admin@${S3_BUCKET_NAME}.com')"
     echo "                 Used for SSL certificates and notifications"
     echo ""
     echo "  DESCRIPTION  - Deployment description (default: 'Basic Information Display')"
     echo "                 Used for documentation and logging purposes"
     echo ""
     echo "EXAMPLES:"
-    echo "  $0 start                    # Interactive mode - shows deployment menu"
-    echo "  $0 start locally            # Deploy locally without Docker"
-    echo "  $0 start docker             # Deploy using Docker containers"
-    echo "  $0 start locally 123 john   # Deploy locally for user 'john' with ID '123'"
-    echo "  $0 stop                     # Stop all services (interactive Gitea removal)"
+    echo "  $0 start                     # Interactive mode - shows deployment menu"
+    echo "  $0 start locally             # Deploy locally without Docker"
+    echo "  $0 start docker              # Deploy using Docker containers"
+    echo "  $0 start locally 123 john    # Deploy locally for user 'john' with ID '123'"
+    echo "  $0 stop                      # Stop all services (interactive Gitea removal)"
     echo "  $0 stop --keep-gitea-running # Stop all services but keep Gitea running"
-    echo "  $0 stop locally             # Stop all services started "locally" (interactive Gitea removal)"
-    echo "  $0 restart locally          # Restart local services"
-    echo "  $0 ps                       # Check status of all services"
-    echo "  $0 logs                     # View logs from all services"
-    echo "  $0 help                     # Show this help menu"
-    echo "  $0 --help                   # Show this help menu"
-    echo "  $0 -h                       # Show this help menu"
+    echo "  $0 stop locally              # Stop all services started "locally" (interactive Gitea removal)"
+    echo "  $0 restart locally           # Restart local services"
+    echo "  $0 upgrade                   # Upgrade application from git remote"
+    echo "  $0 ps                        # Check status of all services"
+    echo "  $0 logs                      # View logs from all services"
+    echo "  $0 help                      # Show this help menu"
+    echo "  $0 --help                    # Show this help menu"
+    echo "  $0 -h                        # Show this help menu"
+    echo "  $0 --version                 # Display current installed version"
+    echo "  $0 -v                        # Display current installed version"
     echo ""
     echo "PORTS:"
     echo "  HTTP:  Calculated as 80 + (USER_ID * 100)"
@@ -2056,8 +2181,8 @@ help() {
     echo "  • Docker Containers (optional)"
     echo ""
     echo "ACCESS URLS:"
-    echo "  • Main App: https://www.softfluid.fr"
-    echo "  • Gitea:    https://www.softfluid.fr/gitea"
+    echo "  • Main App: https://www.opcp-psmc.com"
+    echo "  • Gitea:    https://www.opcp-psmc.com/gitea"
     echo "  • Local:    https://localhost (with SSL certificates)"
 }
 
@@ -2066,13 +2191,13 @@ setup_backup_cron() {
     echo "⏰ Setting up hourly database backup cron job..."
     SCRIPT_PATH=$(realpath "$0")
     CRON_JOB="0 * * * * $SCRIPT_PATH --backup_db >/dev/null 2>&1"
-    
+
     # Remove existing backup job if any
     (crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH --backup_db") | crontab -
-    
+
     # Add new backup job
     (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-    
+
     echo "  ✅ Hourly backup cron job added"
 }
 
@@ -2080,10 +2205,10 @@ setup_backup_cron() {
 remove_backup_cron() {
     echo "⏰ Removing database backup cron job..."
     SCRIPT_PATH=$(realpath "$0")
-    
+
     # Remove backup job
     (crontab -l 2>/dev/null | grep -v "$SCRIPT_PATH --backup_db") | crontab -
-    
+
     echo "  ✅ Backup cron job removed"
 }
 
@@ -2100,7 +2225,7 @@ start() {
 # Main function - orchestrates the deployment process
 main() {
     calculate_ports
-    show_environment 
+    show_environment
 
     # Show interactive menu for start, stop, restart commands if no LOCAL_MODE specified
     if [[ "$COMMAND" =~ ^(start|-s|--start|stop|-o|--stop|restart|-r|--restart)$ ]] && [ "$LOCAL_MODE" = "0" ]; then
@@ -2141,12 +2266,20 @@ main() {
             restart_services
             exit 0
             ;;
+        "upgrade"|"--upgrade")
+            upgrade
+            exit 0
+            ;;
         "start"|"-s"|"--start")
             start
             exit 0
             ;;
         "help"|"--help"|"-h")
             help
+            exit 0
+            ;;
+        "version"|"--version"|"-v")
+            echo "OPCP-CloudStore-Docker-AI v${VERSION}"
             exit 0
             ;;
         *)

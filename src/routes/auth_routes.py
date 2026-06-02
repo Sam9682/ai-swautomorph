@@ -61,7 +61,7 @@ def login():
         return jsonify({'error': error_msg}), 400
     
     user = db_manager.execute_query(
-        'SELECT id, password_hash, suspended FROM users WHERE username = %s', 
+        'SELECT id, password_hash, suspended, totp_enabled, twofa_email_enabled FROM users WHERE username = %s', 
         (username,), fetch_one=True
     )
     
@@ -86,7 +86,30 @@ def login():
             'Your account is pending activation. Please wait for the administration team to activate your account and try again later.')
         return jsonify({'error': error_msg}), 403
     
-    # User exists, password is correct, and not suspended - allow login
+    # Check if 2FA is enabled
+    totp_enabled = user[3] if len(user) > 3 else False
+    email_2fa_enabled = user[4] if len(user) > 4 else False
+    
+    if totp_enabled or email_2fa_enabled:
+        # Store user_id in session for 2FA verification
+        session['pending_2fa_user_id'] = user[0]
+        session['pending_2fa_username'] = username
+        
+        # Determine available 2FA methods
+        methods = []
+        if totp_enabled:
+            methods.append('totp')
+        if email_2fa_enabled:
+            methods.append('email')
+        
+        return jsonify({
+            'requires_2fa': True,
+            'methods': methods,
+            'user_id': user[0],
+            'message': 'Two-factor authentication required'
+        }), 200
+    
+    # User exists, password is correct, not suspended, no 2FA - allow login
     session['user_id'] = user[0]
     
     # Generate SSO token

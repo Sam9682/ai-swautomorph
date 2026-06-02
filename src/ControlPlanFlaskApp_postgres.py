@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-from .config_postgres import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, PLTF_NAME
+from .config_postgres import SECRET_KEY, CORS_ORIGINS, TRANSLATIONS, OUTPUT_PRINT_LOGS_FILENAME, PLTF_NAME, APP_VERSION
 from .database_postgres import init_db
 from .routes.main_routes import main_bp
 from .routes.auth_routes import auth_bp
@@ -22,6 +22,7 @@ from .routes.genai_routes import genai_bp
 from .routes.billing_routes import billing_bp
 from .routes.orchestrator_routes import orchestrator_bp
 from .routes.replication_routes import replication_bp, init_replication_routes
+from .routes.security_routes import security_bp
 
 # Redirect all print() statements to log files
 class PrintLogger:
@@ -91,7 +92,8 @@ def create_app():
             'get_text': get_text, 
             'current_lang': get_language(),
             'moment': lambda: datetime.now(),
-            'PLTF_NAME': PLTF_NAME
+            'PLTF_NAME': PLTF_NAME,
+            'APP_VERSION': APP_VERSION
         }
     
     # Register blueprints
@@ -103,5 +105,6 @@ def create_app():
     app.register_blueprint(billing_bp)
     app.register_blueprint(orchestrator_bp)
     app.register_blueprint(replication_bp)
+    app.register_blueprint(security_bp)
     
     return app

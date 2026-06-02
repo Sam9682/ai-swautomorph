@@ -24,9 +24,9 @@ print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-echo -e "${BLUE}+========================================+${NC}"
-echo -e "${BLUE}|${NC}   AI-SwAutoMorph Platform Setup    ${BLUE}|${NC}"
-echo -e "${BLUE}+========================================+${NC}"
+echo -e "${BLUE}+==========================================+${NC}"
+echo -e "${BLUE}|${NC}   CloudStore-Docker-AI Platform Setup    ${BLUE}|${NC}"
+echo -e "${BLUE}+==========================================+${NC}"
 echo ""
 
 # Install Python and pip
@@ -44,7 +44,7 @@ print_success "Amazon Kiro CLI installed"
 # Install OVH shai
 print_step "Installing OVH CLI..."
 curl -fsSL https://raw.githubusercontent.com/ovh/shai/main/install.sh | sh > /dev/null 2>&1
-echo 'export PATH="/home/ubuntu/.local/bin:$PATH"' >> ~/.bashrc
+echo 'export PATH="~/.local/bin:$PATH"' >> ~/.bashrc
 print_success "OVH CLI installed"
 
 # Install AWS CLI
@@ -140,9 +140,9 @@ export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
 print_success "AWS credentials configured"
 
 # Clone repository
-print_step "Cloning AI-SwAutoMorph repository..."
-git clone git@github.com:Sam9682/ai-swautomorph.git > /dev/null 2>&1
-cd ai-swautomorph
+print_step "Cloning opcp-cloudstore-docker-ai repository..."
+git clone https://github.com/Sam9682/opcp-cloudstore-docker-ai.git > /dev/null 2>&1
+cd opcp-cloudstore-docker-ai
 git submodule update --init --recursive > /dev/null 2>&1
 print_success "Repository cloned"
 
@@ -157,6 +157,10 @@ print_success "Python environment ready"
 print_step "Final configuration..."
 mkdir -p logs
 chmod +x setup_modsecurity_config.sh
+cd ~
+mkdir -p deployments
+cd deployments
+mkdir -p admin
 print_success "Configuration complete"
 
 echo ""
@@ -164,6 +168,6 @@ echo -e "${GREEN}[OK] Installation completed successfully!${NC}"
 echo ""
 print_warning "Don't forget to :"
 print_warning "     - modify ./conf/deploy.ini with your platform settings, PLTF_NAME and DOMAIN values"
-print_warning "     - add ssl certificate in ~/ai-swautomorph/ssl/fullchain_domain.crt for nginx https"
-print_warning "     - add ssl private key in ~/ai-swautomorph/ssl/privateKey_domain.key for nginx https"
+print_warning "     - add ssl certificate in ~/opcp-cloudstore-docker-ai/ssl/fullchain_domain.crt for nginx https"
+print_warning "     - add ssl private key in ~/opcp-cloudstore-docker-ai/ssl/privateKey_domain.key for nginx https"
 print_warning "     - enter aws_access_key_id & aws_secret_access_key in ~/.aws/credentials for s3 synchronization"

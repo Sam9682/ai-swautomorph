@@ -72,8 +72,24 @@ def get_domain_name():
     return 'softfluid.fr'
 
 
+# Version from deploy.ini
+def get_version():
+    """Get version from deploy.ini"""
+    try:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_path = os.path.join(base_dir, 'conf', 'deploy.ini')
+        with open(config_path, 'r') as f:
+            for line in f:
+                if line.strip().startswith('VERSION'):
+                    return line.split('=', 1)[1].strip().strip("'\"")
+    except Exception as e:
+        logger.error(f'Failed to read VERSION from deploy.ini: {e}')
+    return '0.0.1'
+
+
 PLTF_NAME = get_platform_name()
 DOMAIN = get_domain_name()
+APP_VERSION = get_version()
 
 # CORS configuration
 CORS_ORIGINS = [
@@ -353,7 +369,7 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Handle multiple projects simultaneously',
         'always_learning': 'Always Learning',
         'always_learning_desc': 'AI agents improve with every interaction',
-        'disruption_warning': "The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don't get left behind. !!! You can implement SoftFluid platform on your own environment !!!",
+        'disruption_warning': "The IT industry is being disrupted RIGHT NOW. Companies using AI agents are moving 10x faster than those still relying on human IT teams. Don't get left behind. !!! You can implement CloudStore-Docker-AI platform on your own environment !!!",
         'configuration': 'Configuration',
         'user_management': 'User Management',
         'server_management': 'Server Management',
@@ -393,7 +409,33 @@ TRANSLATIONS = {
         'access_required': 'Access Required',
         'access_required_message': 'This application has not been assigned to you. Please contact your administrator to request access.',
         'no_description_available': 'No description available',
-        'repository': 'Repository'
+        'repository': 'Repository',
+        'account_security': 'Account Security',
+        'change_password': 'Change Password',
+        'change_password_desc': 'Change your password by entering your current password and a new one.',
+        'current_password': 'Current Password',
+        'new_password': 'New Password',
+        'new_password_placeholder': 'Enter new password (min 6 characters)',
+        'confirm_password_placeholder': 'Confirm new password',
+        'reset_via_email': 'Reset via Email',
+        'reset_password': 'Reset Password',
+        'reset_password_for': 'Set a new password for',
+        'password_reset_success': 'Password Reset Successful',
+        'password_reset_success_message': 'Your password has been changed. You can now log in with your new password.',
+        'two_factor_auth': 'Two-Factor Authentication (2FA)',
+        'two_factor_auth_desc': 'Add an extra layer of security to your account by requiring a second verification step during login.',
+        'authenticator_app': 'Authenticator App (TOTP)',
+        'authenticator_app_desc': 'Use an app like Google Authenticator, Authy, or Microsoft Authenticator to generate time-based codes.',
+        'setup_authenticator': 'Setup Authenticator App',
+        'email_verification': 'Email Verification',
+        'email_verification_desc': 'Receive a verification code via email each time you log in.',
+        'enable_email_2fa': 'Enable Email 2FA',
+        'disable_2fa': 'Disable 2FA',
+        'disable_2fa_desc': 'Disabling 2FA will remove the extra security layer from your account.',
+        'enter_password': 'Enter your password',
+        'two_factor_verification': 'Two-Factor Verification',
+        'verification_code': 'Verification Code',
+        'verify': 'Verify'
     },
     'fr': {
         'login': 'Connexion',
@@ -598,7 +640,7 @@ TRANSLATIONS = {
         'unlimited_scalability_desc': 'Gérer plusieurs projets simultanément',
         'always_learning': 'Apprentissage Continu',
         'always_learning_desc': 'Les agents IA en auto amélioration à chaque interaction',
-        'disruption_warning': "Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d'équipes IT humaines. Ne vous laissez pas distancer. !!! Vous pouvez implémenter SoftFluid dans votre environnement !!!",
+        'disruption_warning': "Une industrie IT est en cours de disruption MAINTENANT. Les entreprises utilisant des agents IA avancent 10 fois plus vite que celles qui dépendent encore d'équipes IT humaines. Ne vous laissez pas distancer. !!! Vous pouvez implémenter CloudStore-Docker-AI dans votre environnement !!!",
         'configuration': 'Configuration',
         'user_management': 'Gestion des Utilisateurs',
         'server_management': 'Gestion des Serveurs',
@@ -638,6 +680,32 @@ TRANSLATIONS = {
         'access_required': 'Accès Requis',
         'access_required_message': 'Cette application ne vous a pas été assignée. Veuillez contacter votre administrateur pour demander l\'accès.',
         'no_description_available': 'Aucune description disponible',
-        'repository': 'Dépôt'
+        'repository': 'Dépôt',
+        'account_security': 'Sécurité du Compte',
+        'change_password': 'Changer le Mot de Passe',
+        'change_password_desc': 'Changez votre mot de passe en entrant votre mot de passe actuel et un nouveau.',
+        'current_password': 'Mot de passe actuel',
+        'new_password': 'Nouveau mot de passe',
+        'new_password_placeholder': 'Entrez le nouveau mot de passe (min 6 caractères)',
+        'confirm_password_placeholder': 'Confirmez le nouveau mot de passe',
+        'reset_via_email': 'Réinitialiser par Email',
+        'reset_password': 'Réinitialiser le Mot de Passe',
+        'reset_password_for': 'Définir un nouveau mot de passe pour',
+        'password_reset_success': 'Mot de Passe Réinitialisé',
+        'password_reset_success_message': 'Votre mot de passe a été changé. Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.',
+        'two_factor_auth': 'Authentification à Deux Facteurs (2FA)',
+        'two_factor_auth_desc': "Ajoutez une couche de sécurité supplémentaire à votre compte en exigeant une deuxième étape de vérification lors de la connexion.",
+        'authenticator_app': 'Application Authenticator (TOTP)',
+        'authenticator_app_desc': "Utilisez une application comme Google Authenticator, Authy ou Microsoft Authenticator pour générer des codes temporels.",
+        'setup_authenticator': "Configurer l'Application Authenticator",
+        'email_verification': 'Vérification par Email',
+        'email_verification_desc': 'Recevez un code de vérification par email à chaque connexion.',
+        'enable_email_2fa': 'Activer 2FA par Email',
+        'disable_2fa': 'Désactiver 2FA',
+        'disable_2fa_desc': 'Désactiver la 2FA supprimera la couche de sécurité supplémentaire de votre compte.',
+        'enter_password': 'Entrez votre mot de passe',
+        'two_factor_verification': 'Vérification à Deux Facteurs',
+        'verification_code': 'Code de Vérification',
+        'verify': 'Vérifier'
     }
 }

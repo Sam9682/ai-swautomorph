@@ -1,5 +1,5 @@
 -- Migration: Add user_id to services table
--- Date: 2024
+-- Date: 2026
 
 -- Add user_id column if it doesn't exist
 ALTER TABLE services ADD COLUMN IF NOT EXISTS user_id BIGINT;

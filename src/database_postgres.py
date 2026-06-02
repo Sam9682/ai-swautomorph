@@ -1,4 +1,4 @@
-"""PostgreSQL database manager for AI-SwAutoMorph"""
+"""PostgreSQL database manager for OPCP-SwAutoMorph"""
 import psycopg2
 import psycopg2.pool
 import threading
@@ -17,7 +17,7 @@ def load_deploy_config():
     config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'conf', 'deploy.ini')
     
     # Default values matching deployControlPlan.sh
-    NAME_OF_APPLICATION = "ai-swautomorph"
+    NAME_OF_APPLICATION = "opcp-swautomorph"
     APPLICATION_IDENTITY_NUMBER = 0
     RANGE_START = 6000
     RANGE_RESERVED = 100
@@ -244,6 +244,41 @@ class PostgreSQLManager:
 # Global database manager instance
 db_manager = PostgreSQLManager()
 
+def load_default_apps():
+    """Load default applications from conf/default_apps config file.
+    
+    File format: name | description | git_url | git_repo_size | docker_build_duration | docker_start_duration | docker_stop_duration | docker_ps_duration
+    Lines starting with # are comments, empty lines are ignored.
+    """
+    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'conf', 'default_apps')
+    default_apps = []
+    
+    if not os.path.exists(config_path):
+        print(f"Warning: default_apps config file not found at {config_path}")
+        return default_apps
+    
+    try:
+        with open(config_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                parts = [p.strip() for p in line.split('|')]
+                if len(parts) != 8:
+                    print(f"Warning: skipping malformed line in default_apps: {line}")
+                    continue
+                name, description, git_url = parts[0], parts[1], parts[2]
+                git_repo_size = int(parts[3])
+                docker_build_duration = int(parts[4])
+                docker_start_duration = int(parts[5])
+                docker_stop_duration = int(parts[6])
+                docker_ps_duration = int(parts[7])
+                default_apps.append((name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration))
+    except Exception as e:
+        print(f"Warning: Could not load default_apps config: {e}")
+    
+    return default_apps
+
 def init_db():
     """Initialize database with required tables"""
     with db_manager.get_db_connection() as conn:
@@ -263,25 +298,41 @@ def init_db():
                 cursor.execute(schema_sql)
                 print("Database schema created successfully")
             
+            # Apply 2FA and password reset migration
+            try:
+                migration_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migration', 'add_password_reset_and_2fa.sql')
+                if os.path.exists(migration_path):
+                    with open(migration_path, 'r') as f:
+                        migration_sql = f.read()
+                    cursor.execute(migration_sql)
+                    conn.commit()
+            except Exception as e:
+                # Migration may already be applied, ignore errors
+                conn.rollback()
+                print(f"[INFO] 2FA migration check: {e}")
+            
+            # Apply serverless jobs migration
+            try:
+                migration_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migration', 'add_serverless_jobs.sql')
+                if os.path.exists(migration_path):
+                    with open(migration_path, 'r') as f:
+                        migration_sql = f.read()
+                    cursor.execute(migration_sql)
+                    conn.commit()
+            except Exception as e:
+                # Migration may already be applied, ignore errors
+                conn.rollback()
+                print(f"[INFO] Serverless jobs migration check: {e}")
+            
             # Insert default applications if none exist
             cursor.execute('SELECT COUNT(*) FROM applications')
             if cursor.fetchone()[0] == 0:
-                default_apps = [
-                    ('ai-foodflow', 'Food management system', 'git@github.com:Sam9682/ai-foodflow.git', 1, 65, 65, 10, 1),
-                    ('ai-haccp', 'HACCP compliance system', 'git@github.com:Sam9682/ai-haccp.git', 6, 130, 130, 10, 1),
-                    ('ai-checkinatwork', 'Check In for employees at work', 'git@github.com:Sam9682/ai-checkinatwork.git', 24, 38, 38, 1, 1),
-                    ('ai-staticwebsite', 'Simple static Web Site', 'git@github.com:Sam9682/ai-staticwebsite.git', 4, 29, 29, 10, 1),
-                    ('ai-transats', 'Transat Beach Management', 'git@github.com:Sam9682/ai-transats.git', 72, 30, 30, 1, 1),
-                    ('ai-beewoo', 'Simple Traffic Analyzer Web Site', 'git@github.com:Sam9682/ai-beewoo.git', 318, 30, 30, 1, 1),
-                    ('ai-costminimizer', 'Cost Optimization for Clouds', 'git@github.com:Sam9682/ai-costminimizer.git', 58, 45, 45, 10, 1),
-                    ('ai-camarguesailing', 'Sailing With Skipper in Camargues', 'git@github.com:Sam9682/ai-camarguesailing.git', 10, 30, 30, 10, 1),
-                    ('ai-hypervisia', 'Association pour la promotion de la generative AI', 'git@github.com:Sam9682/ai-hypervisia.git', 10, 30, 30, 10, 1),
-                    ('ai-artiste', 'Logiciel de gestion pour artiste', 'git@github.com:Sam9682/ai-artiste.git', 10, 30, 30, 10, 1)
-                ]
-                cursor.executemany('''
-                    INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                ''', default_apps)
+                default_apps = load_default_apps()
+                if default_apps:
+                    cursor.executemany('''
+                        INSERT INTO applications (name, description, git_url, git_repo_size, docker_build_duration, docker_start_duration, docker_stop_duration, docker_ps_duration) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    ''', default_apps)
                 
                 # Insert default costs for applications
                 cursor.execute('SELECT id FROM applications')

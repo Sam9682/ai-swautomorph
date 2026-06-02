@@ -368,7 +368,7 @@ def api_users():
         if request.method == 'GET':
             # Get all users
             users_data = db_manager.execute_query(
-                'SELECT id, username, email, first_name, last_name, suspended, created_at FROM users ORDER BY username',
+                'SELECT id, username, email, first_name, last_name, suspended, created_at, totp_enabled, twofa_email_enabled FROM users ORDER BY username',
                 fetch_all=True
             )
             users = [{
@@ -378,7 +378,9 @@ def api_users():
                 'first_name': row[3],
                 'last_name': row[4],
                 'suspended': bool(row[5]),
-                'created_at': row[6]
+                'created_at': row[6],
+                'totp_enabled': bool(row[7]) if len(row) > 7 and row[7] is not None else False,
+                'email_2fa_enabled': bool(row[8]) if len(row) > 8 and row[8] is not None else False
             } for row in users_data]
             return jsonify(users)
         
