@@ -140,9 +140,9 @@ export AWS_ENDPOINT_URL_S3=https://s3.gra.io.cloud.ovh.net/
 print_success "AWS credentials configured"
 
 # Clone repository
-print_step "Cloning opcp-cloudstore-docker-ai repository..."
-git clone https://github.com/Sam9682/opcp-cloudstore-docker-ai.git > /dev/null 2>&1
-cd opcp-cloudstore-docker-ai
+print_step "Cloning softfluid repository..."
+git clone https://github.com/Sam9682/softfluid.git > /dev/null 2>&1
+cd softfluid
 git submodule update --init --recursive > /dev/null 2>&1
 print_success "Repository cloned"
 
@@ -168,6 +168,6 @@ echo -e "${GREEN}[OK] Installation completed successfully!${NC}"
 echo ""
 print_warning "Don't forget to :"
 print_warning "     - modify ./conf/deploy.ini with your platform settings, PLTF_NAME and DOMAIN values"
-print_warning "     - add ssl certificate in ~/opcp-cloudstore-docker-ai/ssl/fullchain_domain.crt for nginx https"
-print_warning "     - add ssl private key in ~/opcp-cloudstore-docker-ai/ssl/privateKey_domain.key for nginx https"
+print_warning "     - add ssl certificate in ~/softfluid/ssl/fullchain_domain.crt for nginx https"
+print_warning "     - add ssl private key in ~/softfluid/ssl/privateKey_domain.key for nginx https"
 print_warning "     - enter aws_access_key_id & aws_secret_access_key in ~/.aws/credentials for s3 synchronization"

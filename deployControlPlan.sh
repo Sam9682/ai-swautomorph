@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# OPCP-CloudStore-Docker-AI Production Deployment Script
+# softfluid Production Deployment Script
 # Organized with functions for better maintainability
 
 set -e
@@ -63,11 +63,11 @@ WARN="${YELLOW}[WARN]${NC}"
 INFO="${BLUE}[INFO]${NC}"
 
 # Global Variables (with fallback defaults)
-NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"opcp-cloudstore-docker-ai"}
+NAME_OF_APPLICATION=${NAME_OF_APPLICATION:-"softfluid"}
 APPLICATION_IDENTITY_NUMBER=${APPLICATION_IDENTITY_NUMBER:-0}
 RANGE_START_CONTROLPLAN=${RANGE_START_CONTROLPLAN:-80}
 RANGE_RESERVED_CONTROLPLAN=${RANGE_RESERVED_CONTROLPLAN:-0}
-S3_BUCKET_NAME=${S3_BUCKET_NAME:-"opcp-psmc-s3"}
+S3_BUCKET_NAME=${S3_BUCKET_NAME:-"softfluid-psmc-s3"}
 
 # Global Parameters (command line args override config)
 COMMAND=${1:-help}
@@ -454,7 +454,7 @@ recover_database() {
 import os
 from simple_term_menu import TerminalMenu
 
-s3_bucket = os.environ.get('S3_BUCKET_NAME', 'opcp-psmc-s3')
+s3_bucket = os.environ.get('S3_BUCKET_NAME', 'softfluid-psmc-s3')
 options = ["Local backups (./softfluid/db/backup)", f"Remote S3 backups (s3://{s3_bucket}/${NAME_OF_APPLICATION}/db/backup)"]
 terminal_menu = TerminalMenu(
     options,
@@ -1683,8 +1683,8 @@ server {
     listen 443 ssl;
     server_name ${server_names};
 
-    ssl_certificate /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${domain}/fullchain_domain.crt;
-    ssl_certificate_key /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${domain}/privateKey_domain.key;
+    ssl_certificate /home/ubuntu/softfluid/ssl/${domain}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/softfluid/ssl/${domain}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 
@@ -1718,8 +1718,8 @@ server {
     listen 443 ssl;
     server_name ${DOMAIN} www.${DOMAIN};
 
-    ssl_certificate /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${DOMAIN}/fullchain_domain.crt;
-    ssl_certificate_key /home/ubuntu/opcp-cloudstore-docker-ai/ssl/${DOMAIN}/privateKey_domain.key;
+    ssl_certificate /home/ubuntu/softfluid/ssl/${DOMAIN}/fullchain_domain.crt;
+    ssl_certificate_key /home/ubuntu/softfluid/ssl/${DOMAIN}/privateKey_domain.key;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
 EOF
@@ -2047,7 +2047,7 @@ EOF
 
 # Show usage information
 help() {
-    echo "🚀 OPCP-CloudStore-Docker-AI Deployment Script v${VERSION}"
+    echo "🚀 softfluid Deployment Script v${VERSION}"
     echo "Usage: $0 [COMMAND] [MODE] [USER_ID] [USER_NAME] [USER_EMAIL] [DESCRIPTION] [OPTIONS]"
     echo ""
     echo "COMMANDS:"
@@ -2181,8 +2181,8 @@ help() {
     echo "  • Docker Containers (optional)"
     echo ""
     echo "ACCESS URLS:"
-    echo "  • Main App: https://www.opcp-psmc.com"
-    echo "  • Gitea:    https://www.opcp-psmc.com/gitea"
+    echo "  • Main App: https://www.softfluid.fr"
+    echo "  • Gitea:    https://www.softfluid.fr/gitea"
     echo "  • Local:    https://localhost (with SSL certificates)"
 }
 
@@ -2279,7 +2279,7 @@ main() {
             exit 0
             ;;
         "version"|"--version"|"-v")
-            echo "OPCP-CloudStore-Docker-AI v${VERSION}"
+            echo "softfluid v${VERSION}"
             exit 0
             ;;
         *)

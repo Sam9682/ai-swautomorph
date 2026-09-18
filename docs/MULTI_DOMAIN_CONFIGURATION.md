@@ -201,11 +201,11 @@ Ensure SSL certificates exist for all configured domains:
 mkdir -p /home/ubuntu/ai-swautomorph/ssl/yourdomain.com
 
 # Copy certificates
-cp fullchain.crt /home/ubuntu/opcp-cloudstore-docker-ai/ssl/yourdomain.com/fullchain_domain.crt
-cp privkey.key /home/ubuntu/opcp-cloudstore-docker-ai/ssl/yourdomain.com/privateKey_domain.key
+cp fullchain.crt /home/ubuntu/softfluid/ssl/yourdomain.com/fullchain_domain.crt
+cp privkey.key /home/ubuntu/softfluid/ssl/yourdomain.com/privateKey_domain.key
 
 # Set proper permissions
-chmod 644 /home/ubuntu/opcp-cloudstore-docker-ai/ssl/yourdomain.com/fullchain_domain.crt
+chmod 644 /home/ubuntu/softfluid/ssl/yourdomain.com/fullchain_domain.crt
 chmod 600 /home/ubuntu/opcp-cloudstore-docker-ah/ssl/yourdomain.com/privateKey_domain.key
 ```
 
