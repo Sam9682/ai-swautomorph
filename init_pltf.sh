@@ -25,7 +25,7 @@ print_warning() {
 }
 
 echo -e "${BLUE}+==========================================+${NC}"
-echo -e "${BLUE}|${NC}   CloudStore-Docker-AI Platform Setup    ${BLUE}|${NC}"
+echo -e "${BLUE}|${NC}   SoftFluid Platform Setup    ${BLUE}|${NC}"
 echo -e "${BLUE}+==========================================+${NC}"
 echo ""
 
